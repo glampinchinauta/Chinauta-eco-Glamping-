@@ -11,6 +11,7 @@ interface MyReservationsModalProps {
 export const MyReservationsModal: React.FC<MyReservationsModalProps> = ({ isOpen, onClose }) => {
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
+  const [contactTerm, setContactTerm] = useState('');
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,19 +20,15 @@ export const MyReservationsModal: React.FC<MyReservationsModalProps> = ({ isOpen
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchTerm.trim()) return;
+    if (!searchTerm.trim() || !contactTerm.trim()) return;
 
     setLoading(true);
     try {
-      const res = await fetch('/api/reservations');
+      const params = new URLSearchParams({ code: searchTerm.trim(), contact: contactTerm.trim() });
+      const res = await fetch(`/api/reservations/lookup?${params.toString()}`);
       const data = await res.json();
       if (Array.isArray(data)) {
-        const filtered = data.filter((r: any) => 
-          r.reservation_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (r.customer_email && r.customer_email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (r.customer_phone && r.customer_phone.includes(searchTerm))
-        );
-        setReservations(filtered);
+        setReservations(data);
         setSearched(true);
       }
     } catch (err) {
@@ -69,6 +66,14 @@ export const MyReservationsModal: React.FC<MyReservationsModalProps> = ({ isOpen
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder={t('my_reservations.search_ph')}
+              className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-hidden focus:border-emerald-500 font-medium"
+              required
+            />
+            <input
+              type="text"
+              value={contactTerm}
+              onChange={e => setContactTerm(e.target.value)}
+              placeholder="Correo o teléfono usado en la reserva"
               className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-hidden focus:border-emerald-500 font-medium"
               required
             />

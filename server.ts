@@ -95,12 +95,12 @@ const PUBLIC_WRITES = new Set([
   "/api/upload-video",
 ]);
 // Reads that expose customer, money or staff data: admin only.
-const ADMIN_READS = ["/api/customers", "/api/payments", "/api/users", "/api/audit", "/api/settings", "/api/finances/summary", "/api/dashboard/metrics", "/api/analytics/charts", "/api/promo-codes"];
+const ADMIN_READS = ["/api/reservations", "/api/customers", "/api/payments", "/api/users", "/api/audit", "/api/settings", "/api/finances/summary", "/api/dashboard/metrics", "/api/analytics/charts", "/api/promo-codes"];
 
 app.use("/api", (req, res, next) => {
   const full = "/api" + req.path.replace(/\/+$/, "");
   const isWrite = req.method !== "GET";
-  const isAdminRead = !isWrite && full !== "/api/promo-codes/validate" && ADMIN_READS.some((base) => full === base || full.startsWith(base + "/"));
+  const isAdminRead = !isWrite && full !== "/api/promo-codes/validate" && full !== "/api/reservations/lookup" && ADMIN_READS.some((base) => full === base || full.startsWith(base + "/"));
   if ((isWrite && !PUBLIC_WRITES.has(full)) || isAdminRead) {
     return requireAdmin(req, res, next);
   }
@@ -1242,6 +1242,34 @@ app.get("/api/availability", (req, res) => {
 });
 
 // 4. Reservations & Double Booking Prevention (Atomic Transaction)
+// Public lookup for a guest: needs the exact reservation code AND the email or phone used to book.
+// Returns only the fields the guest needs (no notes, documents or other customers' data).
+app.get("/api/reservations/lookup", (req, res) => {
+  const code = String(req.query.code || "").trim().toUpperCase();
+  const contact = String(req.query.contact || "").trim();
+  if (!code || !contact) {
+    return res.status(400).json({ error: "Escribe el código de reserva y tu correo o teléfono." });
+  }
+  const contactEmail = contact.toLowerCase();
+  const contactDigits = contact.replace(/\D/g, "");
+  const rows = db.prepare(`
+    SELECT r.id, r.reservation_code, r.check_in, r.check_out, r.guests, r.status, r.payment_status,
+           r.total_amount, r.amount_pending, r.created_at, d.name as dome_name,
+           c.email as customer_email, c.phone as customer_phone, c.whatsapp as customer_whatsapp
+    FROM reservations r
+    JOIN customers c ON r.customer_id = c.id
+    JOIN domes d ON r.dome_id = d.id
+    WHERE UPPER(r.reservation_code) = ?
+  `).all(code) as any[];
+  const matches = rows.filter((r) => {
+    const emailOk = !!r.customer_email && String(r.customer_email).trim().toLowerCase() === contactEmail;
+    const phoneOk = contactDigits.length >= 7 && [r.customer_phone, r.customer_whatsapp]
+      .some((p) => p && String(p).replace(/\D/g, "") === contactDigits);
+    return emailOk || phoneOk;
+  });
+  res.json(matches.map(({ customer_email, customer_phone, customer_whatsapp, ...safe }) => safe));
+});
+
 app.get("/api/reservations", (req, res) => {
   try {
     const reservations = db.prepare(`
