@@ -30,6 +30,82 @@ const PORT = portFromArgs || Number(process.env.DEFAULT_APP_PORT) || 3000;
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+// ---------- Admin authentication (Firebase Google sign-in, verified on the server) ----------
+const FIREBASE_PROJECT_ID: string = process.env.FIREBASE_PROJECT_ID || (() => {
+  try { return JSON.parse(fs.readFileSync(path.join(process.cwd(), "firebase-applet-config.json"), "utf8")).projectId; }
+  catch { return ""; }
+})();
+const ADMIN_EMAILS: string[] = (process.env.ADMIN_EMAILS || "ecoglampingventas@gmail.com")
+  .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+
+let firebaseCertCache: { certs: Record<string, string>; expires: number } | null = null;
+async function getFirebaseCerts(): Promise<Record<string, string>> {
+  if (firebaseCertCache && firebaseCertCache.expires > Date.now()) return firebaseCertCache.certs;
+  const r = await fetch("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com");
+  if (!r.ok) throw new Error("No se pudieron obtener las llaves de Firebase.");
+  const certs = (await r.json()) as Record<string, string>;
+  const m = /max-age=(\d+)/.exec(r.headers.get("cache-control") || "");
+  firebaseCertCache = { certs, expires: Date.now() + (m ? Number(m[1]) * 1000 : 3600_000) };
+  return certs;
+}
+
+async function verifyAdminToken(token: string): Promise<any> {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Token inválido.");
+  const [h, p, s] = parts;
+  const header = JSON.parse(Buffer.from(h, "base64url").toString("utf8"));
+  const payload = JSON.parse(Buffer.from(p, "base64url").toString("utf8"));
+  if (header.alg !== "RS256" || !header.kid) throw new Error("Token inválido.");
+  const certs = await getFirebaseCerts();
+  const cert = certs[header.kid];
+  if (!cert) throw new Error("Token inválido.");
+  const valid = crypto.createVerify("RSA-SHA256").update(`${h}.${p}`).verify(cert, Buffer.from(s, "base64url"));
+  if (!valid) throw new Error("Token inválido.");
+  const now = Math.floor(Date.now() / 1000);
+  if (!FIREBASE_PROJECT_ID || payload.aud !== FIREBASE_PROJECT_ID || payload.iss !== `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`) {
+    throw new Error("Token inválido.");
+  }
+  if (!(payload.exp > now) || payload.iat > now + 300) throw new Error("La sesión venció. Inicia sesión de nuevo.");
+  if (!payload.email || payload.email_verified !== true) throw new Error("Correo no verificado.");
+  if (!ADMIN_EMAILS.includes(String(payload.email).toLowerCase())) throw new Error("Sin permisos de administrador.");
+  return payload;
+}
+
+async function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  if (!token) return res.status(401).json({ error: "Inicia sesión como administrador." });
+  try {
+    (req as any).adminEmail = (await verifyAdminToken(token)).email;
+    next();
+  } catch (err: any) {
+    res.status(401).json({ error: err.message || "No autorizado." });
+  }
+}
+
+// Public writes (website visitors): booking, AI concierge, testimonials, uploads from the site.
+const PUBLIC_WRITES = new Set([
+  "/api/reservations",
+  "/api/ai/chat",
+  "/api/testimonials",
+  "/api/auth/login",
+  "/api/upload-media",
+  "/api/upload-image",
+  "/api/upload-video",
+]);
+// Reads that expose customer, money or staff data: admin only.
+const ADMIN_READS = ["/api/customers", "/api/payments", "/api/users", "/api/audit", "/api/settings", "/api/finances/summary", "/api/dashboard/metrics", "/api/analytics/charts", "/api/promo-codes"];
+
+app.use("/api", (req, res, next) => {
+  const full = "/api" + req.path.replace(/\/+$/, "");
+  const isWrite = req.method !== "GET";
+  const isAdminRead = !isWrite && full !== "/api/promo-codes/validate" && ADMIN_READS.some((base) => full === base || full.startsWith(base + "/"));
+  if ((isWrite && !PUBLIC_WRITES.has(full)) || isAdminRead) {
+    return requireAdmin(req, res, next);
+  }
+  next();
+});
 app.use(express.static(path.join(process.cwd(), "public")));
 
 // Initialize SQLite database: buscar glamping.db sin depender de desde dónde se arranque el servidor
