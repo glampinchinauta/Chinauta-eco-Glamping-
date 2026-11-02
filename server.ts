@@ -1164,7 +1164,7 @@ app.get("/api/reservations", (req, res) => {
 });
 
 app.post("/api/reservations", (req, res) => {
-  const { customer, dome_id, check_in, check_out, guests, notes, user_name, promo_code } = req.body;
+  const { customer, dome_id, check_in, check_out, guests, notes, user_name, promo_code, bbq_zone } = req.body;
 
   if (!customer || !customer.name || !dome_id || !check_in || !check_out) {
     return res.status(400).json({ error: "Faltan datos obligatorios para crear la reserva." });
@@ -1209,7 +1209,9 @@ app.post("/api/reservations", (req, res) => {
     // Server-calculated total (price_per_night * nights, ignoring client total_amount)
     const serverTotal = dome.price_per_night * nights;
     const discount = computeDiscount(check_in, serverTotal, promo_code);
-    const finalTotal = serverTotal - discount.amount;
+    // Zona BBQ fee ($20.000) when the guest brings their own food; not discounted
+    const bbqFee = bbq_zone ? 20000 : 0;
+    const finalTotal = serverTotal - discount.amount + bbqFee;
     const discountNote = discount.amount > 0
       ? `Descuento ${discount.percent}% (-$${discount.amount})${promo_code ? ` código ${String(promo_code).trim().toUpperCase()}` : ""}. `
       : "";

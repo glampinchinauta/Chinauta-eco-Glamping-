@@ -249,7 +249,10 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
     (sum, i) => sum + (Number(i.price) || 0) * (foodChoices[String(i.id)]?.qty || 0),
     0
   );
-  const totalAmount = Math.max(0, subtotal - discountAmount) + foodTotal;
+  // BBQ zone fee (for guests who bring no food from the menu). Not discounted, like food.
+  const BBQ_ZONE_FEE = 20000;
+  const bbqFee = bbqOnly ? BBQ_ZONE_FEE : 0;
+  const totalAmount = Math.max(0, subtotal - discountAmount) + foodTotal + bbqFee;
 
   const validateStep2 = () => {
     if (bookingType === 'pasadia') {
@@ -285,6 +288,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           guests,
           total_amount: totalAmount,
           promo_code: appliedPromo?.code || null,
+          bbq_zone: bbqOnly,
           notes:`[${bookingType.toUpperCase()}] Mascotas: ${hasPet ? petCount : 0}. Addons: ${Object.entries(selectedAddons).filter(([_,v]) => v).map(([k]) => k).join(', ')}. Mensaje decorativo: ${customMessage}. Comida: ${bbqOnly ? 'No (usará zona BBQ con comida propia)' : (foodSummary.join('; ') || 'No seleccionada')}. Notas: ${notes}`,
           customer: {
             name,
@@ -682,6 +686,9 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                       ? 'Bring your own food and cook it at the BBQ area of the property.'
                       : 'Llevo mi propia comida y la preparo en la zona de barbacoa del lugar.'}
                   </p>
+                  <p className="text-xs font-bold text-emerald-700 mt-1">
+                    {language === 'en' ? 'BBQ zone fee' : 'Costo zona BBQ'}: ${BBQ_ZONE_FEE.toLocaleString('es-CO')} COP
+                  </p>
                 </div>
                 <span className="font-bold text-emerald-700 text-sm shrink-0">{bbqOnly ? '✓' : ''}</span>
               </div>
@@ -914,6 +921,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                 {hasPet && <div className="flex justify-between"><span className="text-slate-500">{t('wizard.summary_pets')}</span><span className="font-bold text-slate-900">+{petCount} (${petsFee.toLocaleString('es-CO')})</span></div>}
                 {addonsTotal > 0 && <div className="flex justify-between"><span className="text-slate-500">{t('wizard.summary_addons')}</span><span className="font-bold text-slate-900">+${addonsTotal.toLocaleString('es-CO')}</span></div>}
                 {bbqOnly && <div className="flex justify-between gap-4"><span className="text-slate-500">{language === 'en' ? 'Meals' : 'Comida'}</span><span className="font-bold text-slate-900 text-right">{language === 'en' ? 'Own food - BBQ zone' : 'Comida propia - zona BBQ'}</span></div>}
+                {bbqOnly && <div className="flex justify-between"><span className="text-slate-500">{language === 'en' ? 'BBQ zone fee' : 'Zona BBQ'}</span><span className="font-bold text-slate-900">+${BBQ_ZONE_FEE.toLocaleString('es-CO')}</span></div>}
                 {foodSummary.length > 0 && <div className="flex justify-between gap-4"><span className="text-slate-500">{language === 'en' ? 'Meals' : 'Comida'}</span><span className="font-bold text-slate-900 text-right">{foodSummary.join(', ')}</span></div>}
                 {foodTotal > 0 && <div className="flex justify-between"><span className="text-slate-500">{language === 'en' ? 'Meals total (separate)' : 'Total comida (aparte)'}</span><span className="font-bold text-slate-900">+${foodTotal.toLocaleString('es-CO')}</span></div>}
                 {effectiveDiscountPercent > 0 && <div className="flex justify-between text-emerald-700"><span className="font-medium">{t('wizard.summary_discount')} ({effectiveDiscountPercent}%):</span><span className="font-bold">-${discountAmount.toLocaleString('es-CO')}</span></div>}
