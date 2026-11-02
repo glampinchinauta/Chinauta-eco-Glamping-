@@ -452,6 +452,112 @@ try {
   console.warn("Dome image sync notice:", e);
 }
 
+// Promo codes table and one-time migrations (prices, amenities)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS app_migrations (
+    name TEXT PRIMARY KEY,
+    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS promo_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT UNIQUE NOT NULL,
+    percent INTEGER NOT NULL CHECK(percent IN (5, 10, 15)),
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// One-time: nightly prices requested by the owner (applied once, so later admin edits are kept)
+const PRICE_MIGRATION = "domes_prices_2026_11";
+if (!db.prepare(`SELECT 1 FROM app_migrations WHERE name = ?`).get(PRICE_MIGRATION)) {
+  const requestedPrices: Record<string, number> = {
+    "DOMO-01": 350000,
+    "DOMO-02": 400000,
+    "DOMO-03": 400000,
+    "DOMO-04": 420000,
+    "DOMO-05": 450000,
+    "DOMO-06": 450000,
+  };
+  for (const [code, price] of Object.entries(requestedPrices)) {
+    db.prepare(`UPDATE domes SET price_per_night = ? WHERE code = ?`).run(price, code);
+  }
+  db.prepare(`INSERT INTO app_migrations (name) VALUES (?)`).run(PRICE_MIGRATION);
+}
+
+// Amenities shared by every dome (appended after the sync above on each start; idempotent)
+const AMENITIES_TEXT = "Nevera tipo bar con bebidas, Canastas de snacks (costo adicional), Zona BBQ a gas, Parqueadero gratis";
+try {
+  const domeRows = db.prepare(`SELECT id, features FROM domes`).all() as any[];
+  for (const r of domeRows) {
+    const f: string = r.features || "";
+    if (!f.includes("Nevera tipo bar")) {
+      db.prepare(`UPDATE domes SET features = ? WHERE id = ?`).run(f ? `${f}, ${AMENITIES_TEXT}` : AMENITIES_TEXT, r.id);
+    }
+  }
+} catch (e) {
+  console.warn("Amenities sync notice:", e);
+}
+
+// Discount rule: Mon–Thu check-in gets 10%; a valid promo code gives 5/10/15%. The higher one applies.
+function computeDiscount(checkIn: string, subtotal: number, promoCode?: string) {
+  const day = new Date(`${checkIn}T00:00:00Z`).getUTCDay(); // 0 = Sun ... 6 = Sat
+  const weekdayPct = day >= 1 && day <= 4 ? 10 : 0;
+  let promoPct = 0;
+  if (promoCode && String(promoCode).trim()) {
+    const row = db.prepare(`SELECT percent FROM promo_codes WHERE code = ? AND active = 1`).get(String(promoCode).trim().toUpperCase()) as any;
+    if (row) promoPct = row.percent;
+  }
+  const percent = Math.max(weekdayPct, promoPct);
+  return { percent, amount: Math.round((subtotal * percent) / 100), weekdayPct, promoPct };
+}
+
+// Public: check a promo code before booking
+app.get("/api/promo-codes/validate", (req, res) => {
+  const code = String(req.query.code || "").trim().toUpperCase();
+  if (!code) return res.status(400).json({ valid: false, error: "Escribe un código." });
+  const row = db.prepare(`SELECT code, percent FROM promo_codes WHERE code = ? AND active = 1`).get(code) as any;
+  if (!row) return res.status(404).json({ valid: false, error: "El código no es válido." });
+  res.json({ valid: true, code: row.code, percent: row.percent });
+});
+
+// Admin: list, create, update and deactivate promo codes
+app.get("/api/promo-codes", (req, res) => {
+  res.json(db.prepare(`SELECT id, code, percent, active, created_at FROM promo_codes ORDER BY code`).all());
+});
+
+app.post("/api/promo-codes", (req, res) => {
+  const { code, percent, active, user_name } = req.body;
+  const cleanCode = String(code || "").trim().toUpperCase();
+  const pct = Number(percent);
+  if (!cleanCode || ![5, 10, 15].includes(pct)) {
+    return res.status(400).json({ error: "Código obligatorio y porcentaje de 5, 10 o 15." });
+  }
+  try {
+    const info = db.prepare(`INSERT INTO promo_codes (code, percent, active) VALUES (?, ?, ?)`).run(cleanCode, pct, active === 0 ? 0 : 1);
+    logAudit(user_name || "Admin", "CREAR_CODIGO", "Promo", cleanCode, `Código ${cleanCode} al ${pct}%`);
+    res.json({ success: true, id: info.lastInsertRowid });
+  } catch (e: any) {
+    res.status(409).json({ error: "Ese código ya existe." });
+  }
+});
+
+app.put("/api/promo-codes/:id", (req, res) => {
+  const { id } = req.params;
+  const { code, percent, active, user_name } = req.body;
+  const cleanCode = String(code || "").trim().toUpperCase();
+  const pct = Number(percent);
+  if (!cleanCode || ![5, 10, 15].includes(pct)) {
+    return res.status(400).json({ error: "Código obligatorio y porcentaje de 5, 10 o 15." });
+  }
+  try {
+    db.prepare(`UPDATE promo_codes SET code = ?, percent = ?, active = ? WHERE id = ?`).run(cleanCode, pct, active === 0 ? 0 : 1, id);
+    logAudit(user_name || "Admin", "ACTUALIZAR_CODIGO", "Promo", cleanCode, `Código ${cleanCode} al ${pct}%, activo: ${active === 0 ? "no" : "sí"}`);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(409).json({ error: "Ese código ya existe." });
+  }
+});
+
 // Seed / Update Gallery Items with real uploaded videos and photos
 try {
   db.exec(`
@@ -1058,7 +1164,7 @@ app.get("/api/reservations", (req, res) => {
 });
 
 app.post("/api/reservations", (req, res) => {
-  const { customer, dome_id, check_in, check_out, guests, notes, user_name } = req.body;
+  const { customer, dome_id, check_in, check_out, guests, notes, user_name, promo_code } = req.body;
 
   if (!customer || !customer.name || !dome_id || !check_in || !check_out) {
     return res.status(400).json({ error: "Faltan datos obligatorios para crear la reserva." });
@@ -1102,6 +1208,11 @@ app.post("/api/reservations", (req, res) => {
 
     // Server-calculated total (price_per_night * nights, ignoring client total_amount)
     const serverTotal = dome.price_per_night * nights;
+    const discount = computeDiscount(check_in, serverTotal, promo_code);
+    const finalTotal = serverTotal - discount.amount;
+    const discountNote = discount.amount > 0
+      ? `Descuento ${discount.percent}% (-$${discount.amount})${promo_code ? ` código ${String(promo_code).trim().toUpperCase()}` : ""}. `
+      : "";
 
     // 2. Check for overlapping reservations: check_in < existingCheckOut AND check_out > existingCheckIn
     const overlap = db.prepare(`
@@ -1180,9 +1291,9 @@ app.post("/api/reservations", (req, res) => {
       check_in,
       check_out,
       numGuests,
-      serverTotal,
-      serverTotal,
-      notes || '',
+      finalTotal,
+      finalTotal,
+      discountNote + (notes || ''),
       user_name || customer.name || 'Portal Web'
     );
 

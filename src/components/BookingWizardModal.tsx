@@ -52,7 +52,32 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
     coupleMassage: false
   });
   const [customMessage, setCustomMessage] = useState('');
-  const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; percent: number } | null>(null);
+  const [promoMsg, setPromoMsg] = useState('');
+  const [promoChecking, setPromoChecking] = useState(false);
+
+  const applyPromoCode = async () => {
+    const code = promoInput.trim().toUpperCase();
+    if (!code) return;
+    setPromoChecking(true);
+    setPromoMsg('');
+    try {
+      const res = await fetch(`/api/promo-codes/validate?code=${encodeURIComponent(code)}`);
+      const data = await res.json();
+      if (res.ok && data.valid) {
+        setAppliedPromo({ code: data.code, percent: data.percent });
+        setPromoMsg(language === 'en' ? `Code applied: ${data.percent}% off` : `Código aplicado: ${data.percent}% de descuento`);
+      } else {
+        setAppliedPromo(null);
+        setPromoMsg(language === 'en' ? 'Invalid code' : 'El código no es válido');
+      }
+    } catch {
+      setPromoMsg(language === 'en' ? 'Could not check the code' : 'No se pudo verificar el código');
+    } finally {
+      setPromoChecking(false);
+    }
+  };
 
   // Food choices (from the menu)
   const [menuItems, setMenuItems] = useState<any[]>([]);
@@ -214,19 +239,9 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   // Festivos de Colombia se cobran como fin de semana (sin descuento entre semana).
   const isWeekday = checkInDayOfWeek >= 1 && checkInDayOfWeek <= 4 && !isColombianHoliday(checkIn);
 
-  let effectiveDiscountPercent = 0;
-  if (isWeekday) {
-    const activeServicesCount = Object.values(selectedAddons).filter(Boolean).length;
-    if (activeServicesCount >= 3 || addonsTotal >= 300000) {
-      effectiveDiscountPercent = 20;
-    } else if (activeServicesCount >= 2 || addonsTotal >= 150000) {
-      effectiveDiscountPercent = 15;
-    } else {
-      effectiveDiscountPercent = 10;
-    }
-  } else {
-    effectiveDiscountPercent = discountPercent;
-  }
+  // Mon–Thu: 10% fixed. A valid promo code gives 5/10/15%. The higher of the two applies (same rule as the server).
+  const weekdayDiscountPercent = isWeekday ? 10 : 0;
+  const effectiveDiscountPercent = Math.max(weekdayDiscountPercent, appliedPromo?.percent || 0);
 
   const discountAmount = (subtotal * effectiveDiscountPercent) / 100;
   // Food is charged separately: it is added after the discount and is not discounted.
@@ -269,7 +284,8 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           check_out: effectiveCheckOut,
           guests,
           total_amount: totalAmount,
-          notes: `[${bookingType.toUpperCase()}] Mascotas: ${hasPet ? petCount : 0}. Addons: ${Object.entries(selectedAddons).filter(([_,v]) => v).map(([k]) => k).join(', ')}. Mensaje decorativo: ${customMessage}. Comida: ${bbqOnly ? 'No (usará zona BBQ con comida propia)' : (foodSummary.join('; ') || 'No seleccionada')}. Notas: ${notes}`,
+          promo_code: appliedPromo?.code || null,
+          notes:`[${bookingType.toUpperCase()}] Mascotas: ${hasPet ? petCount : 0}. Addons: ${Object.entries(selectedAddons).filter(([_,v]) => v).map(([k]) => k).join(', ')}. Mensaje decorativo: ${customMessage}. Comida: ${bbqOnly ? 'No (usará zona BBQ con comida propia)' : (foodSummary.join('; ') || 'No seleccionada')}. Notas: ${notes}`,
           customer: {
             name,
             phone,
@@ -818,31 +834,40 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
               </div>
 
               {/* Automatic Weekday Discount Notice */}
-              {isWeekday ? (
+              {isWeekday && (
                 <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium space-y-1">
                   <div className="font-bold flex items-center space-x-1.5 text-emerald-800">
                     <Sparkles className="w-4 h-4 text-emerald-600" />
-                    <span>{t('wizard.weekday_discount_title').replace('{percent}', String(effectiveDiscountPercent))}</span>
+                    <span>{t('wizard.weekday_discount_title').replace('{percent}', String(weekdayDiscountPercent))}</span>
                   </div>
-                  <p>{t('wizard.weekday_discount_desc').replace('{percent}', String(effectiveDiscountPercent)).replace('{amount}', discountAmount.toLocaleString('es-CO'))}</p>
-                </div>
-              ) : (
-                <div className="pt-2">
-                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">{t('wizard.promo_code_label')}</label>
-                  <div className="flex space-x-2">
-                    <select
-                      value={discountPercent}
-                      onChange={e => setDiscountPercent(Number(e.target.value))}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium bg-white"
-                    >
-                      <option value={0}>{t('wizard.no_discount')}</option>
-                      <option value={10}>{t('wizard.disc_10')}</option>
-                      <option value={15}>{t('wizard.disc_15')}</option>
-                      <option value={20}>{t('wizard.disc_20')}</option>
-                    </select>
-                  </div>
+                  <p>{t('wizard.weekday_discount_desc').replace('{percent}', String(weekdayDiscountPercent)).replace('{amount}', ((subtotal * weekdayDiscountPercent) / 100).toLocaleString('es-CO'))}</p>
                 </div>
               )}
+
+              <div className="pt-2">
+                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                  {language === 'en' ? 'Promo code' : 'Código de promoción'}
+                </label>
+                <div className="flex space-x-2">
+                  <input
+                    value={promoInput}
+                    onChange={e => { setPromoInput(e.target.value.toUpperCase()); setAppliedPromo(null); setPromoMsg(''); }}
+                    placeholder={language === 'en' ? 'Enter your code' : 'Escribe tu código'}
+                    className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium bg-white uppercase"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyPromoCode}
+                    disabled={promoChecking || !promoInput.trim()}
+                    className="px-4 py-3 rounded-xl bg-emerald-700 text-white text-sm font-bold disabled:opacity-50"
+                  >
+                    {language === 'en' ? 'Apply' : 'Aplicar'}
+                  </button>
+                </div>
+                {promoMsg && (
+                  <p className={`mt-1 text-xs font-medium ${appliedPromo ? 'text-emerald-700' : 'text-red-600'}`}>{promoMsg}</p>
+                )}
+              </div>
 
               {/* Payment Methods */}
               <div className="space-y-3 pt-2">
