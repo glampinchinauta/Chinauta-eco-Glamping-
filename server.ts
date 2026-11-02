@@ -4,6 +4,24 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { DatabaseSync } from "node:sqlite";
 import { GoogleGenAI } from "@google/genai";
+import crypto from "crypto";
+
+// Password hashing (scrypt). Stored as "scrypt$<salt>$<hash>".
+function hashPassword(pw: string): string {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(pw, salt, 64).toString("hex");
+  return `scrypt$${salt}$${hash}`;
+}
+
+function verifyPassword(pw: string, stored: string): boolean {
+  if (!stored || !pw) return false;
+  // Legacy plain-text rows are still accepted once; the login upgrades them to a hash.
+  if (!stored.startsWith("scrypt$")) return stored === pw;
+  const [, salt, hash] = stored.split("$");
+  const test = crypto.scryptSync(pw, salt, 64);
+  const expected = Buffer.from(hash, "hex");
+  return expected.length === test.length && crypto.timingSafeEqual(expected, test);
+}
 
 const app = express();
 const portArgIndex = process.argv.indexOf("--port");
@@ -177,10 +195,10 @@ if (domeCount.count === 0) {
 
   // Seed Users
   const insertUser = db.prepare(`INSERT INTO users (username, password_hash, full_name, email, role, status) VALUES (?, ?, ?, ?, ?, ?)`);
-  insertUser.run("superadmin", "admin123", "Carlos SuperAdmin", "superadmin@ecoglampingchinauta.com", "SUPERADMIN", "Activo");
-  insertUser.run("admin", "admin123", "María Admin", "admin@ecoglampingchinauta.com", "ADMIN", "Activo");
-  insertUser.run("reception", "admin123", "Ana Recepción", "reception@ecoglampingchinauta.com", "RECEPCION", "Activo");
-  insertUser.run("finanzas", "admin123", "Pedro Finanzas", "finanzas@ecoglampingchinauta.com", "FINANCES", "Activo");
+  insertUser.run("superadmin", hashPassword("admin123"), "Carlos SuperAdmin", "superadmin@ecoglampingchinauta.com", "SUPERADMIN", "Activo");
+  insertUser.run("admin", hashPassword("admin123"), "María Admin", "admin@ecoglampingchinauta.com", "ADMIN", "Activo");
+  insertUser.run("reception", hashPassword("admin123"), "Ana Recepción", "reception@ecoglampingchinauta.com", "RECEPCION", "Activo");
+  insertUser.run("finanzas", hashPassword("admin123"), "Pedro Finanzas", "finanzas@ecoglampingchinauta.com", "FINANCES", "Activo");
 
   // Seed Domes with authentic local assets and real configurations
   const insertDome = db.prepare(`INSERT INTO domes (name, code, description, capacity, price_per_night, image_url, images, status, features, policies) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
@@ -1645,8 +1663,11 @@ app.get("/api/users", (req, res) => {
 app.post("/api/users", (req, res) => {
   try {
     const { username, password, full_name, email, role, status, user_name } = req.body;
+    if (!username || !password || String(password).length < 8) {
+      return res.status(400).json({ error: "El usuario y una contraseña de al menos 8 caracteres son obligatorios." });
+    }
     const stmt = db.prepare(`INSERT INTO users (username, password_hash, full_name, email, role, status) VALUES (?, ?, ?, ?, ?, ?)`);
-    const info = stmt.run(username, password || 'admin123', full_name, email, role || 'ADMIN', status || 'Activo');
+    const info = stmt.run(username, hashPassword(String(password)), full_name, email, role || 'ADMIN', status || 'Activo');
     logAudit(user_name || "SuperAdmin", "CREAR_USUARIO", "Usuario", String(info.lastInsertRowid), `Creación de administrador ${username} (${role})`);
     res.json({ success: true, id: info.lastInsertRowid });
   } catch (err: any) {
@@ -1657,10 +1678,15 @@ app.post("/api/users", (req, res) => {
 app.post("/api/auth/login", (req, res) => {
   try {
     const { username, password } = req.body;
-    const user = db.prepare(`SELECT * FROM users WHERE username = ? AND password_hash = ? AND status = 'Activo'`).get(username, password) as any;
-    
-    if (!user) {
+    const user = db.prepare(`SELECT * FROM users WHERE username = ? AND status = 'Activo'`).get(String(username || "")) as any;
+
+    if (!user || !verifyPassword(String(password || ""), user.password_hash)) {
       return res.status(401).json({ error: "Credenciales inválidas o usuario inactivo." });
+    }
+
+    // Upgrade an old plain-text password to a hash the first time the user logs in
+    if (!String(user.password_hash).startsWith("scrypt$")) {
+      db.prepare(`UPDATE users SET password_hash = ? WHERE id = ?`).run(hashPassword(String(password)), user.id);
     }
 
     logAudit(user.full_name, "LOGIN", "Usuario", String(user.id), `Inicio de sesión exitoso (${user.role})`);
