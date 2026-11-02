@@ -30,8 +30,9 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
 
   const [step, setStep] = useState(1);
   const [bookingType, setBookingType] = useState<'estadia' | 'pasadia'>('estadia');
-  const [checkIn, setCheckIn] = useState(initialCheckIn || tomorrow.toISOString().split('T')[0]);
-  const [checkOut, setCheckOut] = useState(initialCheckOut || dayAfter.toISOString().split('T')[0]);
+  const toLocalYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const [checkIn, setCheckIn] = useState(initialCheckIn || toLocalYMD(tomorrow));
+  const [checkOut, setCheckOut] = useState(initialCheckOut || toLocalYMD(dayAfter));
   const [guests, setGuests] = useState(2);
   const [domes, setDomes] = useState<any[]>([]);
   const [selectedDomeId, setSelectedDomeId] = useState<number | null>(initialDomeId || null);
@@ -235,7 +236,8 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const subtotal = baseTotal + extraPersonsFee + petsFee + addonsTotal;
 
   // Weekday check
-  const checkInDayOfWeek = new Date(checkIn).getDay();
+  // Parse as local date so the weekday is not shifted by the timezone
+  const checkInDayOfWeek = new Date(`${checkIn}T00:00:00`).getDay();
   // Festivos de Colombia se cobran como fin de semana (sin descuento entre semana).
   const isWeekday = checkInDayOfWeek >= 1 && checkInDayOfWeek <= 4 && !isColombianHoliday(checkIn);
 
@@ -256,7 +258,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
 
   const validateStep2 = () => {
     if (bookingType === 'pasadia') {
-      const dayOfWeek = new Date(checkIn).getDay();
+      const dayOfWeek = new Date(`${checkIn}T00:00:00`).getDay();
       if (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6) {
         setErrorMsg(t('wizard.daypass_restriction_err'));
         return false;
@@ -404,7 +406,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                   <input
                     type="date"
                     value={checkIn}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}
                     onChange={e => {
                       setCheckIn(e.target.value);
                       if (bookingType === 'pasadia') setCheckOut(e.target.value);

@@ -1377,6 +1377,20 @@ app.get("/api/payments", (req, res) => {
 app.post("/api/payments", (req, res) => {
   try {
     const { reservation_id, amount, method, user_name } = req.body;
+
+    // Validate the payment: positive amount, reservation exists, and not more than what is pending
+    const payAmount = Number(amount);
+    if (!reservation_id || !Number.isFinite(payAmount) || payAmount <= 0) {
+      return res.status(400).json({ error: "El monto del pago debe ser mayor a cero." });
+    }
+    const existing = db.prepare(`SELECT total_amount, amount_paid FROM reservations WHERE id = ?`).get(reservation_id) as any;
+    if (!existing) {
+      return res.status(404).json({ error: "La reserva no existe." });
+    }
+    const pendingNow = Math.max(0, (existing.total_amount || 0) - (existing.amount_paid || 0));
+    if (payAmount > pendingNow + 0.5) {
+      return res.status(400).json({ error: `El pago supera el saldo pendiente ($${pendingNow}).` });
+    }
     
     db.exec("BEGIN TRANSACTION;");
 

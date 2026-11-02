@@ -14,8 +14,9 @@ export const AvailabilityChecker: React.FC<AvailabilityCheckerProps> = ({ onOpen
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
   const dayAfter = new Date(); dayAfter.setDate(dayAfter.getDate() + 3);
 
-  const [checkIn, setCheckIn] = useState(tomorrow.toISOString().split('T')[0]);
-  const [checkOut, setCheckOut] = useState(dayAfter.toISOString().split('T')[0]);
+  const toLocalYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const [checkIn, setCheckIn] = useState(toLocalYMD(tomorrow));
+  const [checkOut, setCheckOut] = useState(toLocalYMD(dayAfter));
   const [results, setResults] = useState<any[]>([]);
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -76,7 +77,7 @@ export const AvailabilityChecker: React.FC<AvailabilityCheckerProps> = ({ onOpen
               <input
                 type="date"
                 value={checkIn}
-                min={new Date().toISOString().split('T')[0]}
+                min={(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}
                 onChange={e => setCheckIn(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 font-medium focus:outline-hidden focus:border-emerald-500"
                 required
