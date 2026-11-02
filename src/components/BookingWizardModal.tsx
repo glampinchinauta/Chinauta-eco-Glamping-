@@ -291,6 +291,12 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           total_amount: totalAmount,
           promo_code: appliedPromo?.code || null,
           bbq_zone: bbqOnly,
+          booking_type: bookingType,
+          pets: hasPet ? petCount : 0,
+          addons: selectedAddons,
+          food_items: Object.entries(foodChoices)
+            .filter(([, c]) => (c?.qty || 0) > 0)
+            .map(([id, c]) => ({ id: Number(id), qty: c.qty })),
           notes:`[${bookingType.toUpperCase()}] Mascotas: ${hasPet ? petCount : 0}. Addons: ${Object.entries(selectedAddons).filter(([_,v]) => v).map(([k]) => k).join(', ')}. Mensaje decorativo: ${customMessage}. Comida: ${bbqOnly ? 'No (usará zona BBQ con comida propia)' : (foodSummary.join('; ') || 'No seleccionada')}. Notas: ${notes}`,
           customer: {
             name,

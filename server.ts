@@ -1286,7 +1286,13 @@ app.get("/api/reservations", (req, res) => {
 });
 
 app.post("/api/reservations", (req, res) => {
-  const { customer, dome_id, check_in, check_out, guests, notes, user_name, promo_code, bbq_zone } = req.body;
+  const { customer, dome_id, check_in, guests, notes, user_name, promo_code, bbq_zone, booking_type, pets, addons, food_items } = req.body;
+  const isDayPass = booking_type === 'pasadia';
+  let check_out: string = req.body.check_out;
+  if (isDayPass && check_in) {
+    // Day pass: one day, stored with the next day as checkout so it blocks the dome for that date
+    check_out = new Date(new Date(`${check_in}T00:00:00Z`).getTime() + 86400000).toISOString().split("T")[0];
+  }
 
   if (!customer || !customer.name || !dome_id || !check_in || !check_out) {
     return res.status(400).json({ error: "Faltan datos obligatorios para crear la reserva." });
@@ -1305,7 +1311,7 @@ app.post("/api/reservations", (req, res) => {
   }
 
   const diffMs = outDate.getTime() - inDate.getTime();
-  const nights = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  const nights = isDayPass ? 1 : Math.round(diffMs / (1000 * 60 * 60 * 24));
   if (nights <= 0) {
     return res.status(400).json({ error: "El rango de fechas debe tener al menos una noche." });
   }
@@ -1328,12 +1334,30 @@ app.post("/api/reservations", (req, res) => {
       return res.status(400).json({ error: `El número de huéspedes (${numGuests}) supera la capacidad máxima del domo (${dome.capacity}).` });
     }
 
-    // Server-calculated total (price_per_night * nights, ignoring client total_amount)
-    const serverTotal = dome.price_per_night * nights;
+    // Server-calculated total. The client total is ignored; every price comes from the database or the tables below.
+    const basePrice = isDayPass ? 250000 : Number(dome.price_per_night) * nights;
+    const extraPersonsFee = Math.max(0, numGuests - Number(dome.capacity || 2)) * 70000 * (isDayPass ? 1 : nights);
+    const petCount = pets ? Math.max(0, Math.min(10, Number(pets) || 0)) : 0;
+    const petsFee = petCount * 30000;
+    const addonPrices: Record<string, number> = { bonoTime: 50000, coupleMassage: 250000 };
+    const decorFee = addons?.decorVip ? 150000 : (addons?.decorBasic ? 75000 : 0);
+    const addonsFee = (addons?.bonoTime ? addonPrices.bonoTime : 0) + decorFee + (addons?.coupleMassage ? addonPrices.coupleMassage : 0);
+    // Only room, extra guests, pets and add-ons get the discount (same as before)
+    const serverTotal = basePrice + extraPersonsFee + petsFee + addonsFee;
     const discount = computeDiscount(check_in, serverTotal, promo_code);
+    // Food from the menu: priced from the database, not discounted
+    let foodFee = 0;
+    if (!bbq_zone && Array.isArray(food_items)) {
+      for (const item of food_items) {
+        const qty = Math.max(0, Math.min(50, Number(item?.qty) || 0));
+        if (!qty) continue;
+        const row = db.prepare(`SELECT price FROM menu_items WHERE id = ?`).get(Number(item?.id)) as any;
+        if (row) foodFee += Number(row.price || 0) * qty;
+      }
+    }
     // Zona BBQ fee ($20.000) when the guest brings their own food; not discounted
     const bbqFee = bbq_zone ? 20000 : 0;
-    const finalTotal = serverTotal - discount.amount + bbqFee;
+    const finalTotal = serverTotal - discount.amount + foodFee + bbqFee;
     const discountNote = discount.amount > 0
       ? `Descuento ${discount.percent}% (-$${discount.amount})${promo_code ? ` código ${String(promo_code).trim().toUpperCase()}` : ""}. `
       : "";
@@ -1423,7 +1447,7 @@ app.post("/api/reservations", (req, res) => {
 
     db.exec("COMMIT;");
 
-    logAudit(user_name || customer.name || 'Cliente', "CREAR_RESERVA", "Reserva", randomCode, `Reserva creada para Domo ID ${dome_id} (${check_in} al ${check_out}) por $${serverTotal}`);
+    logAudit(user_name || customer.name || 'Cliente', "CREAR_RESERVA", "Reserva", randomCode, `Reserva creada para Domo ID ${dome_id} (${check_in} al ${check_out}) por $${finalTotal}`);
 
     res.json({
       success: true,
