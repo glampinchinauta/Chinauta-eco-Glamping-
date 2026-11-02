@@ -150,6 +150,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmedCode, setConfirmedCode] = useState('');
 
+  // Reset the wizard only when it opens. (Before, this also ran on every date change and sent the guest back to step 1.)
   useEffect(() => {
     if (isOpen) {
       setStep(1);
@@ -158,8 +159,12 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
       if (initialDomeId) setSelectedDomeId(initialDomeId);
       if (initialCheckIn) setCheckIn(initialCheckIn);
       if (initialCheckOut) setCheckOut(initialCheckOut);
-      fetchAvailability();
     }
+  }, [isOpen]);
+
+  // Refresh availability when the dates or the stay type change, without moving the guest's step.
+  useEffect(() => {
+    if (isOpen) fetchAvailability();
   }, [isOpen, checkIn, checkOut, bookingType]);
 
   const fetchAvailability = async () => {
@@ -294,7 +299,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           booking_type: bookingType,
           pets: hasPet ? petCount : 0,
           addons: selectedAddons,
-          food_items: Object.entries(foodChoices)
+          food_items: (Object.entries(foodChoices) as [string, { qty: number }][])
             .filter(([, c]) => (c?.qty || 0) > 0)
             .map(([id, c]) => ({ id: Number(id), qty: c.qty })),
           notes:`[${bookingType.toUpperCase()}] Mascotas: ${hasPet ? petCount : 0}. Addons: ${Object.entries(selectedAddons).filter(([_,v]) => v).map(([k]) => k).join(', ')}. Mensaje decorativo: ${customMessage}. Comida: ${bbqOnly ? 'No (usará zona BBQ con comida propia)' : (foodSummary.join('; ') || 'No seleccionada')}. Notas: ${notes}`,
@@ -433,6 +438,19 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                   </div>
                 )}
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!validateStep2()) return;
+                  setErrorMsg('');
+                  setStep(3);
+                }}
+                className="w-full px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 flex items-center justify-center space-x-2 text-sm shadow-md shadow-emerald-600/20 cursor-pointer"
+              >
+                <span>{language === 'en' ? 'Continue' : 'Continuar'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           )}
 
@@ -673,6 +691,38 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                   ? 'Select the dishes and how many portions you want (at least one).'
                   : 'Selecciona los platos y cuántas porciones quieres (al menos uno).'}
               </p>
+
+              {/* Live running total, updated with every choice */}
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
+                <h5 className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+                  {language === 'en' ? 'Your meal order' : 'Tu pedido de comida'}
+                </h5>
+                {bbqOnly ? (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-700">{language === 'en' ? 'BBQ zone (own food)' : 'Zona BBQ (comida propia)'}</span>
+                    <span className="font-bold text-slate-900">${BBQ_ZONE_FEE.toLocaleString('es-CO')}</span>
+                  </div>
+                ) : menuItems.filter(i => (foodChoices[String(i.id)]?.qty || 0) > 0).length === 0 ? (
+                  <p className="text-sm text-slate-500">{language === 'en' ? 'No dishes selected yet.' : 'Todavía no has elegido platos.'}</p>
+                ) : (
+                  menuItems
+                    .filter(i => (foodChoices[String(i.id)]?.qty || 0) > 0)
+                    .map(i => {
+                      const qty = foodChoices[String(i.id)]?.qty || 0;
+                      const line = (Number(i.price) || 0) * qty;
+                      return (
+                        <div key={String(i.id)} className="flex justify-between text-sm gap-3">
+                          <span className="text-slate-700">{language === 'en' ? (i.title_en || i.title) : i.title} x{qty}</span>
+                          <span className="font-bold text-slate-900 shrink-0">${line.toLocaleString('es-CO')}</span>
+                        </div>
+                      );
+                    })
+                )}
+                <div className="flex justify-between text-base border-t border-emerald-200 pt-2">
+                  <span className="font-bold text-emerald-900">{language === 'en' ? 'Meals total' : 'Total de comida'}</span>
+                  <span className="font-black text-emerald-800">${(bbqOnly ? BBQ_ZONE_FEE : foodTotal).toLocaleString('es-CO')} COP</span>
+                </div>
+              </div>
 
               {/* BBQ zone option: guest brings their own food */}
               <div
