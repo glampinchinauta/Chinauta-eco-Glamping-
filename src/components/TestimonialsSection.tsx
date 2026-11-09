@@ -3,7 +3,7 @@ import { Star, CheckCircle2, Quote, Upload, Camera, Plus, X, ImagePlus, Video, C
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../context/LanguageContext';
 import { getResponsiveImageData } from '../utils/imageUtils';
-import { PUBLIC_UPLOADS_ENABLED } from '../config/uploads';
+import { useIsAdmin } from '../lib/useIsAdmin';
 
 export interface Testimonial {
   id: string | number;
@@ -55,6 +55,7 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
 ];
 
 export const TestimonialsSection: React.FC = () => {
+  const canEdit = useIsAdmin(); // Only a signed-in administrator can add or edit testimonials
   const { t, language } = useLanguage();
   const [testimonials, setTestimonials] = useState<Testimonial[]>(DEFAULT_TESTIMONIALS);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -225,7 +226,7 @@ export const TestimonialsSection: React.FC = () => {
 
   return (
     <section className="py-20 bg-slate-50 border-y border-slate-200/60 relative">
-      {PUBLIC_UPLOADS_ENABLED && (
+      {canEdit && (
 <input
         type="file"
         ref={fileInputRef}
@@ -252,6 +253,7 @@ export const TestimonialsSection: React.FC = () => {
             </p>
           </div>
 
+          {canEdit && (
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
@@ -260,6 +262,7 @@ export const TestimonialsSection: React.FC = () => {
             <Plus className="w-4 h-4" />
             <span>{t('testimonials.add_btn')}</span>
           </button>
+          )}
         </div>
 
         {/* Testimonials Grid */}
@@ -308,7 +311,7 @@ export const TestimonialsSection: React.FC = () => {
 
                 {/* Quick Upload Action on Card */}
                 <div className="pt-2 flex flex-wrap items-center gap-2">
-                  {PUBLIC_UPLOADS_ENABLED && (
+                  {canEdit && (
 <button
                     type="button"
                     onClick={() => {
@@ -322,7 +325,7 @@ export const TestimonialsSection: React.FC = () => {
                   </button>
 )}
 
-                  {PUBLIC_UPLOADS_ENABLED && (
+                  {canEdit && (
 <button
                     type="button"
                     onClick={() => {
@@ -507,13 +510,13 @@ export const TestimonialsSection: React.FC = () => {
                 </div>
 
                 {/* Upload Real Vacation Photo/Video */}
-{PUBLIC_UPLOADS_ENABLED && (
+{canEdit && (
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   <label className="block text-xs font-semibold text-slate-700 uppercase">
                     {t('testimonials.upload_photo_btn')} / {t('testimonials.upload_video_btn')}
                   </label>
 
-                  {PUBLIC_UPLOADS_ENABLED && (
+                  {canEdit && (
 <input
                     type="file"
                     ref={modalFileInputRef}
@@ -524,7 +527,7 @@ export const TestimonialsSection: React.FC = () => {
 )}
 
                   <div className="flex items-center space-x-3">
-                    {PUBLIC_UPLOADS_ENABLED && (
+                    {canEdit && (
 <button
                       type="button"
                       onClick={() => modalFileInputRef.current?.click()}

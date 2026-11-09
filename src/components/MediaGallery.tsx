@@ -15,7 +15,7 @@ import chinautaRomanticDomeNight from '../assets/images/chinauta_romantic_dome_n
 import bochicaRomanticDecor from '../assets/images/bochica_romantic_decor_1790618007934.jpg';
 import bochicaJacuzziDeck from '../assets/images/bochica_jacuzzi_deck_1790618019311.jpg';
 import bochicaSunsetView from '../assets/images/bochica_sunset_view_1790617981274.jpg';
-import { PUBLIC_UPLOADS_ENABLED } from '../config/uploads';
+import { useIsAdmin } from '../lib/useIsAdmin';
 
 export interface GalleryMediaItem {
   id: string | number;
@@ -108,6 +108,7 @@ interface MediaGalleryProps {
 }
 
 export const MediaGallery: React.FC<MediaGalleryProps> = ({ onOpenBooking }) => {
+  const canEdit = useIsAdmin(); // Only a signed-in administrator sees upload controls
   const { language, t } = useLanguage();
   const [items, setItems] = useState<GalleryMediaItem[]>(DEFAULT_GALLERY_ITEMS);
   const [activeCategory, setActiveCategory] = useState<string>('Todos');
@@ -360,12 +361,12 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({ onOpenBooking }) => 
   return (
     <div 
       className="space-y-10 relative"
-      onDragOver={PUBLIC_UPLOADS_ENABLED ? handleDragOver : undefined}
+      onDragOver={canEdit ? handleDragOver : undefined}
       onDragLeave={handleDragLeave}
-      onDrop={PUBLIC_UPLOADS_ENABLED ? handleDrop : undefined}
+      onDrop={canEdit ? handleDrop : undefined}
     >
       {/* Hidden file input */}
-      {PUBLIC_UPLOADS_ENABLED && (
+      {canEdit && (
 <input
         type="file"
         ref={fileInputRef}
@@ -417,7 +418,7 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({ onOpenBooking }) => 
         </div>
 
         {/* Upload Button */}
-        {PUBLIC_UPLOADS_ENABLED && (
+        {canEdit && (
 <button
           type="button"
           onClick={() => setIsUploadModalOpen(true)}
@@ -865,7 +866,7 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({ onOpenBooking }) => 
 
       {/* Upload Modal with Drag & Drop Zone */}
       <AnimatePresence>
-        {PUBLIC_UPLOADS_ENABLED && isUploadModalOpen && (
+        {canEdit && isUploadModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}

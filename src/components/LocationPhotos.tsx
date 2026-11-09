@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UploadCloud, Trash2 } from 'lucide-react';
 import { ImageCarousel } from './ImageCarousel';
-import { PUBLIC_UPLOADS_ENABLED } from '../config/uploads';
+import { useIsAdmin } from '../lib/useIsAdmin';
 
 interface LocationPhoto {
   id: number;
@@ -14,6 +14,7 @@ interface LocationPhotosProps {
 }
 
 export const LocationPhotos: React.FC<LocationPhotosProps> = ({ defaultImages, alt }) => {
+  const canEdit = useIsAdmin(); // Only a signed-in administrator can add or remove photos
   const [photos, setPhotos] = useState<LocationPhoto[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -111,7 +112,7 @@ export const LocationPhotos: React.FC<LocationPhotosProps> = ({ defaultImages, a
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        {PUBLIC_UPLOADS_ENABLED && (
+        {canEdit && (
 <input
           ref={inputRef}
           type="file"
@@ -121,7 +122,7 @@ export const LocationPhotos: React.FC<LocationPhotosProps> = ({ defaultImages, a
           onChange={(e) => handleFiles(e.target.files)}
         />
 )}
-        {PUBLIC_UPLOADS_ENABLED && (
+        {canEdit && (
 <button
           type="button"
           disabled={busy}
@@ -140,6 +141,7 @@ export const LocationPhotos: React.FC<LocationPhotosProps> = ({ defaultImages, a
           {photos.map(p => (
             <div key={p.id} className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200">
               <img src={p.url} alt="" className="w-full h-full object-cover" />
+              {canEdit && (
               <button
                 type="button"
                 disabled={busy}
@@ -149,6 +151,7 @@ export const LocationPhotos: React.FC<LocationPhotosProps> = ({ defaultImages, a
               >
                 <Trash2 className="w-3 h-3" />
               </button>
+              )}
             </div>
           ))}
         </div>

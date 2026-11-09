@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { signOut } from 'firebase/auth';
+import { auth } from './lib/firebase';
 import { Navbar } from './components/Navbar';
 import { HomePortal } from './components/HomePortal';
 import { AvailabilityChecker } from './components/AvailabilityChecker';
@@ -52,7 +54,7 @@ function AppContent() {
     return (
       <AdminDashboard
         user={adminUser}
-        onLogout={() => setAdminUser(null)}
+        onLogout={() => { setAdminUser(null); signOut(auth).catch(() => {}); }}
       />
     );
   }

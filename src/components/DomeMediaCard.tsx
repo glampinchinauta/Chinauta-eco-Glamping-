@@ -6,7 +6,7 @@ import { getDomeImages } from '../utils/domeImages';
 import defaultDomo1Video from '../assets/videos/domo_1_huitaca.mp4';
 import { getResponsiveImageData } from '../utils/imageUtils';
 import { useLanguage } from '../context/LanguageContext';
-import { PUBLIC_UPLOADS_ENABLED } from '../config/uploads';
+import { useIsAdmin } from '../lib/useIsAdmin';
 
 interface DomeMediaCardProps {
   dome: Dome;
@@ -20,6 +20,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
   onOpenBooking
 }) => {
   const { t } = useLanguage();
+  const canEdit = useIsAdmin(); // Only a signed-in administrator sees upload/delete controls
   const domeId = Number(dome.id);
 
   // Tab State: 'video' | 'photos'
@@ -285,7 +286,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
   return (
     <div className={`relative w-full overflow-hidden select-none bg-slate-950 rounded-t-2xl flex flex-col justify-end ${className}`}>
       {/* Hidden File Inputs for Video and Image */}
-      {PUBLIC_UPLOADS_ENABLED && (
+      {canEdit && (
 <input
         type="file"
         ref={videoInputRef}
@@ -294,7 +295,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
         className="hidden"
       />
 )}
-      {PUBLIC_UPLOADS_ENABLED && (
+      {canEdit && (
 <input
         type="file"
         ref={imageInputRef}
@@ -353,7 +354,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
 
           {/* Top Right Controls: Subir Video, Subir Foto, Mute, Fullscreen */}
           <div className="absolute top-3 right-3 z-20 flex items-center space-x-1.5 pointer-events-auto">
-            {PUBLIC_UPLOADS_ENABLED && (
+            {canEdit && (
 <button
               type="button"
               onClick={(e) => {
@@ -368,7 +369,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
             </button>
 )}
 
-            {PUBLIC_UPLOADS_ENABLED && (
+            {canEdit && (
 <button
               type="button"
               onClick={(e) => {
@@ -452,7 +453,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
 
           {/* Top Right: Subir Imagen, Subir Video, Borrar & Expand */}
           <div className="absolute top-3 right-3 z-20 flex items-center space-x-1.5 pointer-events-auto">
-            {PUBLIC_UPLOADS_ENABLED && (
+            {canEdit && (
 <button
               type="button"
               onClick={(e) => {
@@ -467,7 +468,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
             </button>
 )}
 
-            {PUBLIC_UPLOADS_ENABLED && (
+            {canEdit && (
 <button
               type="button"
               onClick={(e) => {
@@ -482,7 +483,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
             </button>
 )}
 
-            {PUBLIC_UPLOADS_ENABLED && images.length > 1 && (
+            {canEdit && images.length > 1 && (
               <button
                 type="button"
                 onClick={handleDeleteCurrentPhoto}
@@ -589,7 +590,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
 
       {/* Floating Quick Upload Bar on Mobile */}
       <div className="absolute bottom-1.5 right-3 sm:hidden z-20 flex items-center space-x-1">
-        {PUBLIC_UPLOADS_ENABLED && (
+        {canEdit && (
 <button
           type="button"
           onClick={() => (activeTab === 'video' ? videoInputRef.current?.click() : imageInputRef.current?.click())}
@@ -666,7 +667,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-2 py-2">
-              {PUBLIC_UPLOADS_ENABLED && (
+              {canEdit && (
 <button
                 type="button"
                 onClick={() => imageInputRef.current?.click()}
@@ -677,7 +678,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
               </button>
 )}
 
-              {PUBLIC_UPLOADS_ENABLED && images.length > 1 && (
+              {canEdit && images.length > 1 && (
                 <button
                   type="button"
                   onClick={handleDeleteCurrentPhoto}
