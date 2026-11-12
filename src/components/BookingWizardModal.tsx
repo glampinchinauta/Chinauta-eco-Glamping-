@@ -150,12 +150,20 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmedCode, setConfirmedCode] = useState('');
 
+  // Consent boxes. Always unchecked when the wizard opens: the guest must choose each of them.
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [isAdult, setIsAdult] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+
   // Reset the wizard only when it opens. (Before, this also ran on every date change and sent the guest back to step 1.)
   useEffect(() => {
     if (isOpen) {
       setStep(1);
       setConfirmedCode('');
       setErrorMsg('');
+      setAcceptTerms(false);
+      setIsAdult(false);
+      setMarketingOptIn(false);
       if (initialDomeId) setSelectedDomeId(initialDomeId);
       if (initialCheckIn) setCheckIn(initialCheckIn);
       if (initialCheckOut) setCheckOut(initialCheckOut);
@@ -279,6 +287,12 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
       setErrorMsg(t('wizard.required_fields_err'));
       return;
     }
+    if (!acceptTerms || !isAdult) {
+      setErrorMsg(language === 'en'
+        ? 'Please accept the terms and confirm you are over 18 to continue.'
+        : 'Debes aceptar los términos y confirmar que eres mayor de 18 años para continuar.');
+      return;
+    }
 
     setSubmitting(true);
     setErrorMsg('');
@@ -303,6 +317,11 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
             .filter(([, c]) => (c?.qty || 0) > 0)
             .map(([id, c]) => ({ id: Number(id), qty: c.qty })),
           notes:`[${bookingType.toUpperCase()}] Mascotas: ${hasPet ? petCount : 0}. Addons: ${Object.entries(selectedAddons).filter(([_,v]) => v).map(([k]) => k).join(', ')}. Mensaje decorativo: ${customMessage}. Comida: ${bbqOnly ? 'No (usará zona BBQ con comida propia)' : (foodSummary.join('; ') || 'No seleccionada')}. Notas: ${notes}`,
+          consent: {
+            terms: acceptTerms,
+            age: isAdult,
+            marketing: marketingOptIn
+          },
           customer: {
             name,
             phone,
@@ -841,7 +860,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                 {foodSummary.length > 0 ? foodSummary.join(', ') : (language === 'en' ? 'none' : 'ninguno')}
               </p>
               <p className="text-sm font-bold text-slate-900">
-                {language === 'en' ? 'Meals (paid separately): ' : 'Comida (se paga aparte): '}
+                {language === 'en' ? 'Meals (included in the total): ' : 'Comida (incluida en el total): '}
                 ${foodTotal.toLocaleString('es-CO')} COP
               </p>
             </div>
@@ -954,6 +973,53 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                   </div>
                 ))}
               </div>
+
+              {/* Consent: every box starts unchecked. Terms and age are required; marketing is optional. */}
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <label className="flex items-start gap-3 text-sm text-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={e => setAcceptTerms(e.target.checked)}
+                    required
+                    className="mt-0.5 h-4 w-4 shrink-0"
+                  />
+                  <span>
+                    {language === 'en' ? 'I accept the ' : 'Acepto los '}
+                    <a href="/?legal=terminos" target="_blank" rel="noopener noreferrer" className="font-semibold text-emerald-800 underline">
+                      {language === 'en' ? 'terms and conditions' : 'términos y condiciones'}
+                    </a>
+                    {language === 'en' ? ' and the ' : ', la '}
+                    <a href="/?legal=privacidad" target="_blank" rel="noopener noreferrer" className="font-semibold text-emerald-800 underline">
+                      {language === 'en' ? 'privacy policy' : 'política de privacidad'}
+                    </a>
+                    {language === 'en' ? ' and the ' : ' y la '}
+                    <a href="/?legal=reembolsos" target="_blank" rel="noopener noreferrer" className="font-semibold text-emerald-800 underline">
+                      {language === 'en' ? 'refund and cancellation policy' : 'política de reembolsos y cancelaciones'}
+                    </a>
+                    .
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 text-sm text-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isAdult}
+                    onChange={e => setIsAdult(e.target.checked)}
+                    required
+                    className="mt-0.5 h-4 w-4 shrink-0"
+                  />
+                  <span>{language === 'en' ? 'I am over 18 years old and I make this booking for myself or for an adult group.' : 'Soy mayor de 18 años y hago esta reserva para mí o para un grupo de adultos responsables.'}</span>
+                </label>
+                <label className="flex items-start gap-3 text-sm text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={marketingOptIn}
+                    onChange={e => setMarketingOptIn(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0"
+                  />
+                  <span>{language === 'en' ? 'Optional: I want to receive offers and news by email or WhatsApp. I can withdraw this at any time.' : 'Opcional: quiero recibir ofertas y novedades por correo o WhatsApp. Puedo retirar este permiso en cualquier momento.'}</span>
+                </label>
+              </div>
             </div>
           )}
 
@@ -981,7 +1047,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                 {bbqOnly && <div className="flex justify-between gap-4"><span className="text-slate-500">{language === 'en' ? 'Meals' : 'Comida'}</span><span className="font-bold text-slate-900 text-right">{language === 'en' ? 'Own food - BBQ zone' : 'Comida propia - zona BBQ'}</span></div>}
                 {bbqOnly && <div className="flex justify-between"><span className="text-slate-500">{language === 'en' ? 'BBQ zone fee' : 'Zona BBQ'}</span><span className="font-bold text-slate-900">+${BBQ_ZONE_FEE.toLocaleString('es-CO')}</span></div>}
                 {foodSummary.length > 0 && <div className="flex justify-between gap-4"><span className="text-slate-500">{language === 'en' ? 'Meals' : 'Comida'}</span><span className="font-bold text-slate-900 text-right">{foodSummary.join(', ')}</span></div>}
-                {foodTotal > 0 && <div className="flex justify-between"><span className="text-slate-500">{language === 'en' ? 'Meals total (separate)' : 'Total comida (aparte)'}</span><span className="font-bold text-slate-900">+${foodTotal.toLocaleString('es-CO')}</span></div>}
+                {foodTotal > 0 && <div className="flex justify-between"><span className="text-slate-500">{language === 'en' ? 'Meals total (included)' : 'Total comida (incluido)'}</span><span className="font-bold text-slate-900">+${foodTotal.toLocaleString('es-CO')}</span></div>}
                 {effectiveDiscountPercent > 0 && <div className="flex justify-between text-emerald-700"><span className="font-medium">{t('wizard.summary_discount')} ({effectiveDiscountPercent}%):</span><span className="font-bold">-${discountAmount.toLocaleString('es-CO')}</span></div>}
                 <div className="flex justify-between pt-3 border-t border-slate-200 text-sm font-black text-slate-900">
                   <span>{t('wizard.summary_total')}</span>
@@ -1048,7 +1114,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
             {step === 8 && (
               <button
                 onClick={handleConfirmBooking}
-                disabled={submitting}
+                disabled={submitting || !acceptTerms || !isAdult}
                 className="w-full sm:w-auto px-6 sm:px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-bold hover:from-emerald-700 hover:to-teal-800 shadow-lg shadow-emerald-700/30 flex items-center justify-center space-x-2 text-xs sm:text-sm disabled:opacity-50 cursor-pointer"
               >
                 <span>{submitting ? t('wizard.confirming_btn') : `${t('wizard.confirm_btn')} ($${totalAmount.toLocaleString('es-CO')} COP)`}</span>

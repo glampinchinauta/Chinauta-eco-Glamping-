@@ -8,7 +8,7 @@ interface Message {
 }
 
 export const AiConciergeChat: React.FC = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -60,6 +60,7 @@ export const AiConciergeChat: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-semibold text-sm">{t('chat.concierge_title')}</h3>
+                <p className="text-[10px] uppercase tracking-wide text-emerald-100">{language === 'en' ? 'AI assistant' : 'Asistente con IA'}</p>
                 <p className="text-xs text-emerald-200 flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> {t('chat.online')}
                 </p>

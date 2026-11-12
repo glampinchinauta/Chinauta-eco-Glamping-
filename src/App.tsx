@@ -12,13 +12,17 @@ import { MyReservationsModal } from './components/MyReservationsModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AiConciergeChat } from './components/AiConciergeChat';
+import { LegalView, LegalSection, readLegalParam } from './components/LegalView';
+import { CookieBanner } from './components/CookieBanner';
 import { AdminUser } from './types';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { useDynamicSEO } from './utils/seoConfig';
 
 function AppContent() {
   const { t, language } = useLanguage();
-  const [activeTab, setActiveTab] = useState('home');
+  // Links such as /?legal=terminos open the legal page directly (used by the booking form).
+  const [activeTab, setActiveTab] = useState(() => (readLegalParam() ? 'legal' : 'home'));
+  const [legalSection, setLegalSection] = useState<LegalSection>(() => readLegalParam() || 'privacidad');
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
 
   // Centralized Dynamic SEO Configuration Utility
@@ -32,6 +36,12 @@ function AppContent() {
 
   const [isMyReservationsOpen, setIsMyReservationsOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
+
+  const openLegal = (section: LegalSection) => {
+    setLegalSection(section);
+    setActiveTab('legal');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleOpenBooking = (domeId?: number) => {
     setBookingDomeId(domeId);
@@ -110,11 +120,15 @@ function AppContent() {
         {activeTab === 'decoraciones' && (
           <DecorationsSection onOpenBooking={handleOpenBooking} />
         )}
+
+        {activeTab === 'legal' && (
+          <LegalView key={legalSection} initialSection={legalSection} />
+        )}
       </div>
 
       {/* Footer */}
       <footer className="bg-slate-950 text-slate-400 py-12 border-t border-slate-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-8">
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center overflow-hidden border border-slate-800">
@@ -152,6 +166,18 @@ function AppContent() {
           </div>
 
           <div>
+            <h4 className="font-bold text-white text-sm mb-3">Legal</h4>
+            <ul className="space-y-2 text-xs">
+              <li><button onClick={() => openLegal('privacidad')} className="hover:text-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded">Política de privacidad</button></li>
+              <li><button onClick={() => openLegal('terminos')} className="hover:text-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded">Términos y condiciones</button></li>
+              <li><button onClick={() => openLegal('reembolsos')} className="hover:text-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded">Reembolsos y cancelaciones</button></li>
+              <li><button onClick={() => openLegal('cookies')} className="hover:text-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded">Cookies</button></li>
+              <li><button onClick={() => openLegal('derechos')} className="hover:text-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded">Derechos de autor</button></li>
+              <li><button onClick={() => openLegal('mis-datos')} className="hover:text-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded">Descargar o borrar mis datos</button></li>
+            </ul>
+          </div>
+
+          <div>
             <h4 className="font-bold text-white text-sm mb-3">{t('footer.contact_title')}</h4>
             <p className="text-xs text-slate-400 leading-relaxed">
               Vía Principal Chinauta Km 4.5<br />
@@ -169,6 +195,9 @@ function AppContent() {
 
       {/* Floating AI Concierge Chatbot */}
       <AiConciergeChat />
+
+      {/* Cookie notice */}
+      <CookieBanner onOpenCookiePolicy={() => openLegal('cookies')} />
 
       {/* Booking Wizard Modal */}
       <BookingWizardModal

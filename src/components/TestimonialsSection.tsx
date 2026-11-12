@@ -18,41 +18,8 @@ export interface Testimonial {
   video_url?: string | null;
 }
 
-const DEFAULT_TESTIMONIALS: Testimonial[] = [
-  {
-    id: 1,
-    name: 'Camila & Alejandro',
-    location: 'Bogotá, Colombia',
-    dome: 'Domo Huitaca',
-    rating: 5,
-    date: 'Septiembre 2026',
-    comment: 'Una experiencia inolvidable. El jacuzzi privado bajo las estrellas y la atención superaron todas nuestras expectativas. El clima de Chinauta es mágico y el desayuno campesino delicioso.',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-    image: '/assets/images/chinauta_romantic_dome_night.jpg'
-  },
-  {
-    id: 2,
-    name: 'Felipe Restrepo',
-    location: 'Medellín, Colombia',
-    dome: 'Domo Bochica',
-    rating: 5,
-    date: 'Agosto 2026',
-    comment: 'La vista desde la cúpula es increíble. Pudimos ver las estrellas en la noche y desconectarnos por completo del ruido de la ciudad. 100% recomendado para parejas.',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-    image: '/assets/images/bochica_jacuzzi_deck_1790618019311.jpg'
-  },
-  {
-    id: 3,
-    name: 'Valentina Gómez',
-    location: 'Cali, Colombia',
-    dome: 'Domo Bachué',
-    rating: 5,
-    date: 'Agosto 2026',
-    comment: 'Todo impecable. Desde la vía de acceso hasta la comodidad de la cama y el jacuzzi privado de hidromasaje. El personal es sumamente atento y servicial.',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
-    image: '/assets/images/chinauta_deck_asoleadoras.jpg'
-  }
-];
+// Sin reseñas de ejemplo: solo se muestran opiniones reales enviadas por huéspedes.
+const DEFAULT_TESTIMONIALS: Testimonial[] = [];
 
 export const TestimonialsSection: React.FC = () => {
   const { t, language } = useLanguage();
@@ -356,8 +323,7 @@ export const TestimonialsSection: React.FC = () => {
                     {item.dome}
                   </span>
                   <div className="flex items-center justify-end space-x-1 text-[10px] text-emerald-600 mt-1">
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span>{language === 'en' ? 'Verified Stay' : 'Estadía Verificada'}</span>
+                    <span>{language === 'en' ? 'Guest review' : 'Reseña de huésped'}</span>
                   </div>
                 </div>
               </div>
@@ -365,24 +331,13 @@ export const TestimonialsSection: React.FC = () => {
           ))}
         </div>
 
-        {/* Aggregate Score Banner */}
-        <div className="bg-slate-900 text-white rounded-3xl p-8 sm:p-12 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-8">
-          <div className="space-y-2 text-center sm:text-left">
-            <h4 className="text-2xl font-bold">
-              {language === 'en' ? 'Average Rating 4.9 / 5.0' : 'Calificación Promedio 4.9 / 5.0'}
-            </h4>
-            <p className="text-slate-300 text-sm">
-              {language === 'en' 
-                ? 'Based on more than 320 verified guest reviews on Google, TripAdvisor, and direct bookings.' 
-                : 'Basado en más de 320 reseñas verificadas en Google, TripAdvisor y nuestra plataforma.'}
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="w-6 h-6 text-amber-400 fill-amber-400" />
-            ))}
-          </div>
-        </div>
+        {testimonials.length === 0 && (
+          <p className="text-center text-sm text-slate-600">
+            {language === 'en'
+              ? 'No guest reviews have been published yet. Share your stay with us!'
+              : 'Todavía no hay reseñas publicadas. ¡Cuéntanos tu experiencia!'}
+          </p>
+        )}
 
       </div>
 

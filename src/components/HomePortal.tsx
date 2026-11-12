@@ -373,7 +373,7 @@ export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigat
               </div>
               <div className="flex items-center space-x-3 text-slate-700 text-sm">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                <span>{language === 'en' ? 'Private guarded parking 24/7' : 'Parqueadero privado vigilado 24/7'}</span>
+                <span>{language === 'en' ? 'Free parking' : 'Parqueadero gratis'}</span>
               </div>
               <div className="flex items-center space-x-3 text-slate-700 text-sm">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />

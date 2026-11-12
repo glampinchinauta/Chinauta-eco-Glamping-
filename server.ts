@@ -87,6 +87,7 @@ async function requireAdmin(req: express.Request, res: express.Response, next: e
 // Public writes (website visitors): booking, AI concierge, testimonials, uploads from the site.
 const PUBLIC_WRITES = new Set([
   "/api/reservations",
+  "/api/privacy/delete",
   "/api/ai/chat",
   "/api/testimonials",
   "/api/auth/login",
@@ -381,40 +382,11 @@ if (domeCount.count === 0) {
     "Experiencia exclusiva de descanso y naturaleza. Check-in: 3:00 PM."
   );
 
-  // Seed sample Customers
-  const insertCustomer = db.prepare(`INSERT INTO customers (name, phone, whatsapp, email, document_id, notes) VALUES (?, ?, ?, ?, ?, ?)`);
-  const c1 = insertCustomer.run("Alejandro Gómez", "+57 310 4567890", "+573104567890", "alejandro.gomez@gmail.com", "1020304050", "Cliente frecuente VIP").lastInsertRowid;
-  const c2 = insertCustomer.run("Sofía Rodríguez", "+57 320 9876543", "+573209876543", "sofia.rodriguez@hotmail.com", "52987654", "Aniversario de bodas").lastInsertRowid;
-  const c3 = insertCustomer.run("Carlos Mendoza", "+57 315 2345678", "+573152345678", "cmendoza@empresa.co", "79123456", "Reserva corporativa").lastInsertRowid;
-
-  // Seed sample Reservations
-  const today = new Date();
-  const formatDate = (d: Date) => d.toISOString().split("T")[0];
-
-  const in1 = new Date(); in1.setDate(today.getDate() + 2);
-  const out1 = new Date(); out1.setDate(today.getDate() + 4);
-
-  const in2 = new Date(); in2.setDate(today.getDate() - 1);
-  const out2 = new Date(); out2.setDate(today.getDate() + 1);
-
-  const in3 = new Date(); in3.setDate(today.getDate() + 5);
-  const out3 = new Date(); out3.setDate(today.getDate() + 7);
-
-  const insertRes = db.prepare(`INSERT INTO reservations (reservation_code, customer_id, dome_id, check_in, check_out, guests, status, payment_status, total_amount, amount_paid, amount_pending, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-  
-  insertRes.run("EGC-9482", c1, 1, formatDate(in1), formatDate(out1), 2, "Confirmada", "Pagado", 760000, 760000, 0, "Solicitó decoración romántica", "Carlos SuperAdmin");
-  insertRes.run("EGC-3829", c2, 2, formatDate(in2), formatDate(out2), 4, "Hospedado", "Pagado", 900000, 900000, 0, "Check-in realizado sin novedad", "Ana Recepción");
-  insertRes.run("EGC-1029", c3, 4, formatDate(in3), formatDate(out3), 2, "Pendiente", "Pendiente", 840000, 0, 840000, "Pendiente de transferencia", "Sistema Online");
-
-  // Seed sample Payments
-  const insertPay = db.prepare(`INSERT INTO payments (reservation_id, amount, method, status, recorded_by) VALUES (?, ?, ?, ?, ?)`);
-  insertPay.run(1, 760000, "Wompi", "Aprobado", "Sistema Online");
-  insertPay.run(2, 900000, "Transferencia Bancaria", "Aprobado", "Ana Recepción");
 
   // Seed Settings
   const insertSetting = db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`);
   insertSetting.run("glamping_name", "Eco Glamping Chinauta");
-  insertSetting.run("whatsapp", "+57 310 1234567");
+  insertSetting.run("whatsapp", "+57 321 310 9331");
   insertSetting.run("email", "contacto@ecoglampingchinauta.com");
   insertSetting.run("address", "Vía Principal Chinauta Km 4.5, Fusagasugá, Cundinamarca");
   insertSetting.run("currency", "COP");
@@ -422,7 +394,7 @@ if (domeCount.count === 0) {
 
   // Seed Audit log
   db.prepare(`INSERT INTO audit_logs (user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?)`).run(
-    "Carlos SuperAdmin", "INICIALIZACION", "Sistema", "0", "Base de datos inicializada con domos y datos de prueba."
+    "Carlos SuperAdmin", "INICIALIZACION", "Sistema", "0", "Base de datos inicializada con domos y configuración inicial."
   );
 
   console.log("Database seeded successfully.");
@@ -433,6 +405,28 @@ try {
   db.exec("ALTER TABLE domes ADD COLUMN video_url TEXT;");
 } catch (e) {
   // column already exists
+}
+
+// Legal consent and privacy columns (Ley 1581 de 2012: keep proof of acceptance and of marketing consent)
+for (const sql of [
+  "ALTER TABLE reservations ADD COLUMN terms_accepted_at TEXT",
+  "ALTER TABLE reservations ADD COLUMN terms_version TEXT",
+  "ALTER TABLE reservations ADD COLUMN age_confirmed_at TEXT",
+  "ALTER TABLE customers ADD COLUMN marketing_consent INTEGER DEFAULT 0",
+  "ALTER TABLE customers ADD COLUMN marketing_consent_at TEXT",
+  "ALTER TABLE customers ADD COLUMN anonymized_at TEXT",
+]) {
+  try { db.exec(sql); } catch (e) { /* column already exists */ }
+}
+
+// One-time cleanup: an earlier version of the site inserted invented example reviews into this database.
+// Remove exactly those rows (same name and location) so only reviews sent by real guests remain.
+try {
+  for (const [name, location] of [["Camila & Alejandro", "Bogotá, Colombia"], ["Felipe Restrepo", "Medellín, Colombia"], ["Valentina Gómez", "Cali, Colombia"]]) {
+    db.prepare("DELETE FROM testimonials WHERE name = ? AND location = ?").run(name, location);
+  }
+} catch (e) {
+  console.warn("Testimonial cleanup notice:", e);
 }
 
 // Ensure database has exact user-uploaded media for Domes, Gallery, and Testimonials
@@ -674,48 +668,6 @@ try {
   console.warn("Gallery sync notice:", e);
 }
 
-// Seed / Update Testimonials with real user media
-try {
-  db.exec(`
-    DELETE FROM testimonials;
-    INSERT INTO testimonials (name, location, dome, rating, date, comment, avatar, image, video_url) VALUES
-    (
-      'Camila & Alejandro',
-      'Bogotá, Colombia',
-      'Domo Huitaca',
-      5,
-      'Septiembre 2026',
-      'Una experiencia inolvidable. El jacuzzi privado bajo las estrellas y la atención superaron todas nuestras expectativas. El clima de Chinauta es mágico y el desayuno campesino delicioso.',
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      '/assets/images/dome_1_1791403584294.jpg',
-      '/assets/videos/domo_1_user_video.mp4'
-    ),
-    (
-      'Felipe Restrepo',
-      'Medellín, Colombia',
-      'Domo Bochica',
-      5,
-      'Agosto 2026',
-      'La vista desde la cúpula es increíble. Pudimos ver las estrellas en la noche y desconectarnos por completo del ruido de la ciudad. 100% recomendado para parejas.',
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-      '/assets/images/dome_2_1791404907620.jpg',
-      '/assets/videos/domo_3_user_video.mp4'
-    ),
-    (
-      'Valentina Gómez',
-      'Cali, Colombia',
-      'Domo Luna Chía',
-      5,
-      'Agosto 2026',
-      'Todo impecable. Desde la vía de acceso hasta la comodidad de la cama y el jacuzzi de hidromasaje. El personal es sumamente atento y servicial.',
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
-      '/assets/images/dome_4_1791404275513.jpg',
-      '/assets/videos/domo_5_user_video.mp4'
-    );
-  `);
-} catch (e) {
-  console.warn("Testimonials sync notice:", e);
-}
 
 // Seed Menu Items if empty
 try {
@@ -1270,6 +1222,110 @@ app.get("/api/reservations/lookup", (req, res) => {
   res.json(matches.map(({ customer_email, customer_phone, customer_whatsapp, ...safe }) => safe));
 });
 
+// Privacy self-service (Ley 1581 de 2012). The guest proves who they are with the reservation code AND the
+// email or phone used to book. Attempts are rate-limited per IP to make guessing codes impractical.
+const privacyAttempts = new Map<string, { count: number; resetAt: number }>();
+function privacyRateLimited(req: express.Request): boolean {
+  const ip = String(req.ip || req.socket.remoteAddress || "unknown");
+  const now = Date.now();
+  const entry = privacyAttempts.get(ip);
+  if (!entry || entry.resetAt < now) {
+    privacyAttempts.set(ip, { count: 1, resetAt: now + 15 * 60 * 1000 });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > 10;
+}
+
+function findGuestRows(code: string, contact: string): any[] {
+  const rows = db.prepare(`
+    SELECT r.*, c.id as customer_pk, c.name as customer_name, c.phone as customer_phone, c.whatsapp as customer_whatsapp,
+           c.email as customer_email, c.document_id as customer_document_id, c.notes as customer_notes,
+           c.marketing_consent as customer_marketing_consent, d.name as dome_name
+    FROM reservations r
+    JOIN customers c ON r.customer_id = c.id
+    JOIN domes d ON r.dome_id = d.id
+    WHERE UPPER(r.reservation_code) = ?
+  `).all(code.toUpperCase()) as any[];
+  const contactEmail = contact.toLowerCase();
+  const contactDigits = contact.replace(/\D/g, "");
+  return rows.filter((r) => {
+    const emailOk = !!r.customer_email && String(r.customer_email).trim().toLowerCase() === contactEmail;
+    const phoneOk = contactDigits.length >= 7 && [r.customer_phone, r.customer_whatsapp]
+      .some((p) => p && String(p).replace(/\D/g, "") === contactDigits);
+    return emailOk || phoneOk;
+  });
+}
+
+// Download what we hold about the guest's matching reservations (right of access).
+app.get("/api/privacy/export", (req, res) => {
+  if (privacyRateLimited(req)) return res.status(429).json({ error: "Demasiados intentos. Intenta de nuevo en 15 minutos." });
+  const code = String(req.query.code || "").trim();
+  const contact = String(req.query.contact || "").trim();
+  if (!code || !contact) return res.status(400).json({ error: "Escribe el código de reserva y tu correo o teléfono." });
+  const rows = findGuestRows(code, contact);
+  if (rows.length === 0) return res.status(404).json({ error: "No encontramos una reserva con esos datos." });
+  const first = rows[0];
+  res.setHeader("Content-Disposition", 'attachment; filename="mis-datos-eco-glamping.json"');
+  res.json({
+    exported_at: new Date().toISOString(),
+    customer: {
+      name: first.customer_name,
+      phone: first.customer_phone,
+      whatsapp: first.customer_whatsapp,
+      email: first.customer_email,
+      document_id: first.customer_document_id,
+      notes: first.customer_notes,
+      marketing_consent: !!first.customer_marketing_consent,
+    },
+    reservations: rows.map((r) => ({
+      reservation_code: r.reservation_code,
+      dome: r.dome_name,
+      check_in: r.check_in,
+      check_out: r.check_out,
+      guests: r.guests,
+      status: r.status,
+      payment_status: r.payment_status,
+      total_amount: r.total_amount,
+      amount_paid: r.amount_paid,
+      created_at: r.created_at,
+      terms_accepted_at: r.terms_accepted_at,
+      terms_version: r.terms_version,
+      notes: r.notes,
+      payments: db.prepare("SELECT amount, method, status, created_at FROM payments WHERE reservation_id = ?").all(r.id),
+    })),
+  });
+});
+
+// Delete personal data (right of erasure). Personal fields are removed; reservation amounts and dates are kept
+// because commercial and tax law requires keeping accounting records for a number of years.
+app.post("/api/privacy/delete", (req, res) => {
+  if (privacyRateLimited(req)) return res.status(429).json({ error: "Demasiados intentos. Intenta de nuevo en 15 minutos." });
+  const { code, contact, confirm } = req.body || {};
+  if (confirm !== true) return res.status(400).json({ error: "Confirma que quieres eliminar tus datos personales." });
+  const rows = findGuestRows(String(code || "").trim(), String(contact || "").trim());
+  if (rows.length === 0) return res.status(404).json({ error: "No encontramos una reserva con esos datos." });
+  const customerIds = [...new Set(rows.map((r) => r.customer_pk))];
+  const nowIso = new Date().toISOString();
+  try {
+    db.exec("BEGIN TRANSACTION;");
+    for (const id of customerIds) {
+      db.prepare(`UPDATE customers SET name = 'Cliente anonimizado', phone = '', whatsapp = '', email = '', document_id = '',
+                  notes = '', marketing_consent = 0, marketing_consent_at = NULL, anonymized_at = ? WHERE id = ?`).run(nowIso, id);
+    }
+    for (const r of rows) {
+      db.prepare("UPDATE reservations SET notes = '' WHERE id = ?").run(r.id);
+    }
+    db.exec("COMMIT;");
+  } catch (err: any) {
+    try { db.exec("ROLLBACK;"); } catch (e) {}
+    console.error("Privacy delete error:", err);
+    return res.status(500).json({ error: "No se pudo completar la eliminación. Escríbenos al correo de contacto." });
+  }
+  logAudit("Cliente", "ANONIMIZAR_DATOS", "Cliente", customerIds.join(","), "Eliminación de datos personales solicitada por el titular");
+  res.json({ success: true, message: "Tus datos personales fueron eliminados. Los montos y fechas de reserva se conservan por obligación contable y tributaria." });
+});
+
 app.get("/api/reservations", (req, res) => {
   try {
     const reservations = db.prepare(`
@@ -1285,6 +1341,9 @@ app.get("/api/reservations", (req, res) => {
   }
 });
 
+// Version of the terms and privacy text shown to the guest (see src/config/legal.ts). Change it when the text changes.
+const LEGAL_TERMS_VERSION = "2026-11-12";
+
 app.post("/api/reservations", (req, res) => {
   const { customer, dome_id, check_in, guests, notes, user_name, promo_code, bbq_zone, booking_type, pets, addons, food_items } = req.body;
   const isDayPass = booking_type === 'pasadia';
@@ -1297,6 +1356,13 @@ app.post("/api/reservations", (req, res) => {
   if (!customer || !customer.name || !dome_id || !check_in || !check_out) {
     return res.status(400).json({ error: "Faltan datos obligatorios para crear la reserva." });
   }
+
+  // The guest must accept the terms and confirm they are an adult (both boxes are unchecked by default in the form).
+  if (!req.body.consent || req.body.consent.terms !== true || req.body.consent.age !== true) {
+    return res.status(400).json({ error: "Debes aceptar los términos y condiciones y confirmar que eres mayor de 18 años." });
+  }
+  const nowIso = new Date().toISOString();
+  const marketingOk = req.body.consent.marketing === true ? 1 : 0;
 
   // Validate dates format AAAA-MM-DD
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -1406,17 +1472,19 @@ app.post("/api/reservations", (req, res) => {
       const updatedWhatsapp = customer.whatsapp?.trim() || existingCust.whatsapp || updatedPhone;
       const updatedDoc = customer.document_id?.trim() || existingCust.document_id || '';
       const updatedEmail = email || existingCust.email || '';
-      db.prepare("UPDATE customers SET name = ?, phone = ?, whatsapp = ?, email = ?, document_id = ? WHERE id = ?")
-        .run(updatedName, updatedPhone, updatedWhatsapp, updatedEmail, updatedDoc, customerId);
+      db.prepare("UPDATE customers SET name = ?, phone = ?, whatsapp = ?, email = ?, document_id = ?, marketing_consent = ?, marketing_consent_at = ? WHERE id = ?")
+        .run(updatedName, updatedPhone, updatedWhatsapp, updatedEmail, updatedDoc, marketingOk, marketingOk ? nowIso : null, customerId);
     } else {
-      const custStmt = db.prepare("INSERT INTO customers (name, phone, whatsapp, email, document_id, notes) VALUES (?, ?, ?, ?, ?, ?)");
+      const custStmt = db.prepare("INSERT INTO customers (name, phone, whatsapp, email, document_id, notes, marketing_consent, marketing_consent_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
       const custInfo = custStmt.run(
         customer.name?.trim() || '',
         phone,
         customer.whatsapp?.trim() || phone,
         email,
         customer.document_id?.trim() || '',
-        customer.notes?.trim() || ''
+        customer.notes?.trim() || '',
+        marketingOk,
+        marketingOk ? nowIso : null
       );
       customerId = Number(custInfo.lastInsertRowid);
     }
@@ -1428,8 +1496,9 @@ app.post("/api/reservations", (req, res) => {
     const resStmt = db.prepare(`
       INSERT INTO reservations (
         reservation_code, customer_id, dome_id, check_in, check_out, guests, 
-        status, payment_status, total_amount, amount_paid, amount_pending, notes, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, 'Pendiente', 'Pendiente', ?, 0, ?, ?, ?)
+        status, payment_status, total_amount, amount_paid, amount_pending, notes, created_by,
+        terms_accepted_at, terms_version, age_confirmed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'Pendiente', 'Pendiente', ?, 0, ?, ?, ?, ?, ?, ?)
     `);
 
     const resInfo = resStmt.run(
@@ -1442,7 +1511,10 @@ app.post("/api/reservations", (req, res) => {
       finalTotal,
       finalTotal,
       discountNote + (notes || ''),
-      user_name || customer.name || 'Portal Web'
+      user_name || customer.name || 'Portal Web',
+      nowIso,
+      LEGAL_TERMS_VERSION,
+      nowIso
     );
 
     db.exec("COMMIT;");
@@ -1899,7 +1971,7 @@ app.post("/api/ai/chat", async (req, res) => {
     res.json({ reply: response.text || "" });
   } catch (err: any) {
     console.error("AI Chat error:", err);
-    res.status(500).json({ reply: "Hola, soy el asistente virtual de Eco Glamping Chinauta. En este momento estoy experimentando alta concurrencia. Puedes escribirnos por WhatsApp al +57 310 1234567 para atenderte inmediatamente." });
+    res.status(500).json({ reply: "Hola, soy el asistente virtual de Eco Glamping Chinauta. En este momento estoy experimentando alta concurrencia. Puedes escribirnos por WhatsApp al +57 321 310 9331 para atenderte inmediatamente." });
   }
 });
 

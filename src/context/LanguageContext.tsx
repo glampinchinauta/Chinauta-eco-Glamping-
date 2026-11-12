@@ -378,10 +378,10 @@ const translations: Record<Language, Translations> = {
     'stats.domes_label': 'Domos Exclusivos',
     'stats.nature_count': '100%',
     'stats.nature_label': 'Naturaleza & Confort',
-    'stats.rating_count': '4.9',
-    'stats.rating_label': 'Calificación de Huéspedes',
-    'stats.service_count': '24/7',
-    'stats.service_label': 'Atención Personalizada',
+    'stats.rating_count': '1.5 h',
+    'stats.rating_label': 'Desde Bogotá',
+    'stats.service_count': '1 a 1',
+    'stats.service_label': 'Atención personalizada',
 
     // Domes Section
     'domes.tag': 'NUESTROS ALOJAMIENTOS',
@@ -835,10 +835,10 @@ const translations: Record<Language, Translations> = {
     'stats.domes_label': 'Exclusive Domes',
     'stats.nature_count': '100%',
     'stats.nature_label': 'Nature & Comfort',
-    'stats.rating_count': '4.9',
-    'stats.rating_label': 'Guest Rating',
-    'stats.service_count': '24/7',
-    'stats.service_label': 'Personalized Service',
+    'stats.rating_count': '1.5 h',
+    'stats.rating_label': 'From Bogotá',
+    'stats.service_count': '1 on 1',
+    'stats.service_label': 'Personalized service',
 
     // Domes Section
     'domes.tag': 'OUR ACCOMMODATIONS',

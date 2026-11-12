@@ -137,9 +137,9 @@ export const LocationPhotos: React.FC<LocationPhotosProps> = ({ defaultImages, a
 
       {photos.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {photos.map(p => (
+          {photos.map((p, idx) => (
             <div key={p.id} className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200">
-              <img src={p.url} alt="" className="w-full h-full object-cover" />
+              <img src={p.url} alt={`${alt} - foto ${idx + 1}`} className="w-full h-full object-cover" />
               <button
                 type="button"
                 disabled={busy}

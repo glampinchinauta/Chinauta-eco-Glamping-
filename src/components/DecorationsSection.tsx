@@ -115,7 +115,7 @@ export const DecorationsSection: React.FC<DecorationsSectionProps> = ({ onOpenBo
           >
             <X className="w-6 h-6" />
           </button>
-          <img src={preview} alt="" className="max-h-[90vh] max-w-full rounded-xl object-contain" />
+          <img src={preview} alt="Vista ampliada de la decoración" className="max-h-[90vh] max-w-full rounded-xl object-contain" />
         </div>
       )}
     </section>
