@@ -5,6 +5,7 @@ import { createServer as createViteServer } from "vite";
 import { DatabaseSync } from "node:sqlite";
 import { GoogleGenAI } from "@google/genai";
 import crypto from "crypto";
+import { verifyFirebaseIdToken, normalizeEmail } from "./server-auth";
 
 // Password hashing (scrypt). Stored as "scrypt$<salt>$<hash>".
 function hashPassword(pw: string): string {
@@ -56,25 +57,37 @@ async function getFirebaseCerts(): Promise<Record<string, string>> {
 }
 
 async function verifyAdminToken(token: string): Promise<any> {
-  const parts = token.split(".");
-  if (parts.length !== 3) throw new Error("Token inválido.");
-  const [h, p, s] = parts;
-  const header = JSON.parse(Buffer.from(h, "base64url").toString("utf8"));
-  const payload = JSON.parse(Buffer.from(p, "base64url").toString("utf8"));
-  if (header.alg !== "RS256" || !header.kid) throw new Error("Token inválido.");
-  const certs = await getFirebaseCerts();
-  const cert = certs[header.kid];
-  if (!cert) throw new Error("Token inválido.");
-  const valid = crypto.createVerify("RSA-SHA256").update(`${h}.${p}`).verify(cert, Buffer.from(s, "base64url"));
-  if (!valid) throw new Error("Token inválido.");
-  const now = Math.floor(Date.now() / 1000);
-  if (!FIREBASE_PROJECT_ID || payload.aud !== FIREBASE_PROJECT_ID || payload.iss !== `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`) {
-    throw new Error("Token inválido.");
-  }
-  if (!(payload.exp > now) || payload.iat > now + 300) throw new Error("La sesión venció. Inicia sesión de nuevo.");
+  const payload = await verifyFirebaseIdToken(token, {
+    projectId: FIREBASE_PROJECT_ID,
+    getCert: async (kid) => (await getFirebaseCerts())[kid],
+  });
   if (!payload.email || payload.email_verified !== true) throw new Error("Correo no verificado.");
-  if (!ADMIN_EMAILS.includes(String(payload.email).toLowerCase())) throw new Error("Sin permisos de administrador.");
+  if (!ADMIN_EMAILS.includes(normalizeEmail(payload.email))) throw new Error("Sin permisos de administrador.");
   return payload;
+}
+
+// Customer accounts: any Firebase user with a verified email. They only see their own reservations.
+async function verifyCustomerToken(token: string): Promise<string> {
+  const payload = await verifyFirebaseIdToken(token, {
+    projectId: FIREBASE_PROJECT_ID,
+    getCert: async (kid) => (await getFirebaseCerts())[kid],
+  });
+  if (!payload.email || payload.email_verified !== true) {
+    throw new Error("Confirma tu correo electrónico para ver tus reservas.");
+  }
+  return normalizeEmail(payload.email);
+}
+
+async function requireCustomer(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  if (!token) return res.status(401).json({ error: "Inicia sesión para ver tus reservas." });
+  try {
+    (req as any).customerEmail = await verifyCustomerToken(token);
+    next();
+  } catch (err: any) {
+    res.status(401).json({ error: err.message || "No autorizado." });
+  }
 }
 
 async function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -112,6 +125,8 @@ const PUBLIC_READS = new Set([
 app.use("/api", (req, res, next) => {
   // Express ignores letter case in routes, so the check must ignore it too (/api/RESERVATIONS).
   const full = ("/api" + req.path.replace(/\/+$/, "")).toLowerCase();
+  // Customer routes (/api/my/...) check their own customer token.
+  if (full.startsWith("/api/my/")) return next();
   const isRead = req.method === "GET" || req.method === "HEAD";
   const isPublic = isRead ? PUBLIC_READS.has(full) : PUBLIC_WRITES.has(full);
   if (!isPublic) {
@@ -1224,6 +1239,21 @@ app.get("/api/availability", (req, res) => {
 // 4. Reservations & Double Booking Prevention (Atomic Transaction)
 // Public lookup for a guest: needs the exact reservation code AND the email or phone used to book.
 // Returns only the fields the guest needs (no notes, documents or other customers' data).
+// Customer account: the logged-in guest's own reservations (matched by verified email).
+app.get("/api/my/reservations", requireCustomer, (req, res) => {
+  const email = (req as any).customerEmail as string;
+  const rows = db.prepare(`
+    SELECT r.reservation_code, r.check_in, r.check_out, r.guests, r.status, r.payment_status,
+           r.total_amount, r.amount_paid, r.amount_pending, r.created_at, d.name AS dome_name
+    FROM reservations r
+    JOIN customers c ON r.customer_id = c.id
+    JOIN domes d ON r.dome_id = d.id
+    WHERE LOWER(TRIM(c.email)) = ?
+    ORDER BY r.check_in DESC
+  `).all(email);
+  res.json(rows);
+});
+
 app.get("/api/reservations/lookup", (req, res) => {
   const code = String(req.query.code || "").trim().toUpperCase();
   const contact = String(req.query.contact || "").trim();

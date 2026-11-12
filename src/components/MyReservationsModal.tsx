@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Search, Phone } from 'lucide-react';
 import { Reservation } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { AccountPanel } from './AccountPanel';
 
 interface MyReservationsModalProps {
   isOpen: boolean;
@@ -60,6 +61,9 @@ export const MyReservationsModal: React.FC<MyReservationsModalProps> = ({ isOpen
 
         {/* Content */}
         <div className="p-6 sm:p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+          <AccountPanel />
+
+          <h4 className="text-sm font-bold text-slate-900">¿No tienes cuenta? Busca tu reserva con el código</h4>
           <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
