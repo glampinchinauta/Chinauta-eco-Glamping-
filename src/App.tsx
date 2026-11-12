@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { loadAnalyticsIfConsented } from './lib/analytics';
 import { signOut } from 'firebase/auth';
 import { auth } from './lib/firebase';
 import { Navbar } from './components/Navbar';
@@ -25,6 +26,9 @@ function AppContent() {
   // Links such as /?legal=terminos open the legal page directly (used by the booking form).
   const [activeTab, setActiveTab] = useState(() => (readLegalParam() ? 'legal' : 'home'));
   const [legalSection, setLegalSection] = useState<LegalSection>(() => readLegalParam() || 'privacidad');
+
+  // Returning visitors who already accepted analytics: load it on arrival (does nothing otherwise).
+  useEffect(() => { loadAnalyticsIfConsented(); }, []);
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
 
   // Centralized Dynamic SEO Configuration Utility

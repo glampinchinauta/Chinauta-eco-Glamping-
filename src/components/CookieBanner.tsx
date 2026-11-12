@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { loadAnalyticsIfConsented } from '../lib/analytics';
 
 const CONSENT_KEY = 'egc_cookie_consent';
 
@@ -38,6 +39,7 @@ export const CookieBanner: React.FC<{ onOpenCookiePolicy: () => void }> = ({ onO
   const choose = (value: CookieConsent) => {
     saveConsent(value);
     setVisible(false);
+    if (value === 'all') loadAnalyticsIfConsented();
   };
 
   return (
