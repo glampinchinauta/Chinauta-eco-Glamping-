@@ -3,7 +3,7 @@ import { Utensils, Sparkles, CheckCircle2, ChevronRight, ShoppingBag, Coffee, Fl
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImageCarousel } from './ImageCarousel';
 import { useLanguage } from '../context/LanguageContext';
-import { PUBLIC_UPLOADS_ENABLED } from '../config/uploads';
+import { useIsAdmin } from '../lib/useIsAdmin';
 
 export interface FoodMenuItem {
   id: number;
@@ -112,6 +112,7 @@ interface FoodMenuSectionProps {
 }
 
 export const FoodMenuSection: React.FC<FoodMenuSectionProps> = ({ onOpenBooking }) => {
+  const canEdit = useIsAdmin(); // Only a signed-in administrator sees menu edit controls
   const { t, language } = useLanguage();
   const [menuItems, setMenuItems] = useState<FoodMenuItem[]>(DEFAULT_MENU_ITEMS);
   const [activeCategory, setActiveCategory] = useState<string>('Todos');
@@ -324,7 +325,7 @@ export const FoodMenuSection: React.FC<FoodMenuSectionProps> = ({ onOpenBooking 
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 relative">
-      {PUBLIC_UPLOADS_ENABLED && (
+      {canEdit && (
 <input
         type="file"
         ref={fileInputRef}
@@ -351,7 +352,7 @@ export const FoodMenuSection: React.FC<FoodMenuSectionProps> = ({ onOpenBooking 
           </p>
         </div>
 
-        {PUBLIC_UPLOADS_ENABLED && (
+        {canEdit && (
 <button
           type="button"
           onClick={() => setIsAddModalOpen(true)}
@@ -468,7 +469,7 @@ export const FoodMenuSection: React.FC<FoodMenuSectionProps> = ({ onOpenBooking 
                     {t('food_menu.update_media')}
                   </span>
                   <div className="flex items-center space-x-2">
-                    {PUBLIC_UPLOADS_ENABLED && (
+                    {canEdit && (
 <button
                       type="button"
                       onClick={() => {
@@ -482,7 +483,7 @@ export const FoodMenuSection: React.FC<FoodMenuSectionProps> = ({ onOpenBooking 
                     </button>
 )}
 
-                    {PUBLIC_UPLOADS_ENABLED && (
+                    {canEdit && (
 <button
                       type="button"
                       onClick={() => {
@@ -695,7 +696,7 @@ export const FoodMenuSection: React.FC<FoodMenuSectionProps> = ({ onOpenBooking 
                     {language === 'en' ? 'Upload Photo or Video Tour' : 'Subir Foto o Video del Plato'}
                   </label>
 
-                  {PUBLIC_UPLOADS_ENABLED && (
+                  {canEdit && (
 <input
                     type="file"
                     ref={modalFileInputRef}

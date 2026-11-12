@@ -3,9 +3,10 @@ import { MapPin, Phone, Mail, HelpCircle, Upload, Camera, CheckCircle, Sparkles 
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImageCarousel } from './ImageCarousel';
 import { useLanguage } from '../context/LanguageContext';
-import { PUBLIC_UPLOADS_ENABLED } from '../config/uploads';
+import { useIsAdmin } from '../lib/useIsAdmin';
 
 export const ContactView: React.FC = () => {
+  const canEdit = useIsAdmin(); // Only a signed-in administrator can change the photo gallery
   const { t, language } = useLanguage();
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -175,7 +176,7 @@ export const ContactView: React.FC = () => {
 
       {/* Chinauta Fusagasugá Photo Gallery & Upload Section */}
       <div className="glass-card p-8 sm:p-10 rounded-3xl border border-slate-200 space-y-8 bg-gradient-to-b from-white to-slate-50 shadow-md">
-        {PUBLIC_UPLOADS_ENABLED && (
+        {canEdit && (
 <input
           type="file"
           ref={fileInputRef}
@@ -195,7 +196,7 @@ export const ContactView: React.FC = () => {
             <p className="text-sm text-slate-600">Fotos reales de los domos y paisajes de Chinauta.</p>
           </div>
 
-          {PUBLIC_UPLOADS_ENABLED && (
+          {canEdit && (
 <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -234,6 +235,7 @@ export const ContactView: React.FC = () => {
                     <Camera className="w-3.5 h-3.5" />
                     <span>Chinauta Fusagasugá</span>
                   </span>
+                  {canEdit && (
                   <button
                     type="button"
                     onClick={() => removeGalleryImage(index)}
@@ -242,6 +244,7 @@ export const ContactView: React.FC = () => {
                   >
                     🗑️
                   </button>
+                  )}
                 </div>
               </motion.div>
             ))}

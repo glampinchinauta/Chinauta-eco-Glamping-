@@ -13,6 +13,11 @@ function hashPassword(pw: string): string {
   return `scrypt$${salt}$${hash}`;
 }
 
+// Random secret for seeded accounts: nobody knows it, so no default password exists.
+function randomSecret(): string {
+  return crypto.randomBytes(24).toString("base64url");
+}
+
 function verifyPassword(pw: string, stored: string): boolean {
   if (!stored || !pw) return false;
   // Legacy plain-text rows are still accepted once; the login upgrades them to a hash.
@@ -84,25 +89,32 @@ async function requireAdmin(req: express.Request, res: express.Response, next: e
   }
 }
 
-// Public writes (website visitors): booking, AI concierge, testimonials, uploads from the site.
+// Public writes: only a guest booking, the AI concierge question and the login request.
+// Every other change (domes, menu, gallery, testimonials, promo codes, uploads, payments...) needs an admin.
 const PUBLIC_WRITES = new Set([
   "/api/reservations",
   "/api/privacy/delete",
   "/api/ai/chat",
-  "/api/testimonials",
   "/api/auth/login",
-  "/api/upload-media",
-  "/api/upload-image",
-  "/api/upload-video",
 ]);
-// Reads that expose customer, money or staff data: admin only.
-const ADMIN_READS = ["/api/reservations", "/api/customers", "/api/payments", "/api/users", "/api/audit", "/api/settings", "/api/finances/summary", "/api/dashboard/metrics", "/api/analytics/charts", "/api/promo-codes"];
+// Public reads: only what the website shows to visitors. Any other GET under /api needs an admin (default deny).
+const PUBLIC_READS = new Set([
+  "/api/domes",
+  "/api/gallery",
+  "/api/menu",
+  "/api/testimonials",
+  "/api/location-photos",
+  "/api/availability",
+  "/api/reservations/lookup",
+  "/api/promo-codes/validate",
+]);
 
 app.use("/api", (req, res, next) => {
-  const full = "/api" + req.path.replace(/\/+$/, "");
-  const isWrite = req.method !== "GET";
-  const isAdminRead = !isWrite && full !== "/api/promo-codes/validate" && full !== "/api/reservations/lookup" && ADMIN_READS.some((base) => full === base || full.startsWith(base + "/"));
-  if ((isWrite && !PUBLIC_WRITES.has(full)) || isAdminRead) {
+  // Express ignores letter case in routes, so the check must ignore it too (/api/RESERVATIONS).
+  const full = ("/api" + req.path.replace(/\/+$/, "")).toLowerCase();
+  const isRead = req.method === "GET" || req.method === "HEAD";
+  const isPublic = isRead ? PUBLIC_READS.has(full) : PUBLIC_WRITES.has(full);
+  if (!isPublic) {
     return requireAdmin(req, res, next);
   }
   next();
@@ -122,6 +134,14 @@ const db = new DatabaseSync(DB_PATH);
 
 // Enable foreign keys
 db.exec("PRAGMA foreign_keys = ON;");
+
+// One-time data migrations. Each name runs once and is recorded, so later admin edits are never overwritten on restart.
+db.exec(`CREATE TABLE IF NOT EXISTS app_migrations (name TEXT PRIMARY KEY, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP);`);
+function runOnce(name: string, fn: () => void) {
+  if (db.prepare(`SELECT 1 FROM app_migrations WHERE name = ?`).get(name)) return;
+  fn();
+  db.prepare(`INSERT INTO app_migrations (name) VALUES (?)`).run(name);
+}
 
 // Initialize Schema
 db.exec(`
@@ -272,10 +292,10 @@ if (domeCount.count === 0) {
 
   // Seed Users
   const insertUser = db.prepare(`INSERT INTO users (username, password_hash, full_name, email, role, status) VALUES (?, ?, ?, ?, ?, ?)`);
-  insertUser.run("superadmin", hashPassword("admin123"), "Carlos SuperAdmin", "superadmin@ecoglampingchinauta.com", "SUPERADMIN", "Activo");
-  insertUser.run("admin", hashPassword("admin123"), "María Admin", "admin@ecoglampingchinauta.com", "ADMIN", "Activo");
-  insertUser.run("reception", hashPassword("admin123"), "Ana Recepción", "reception@ecoglampingchinauta.com", "RECEPCION", "Activo");
-  insertUser.run("finanzas", hashPassword("admin123"), "Pedro Finanzas", "finanzas@ecoglampingchinauta.com", "FINANCES", "Activo");
+  insertUser.run("superadmin", hashPassword(randomSecret()), "Carlos SuperAdmin", "superadmin@ecoglampingchinauta.com", "SUPERADMIN", "Activo");
+  insertUser.run("admin", hashPassword(randomSecret()), "María Admin", "admin@ecoglampingchinauta.com", "ADMIN", "Activo");
+  insertUser.run("reception", hashPassword(randomSecret()), "Ana Recepción", "reception@ecoglampingchinauta.com", "RECEPCION", "Activo");
+  insertUser.run("finanzas", hashPassword(randomSecret()), "Pedro Finanzas", "finanzas@ecoglampingchinauta.com", "FINANCES", "Activo");
 
   // Seed Domes with authentic local assets and real configurations
   const insertDome = db.prepare(`INSERT INTO domes (name, code, description, capacity, price_per_night, image_url, images, status, features, policies) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
@@ -400,6 +420,16 @@ if (domeCount.count === 0) {
   console.log("Database seeded successfully.");
 }
 
+// Databases created earlier still carry the published default password "admin123". Replace it once.
+runOnce("rotate_default_passwords_v1", () => {
+  const rows = db.prepare(`SELECT id, password_hash FROM users`).all() as any[];
+  for (const u of rows) {
+    if (verifyPassword("admin123", u.password_hash)) {
+      db.prepare(`UPDATE users SET password_hash = ? WHERE id = ?`).run(hashPassword(randomSecret()), u.id);
+    }
+  }
+});
+
 // Ensure video_url column exists in domes table
 try {
   db.exec("ALTER TABLE domes ADD COLUMN video_url TEXT;");
@@ -429,8 +459,8 @@ try {
   console.warn("Testimonial cleanup notice:", e);
 }
 
-// Ensure database has exact user-uploaded media for Domes, Gallery, and Testimonials
-try {
+// Initial media and specs for Domes 1-6. Applied once; afterwards the admin owns these fields.
+runOnce("domes_media_v1", () => { try {
   const userDomesMedia: Record<number, { url: string; gallery: string[]; video_url?: string }> = {
     1: {
       url: "/assets/images/dome_1_1791403584294.jpg",
@@ -538,7 +568,7 @@ try {
   );
 } catch (e) {
   console.warn("Dome image sync notice:", e);
-}
+} });
 
 // Promo codes table and one-time migrations (prices, amenities)
 db.exec(`
@@ -549,11 +579,34 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS promo_codes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     code TEXT UNIQUE NOT NULL,
-    percent INTEGER NOT NULL CHECK(percent IN (5, 10, 15)),
+    percent INTEGER NOT NULL CHECK(percent IN (5, 10, 15, 20)),
     active INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+// Percentages an admin may give a promo code.
+const PROMO_PERCENTS = [5, 10, 15, 20];
+
+// Older databases were created with CHECK(percent IN (5, 10, 15)). SQLite cannot alter a CHECK, so rebuild the table once.
+runOnce("promo_percent_20", () => {
+  const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'promo_codes'`).get() as any;
+  if (row && !/20\)/.test(String(row.sql))) {
+    db.exec(`
+      CREATE TABLE promo_codes_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE NOT NULL,
+        percent INTEGER NOT NULL CHECK(percent IN (5, 10, 15, 20)),
+        active INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO promo_codes_new (id, code, percent, active, created_at)
+        SELECT id, code, percent, active, created_at FROM promo_codes;
+      DROP TABLE promo_codes;
+      ALTER TABLE promo_codes_new RENAME TO promo_codes;
+    `);
+  }
+});
 
 // One-time: nightly prices requested by the owner (applied once, so later admin edits are kept)
 const PRICE_MIGRATION = "domes_prices_2026_11";
@@ -617,8 +670,8 @@ app.post("/api/promo-codes", (req, res) => {
   const { code, percent, active, user_name } = req.body;
   const cleanCode = String(code || "").trim().toUpperCase();
   const pct = Number(percent);
-  if (!cleanCode || ![5, 10, 15].includes(pct)) {
-    return res.status(400).json({ error: "Código obligatorio y porcentaje de 5, 10 o 15." });
+  if (!cleanCode || !PROMO_PERCENTS.includes(pct)) {
+    return res.status(400).json({ error: "Código obligatorio y porcentaje de 5, 10, 15 o 20." });
   }
   try {
     const info = db.prepare(`INSERT INTO promo_codes (code, percent, active) VALUES (?, ?, ?)`).run(cleanCode, pct, active === 0 ? 0 : 1);
@@ -634,8 +687,8 @@ app.put("/api/promo-codes/:id", (req, res) => {
   const { code, percent, active, user_name } = req.body;
   const cleanCode = String(code || "").trim().toUpperCase();
   const pct = Number(percent);
-  if (!cleanCode || ![5, 10, 15].includes(pct)) {
-    return res.status(400).json({ error: "Código obligatorio y porcentaje de 5, 10 o 15." });
+  if (!cleanCode || !PROMO_PERCENTS.includes(pct)) {
+    return res.status(400).json({ error: "Código obligatorio y porcentaje de 5, 10, 15 o 20." });
   }
   try {
     db.prepare(`UPDATE promo_codes SET code = ?, percent = ?, active = ? WHERE id = ?`).run(cleanCode, pct, active === 0 ? 0 : 1, id);
@@ -648,8 +701,8 @@ app.put("/api/promo-codes/:id", (req, res) => {
 
 // Seed / Update Gallery Items with real uploaded videos and photos
 try {
-  db.exec(`
-    DELETE FROM gallery_items;
+  // Seed only an empty gallery: never delete what the admin has added or removed.
+  if ((db.prepare(`SELECT COUNT(*) AS c FROM gallery_items`).get() as any).c === 0) db.exec(`
     INSERT INTO gallery_items (title, category, media_type, media_url, description) VALUES
     ('Domo 1 Huitaca — Video Tour y Jacuzzi Privado', 'Videos', 'video', '/assets/videos/domo_1_user_video.mp4', 'Recorrido completo en video de alta calidad por las instalaciones, jacuzzi del Domo Huitaca.'),
     ('Domo 3 Bachué — Experiencia de Descanso y Naturaleza', 'Videos', 'video', '/assets/videos/domo_3_user_video.mp4', 'Video experiencia real en el Domo Bachué rodeado de vegetación y clima cálido en Chinauta.'),
@@ -806,59 +859,56 @@ app.put("/api/domes/:id/images", (req, res) => {
   }
 });
 
+// ---------- Uploads (admin only) ----------
+// The file type comes from the data URL's MIME type, never from the client's file name, and the name on disk is generated here.
+// Nothing user-supplied is used in a path, so "../" tricks cannot write outside public/assets.
+class UploadError extends Error {}
+const UPLOAD_TYPES: Record<string, { kind: "image" | "video"; ext: string }> = {
+  "image/jpeg": { kind: "image", ext: "jpg" },
+  "image/png": { kind: "image", ext: "png" },
+  "image/webp": { kind: "image", ext: "webp" },
+  "image/gif": { kind: "image", ext: "gif" },
+  "video/mp4": { kind: "video", ext: "mp4" },
+  "video/webm": { kind: "video", ext: "webm" },
+  "video/quicktime": { kind: "video", ext: "mov" },
+};
+function saveUpload(dataUrl: unknown, expectKind?: "image" | "video"): { url: string; kind: "image" | "video" } {
+  const m = typeof dataUrl === "string" ? /^data:([a-z]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/i.exec(dataUrl) : null;
+  if (!m) throw new UploadError("El archivo debe enviarse como data URL en base64.");
+  const type = UPLOAD_TYPES[m[1].toLowerCase()];
+  if (!type) throw new UploadError("Tipo de archivo no permitido. Usa JPG, PNG, WEBP, GIF, MP4, WEBM o MOV.");
+  if (expectKind && type.kind !== expectKind) throw new UploadError(`Se esperaba un archivo de tipo ${expectKind}.`);
+  const folder = type.kind === "video" ? "videos" : "images";
+  const dir = path.join(process.cwd(), "public", "assets", folder);
+  fs.mkdirSync(dir, { recursive: true });
+  const name = `${type.kind}_${Date.now()}_${crypto.randomBytes(6).toString("hex")}.${type.ext}`;
+  fs.writeFileSync(path.join(dir, name), Buffer.from(m[2], "base64"));
+  return { url: `/assets/${folder}/${name}`, kind: type.kind };
+}
+function uploadErrorStatus(err: any): number {
+  return err instanceof UploadError ? 400 : 500;
+}
+
 app.post("/api/upload-video", (req, res) => {
   try {
-    const { domeId, filename, videoData } = req.body;
+    const { videoData } = req.body;
     if (!videoData) {
       return res.status(400).json({ error: "No video data provided" });
     }
-    const cleanBase64 = videoData.replace(/^data:video\/\w+;base64,/, "");
-    const buffer = Buffer.from(cleanBase64, "base64");
-    const targetDir = path.join(process.cwd(), "public", "assets", "videos");
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
-    const safeName = filename || `domo_${domeId || 1}_huitaca.mp4`;
-    const targetFile = path.join(targetDir, safeName);
-    fs.writeFileSync(targetFile, buffer);
-
-    try {
-      const srcDir = path.join(process.cwd(), "src", "assets", "videos");
-      if (!fs.existsSync(srcDir)) fs.mkdirSync(srcDir, { recursive: true });
-      fs.writeFileSync(path.join(srcDir, safeName), buffer);
-    } catch (_) {}
-
-    const videoUrl = `/assets/videos/${safeName}`;
-    res.json({ success: true, url: videoUrl });
+    const saved = saveUpload(videoData, "video");
+    res.json({ success: true, url: saved.url });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(uploadErrorStatus(err)).json({ error: err.message });
   }
 });
 
 app.post("/api/upload-image", (req, res) => {
   try {
-    const { domeId, filename, imageData } = req.body;
+    const { domeId, imageData } = req.body;
     if (!imageData) {
       return res.status(400).json({ error: "No image data provided" });
     }
-    const cleanBase64 = imageData.replace(/^data:image\/\w+;base64,/, "");
-    const buffer = Buffer.from(cleanBase64, "base64");
-    const targetDir = path.join(process.cwd(), "public", "assets", "images");
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
-    const ext = filename?.split('.').pop() || 'jpg';
-    const safeName = filename || `dome_${domeId || 1}_user_${Date.now()}.${ext}`;
-    const targetFile = path.join(targetDir, safeName);
-    fs.writeFileSync(targetFile, buffer);
-
-    try {
-      const srcDir = path.join(process.cwd(), "src", "assets", "images");
-      if (!fs.existsSync(srcDir)) fs.mkdirSync(srcDir, { recursive: true });
-      fs.writeFileSync(path.join(srcDir, safeName), buffer);
-    } catch (_) {}
-
-    const imageUrl = `/assets/images/${safeName}`;
+    const imageUrl = saveUpload(imageData, "image").url;
 
     // Optionally update the dome in SQLite database if domeId is provided
     if (domeId) {
@@ -883,44 +933,22 @@ app.post("/api/upload-image", (req, res) => {
 
     res.json({ success: true, url: imageUrl });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(uploadErrorStatus(err)).json({ error: err.message });
   }
 });
 
 // Universal Media Upload for Photos and Videos (Gallery, Food Menu, Testimonials, Domes)
 app.post("/api/upload-media", (req, res) => {
   try {
-    const { filename, mediaData, type } = req.body;
+    const { mediaData } = req.body;
     if (!mediaData) {
       return res.status(400).json({ error: "No media data provided" });
     }
-
-    const isVideo = type === 'video' || filename?.match(/\.(mp4|webm|mov|quicktime)$/i) || mediaData.startsWith("data:video");
-    const cleanBase64 = mediaData.replace(/^data:(image|video)\/\w+;base64,/, "");
-    const buffer = Buffer.from(cleanBase64, "base64");
-    
-    const folder = isVideo ? "videos" : "images";
-    const targetDir = path.join(process.cwd(), "public", "assets", folder);
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
-
-    const ext = filename?.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
-    const safeName = `media_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
-    const targetFile = path.join(targetDir, safeName);
-    fs.writeFileSync(targetFile, buffer);
-
-    try {
-      const srcDir = path.join(process.cwd(), "src", "assets", folder);
-      if (!fs.existsSync(srcDir)) fs.mkdirSync(srcDir, { recursive: true });
-      fs.writeFileSync(path.join(srcDir, safeName), buffer);
-    } catch (_) {}
-
-    const mediaUrl = `/assets/${folder}/${safeName}`;
-    res.json({ success: true, url: mediaUrl, media_type: isVideo ? 'video' : 'image' });
+    const saved = saveUpload(mediaData);
+    res.json({ success: true, url: saved.url, media_type: saved.kind });
   } catch (err: any) {
-    console.error("Upload media error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Upload media error:", err.message);
+    res.status(uploadErrorStatus(err)).json({ error: err.message });
   }
 });
 
@@ -1329,7 +1357,7 @@ app.post("/api/privacy/delete", (req, res) => {
 app.get("/api/reservations", (req, res) => {
   try {
     const reservations = db.prepare(`
-      r.*, c.name as customer_name, c.phone as customer_phone, c.email as customer_email, c.whatsapp as customer_whatsapp, d.name as dome_name, d.code as dome_code
+      SELECT r.*, c.name as customer_name, c.phone as customer_phone, c.email as customer_email, c.whatsapp as customer_whatsapp, d.name as dome_name, d.code as dome_code
       FROM reservations r
       JOIN customers c ON r.customer_id = c.id
       JOIN domes d ON r.dome_id = d.id
@@ -1580,7 +1608,7 @@ app.delete("/api/reservations/:id", (req, res) => {
 app.get("/api/payments", (req, res) => {
   try {
     const payments = db.prepare(`
-      p.*, r.reservation_code, c.name as customer_name
+      SELECT p.*, r.reservation_code, c.name as customer_name
       FROM payments p
       JOIN reservations r ON p.reservation_id = r.id
       JOIN customers c ON r.customer_id = c.id
@@ -1638,7 +1666,7 @@ app.post("/api/payments", (req, res) => {
 app.get("/api/customers", (req, res) => {
   try {
     const customers = db.prepare(`
-      c.*, 
+      SELECT c.*,
       COUNT(r.id) as total_reservations,
       COALESCE(SUM(r.total_amount), 0) as total_spent,
       MAX(r.created_at) as last_reservation
@@ -1660,7 +1688,7 @@ app.get("/api/customers/:id", (req, res) => {
     if (!customer) return res.status(404).json({ error: "Cliente no encontrado" });
 
     const reservations = db.prepare(`
-      r.*, d.name as dome_name
+      SELECT r.*, d.name as dome_name
       FROM reservations r
       JOIN domes d ON r.dome_id = d.id
       WHERE r.customer_id = ?

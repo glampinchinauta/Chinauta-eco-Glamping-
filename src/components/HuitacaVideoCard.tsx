@@ -4,7 +4,7 @@ import { Play, Pause, Volume2, VolumeX, Maximize2, Film, Camera, Upload, CheckCi
 import defaultVideoUrl from '../assets/videos/domo_1_huitaca.mp4';
 import { ImageCarousel } from './ImageCarousel';
 import { useLanguage } from '../context/LanguageContext';
-import { PUBLIC_UPLOADS_ENABLED } from '../config/uploads';
+import { useIsAdmin } from '../lib/useIsAdmin';
 
 interface HuitacaVideoCardProps {
   images: string[];
@@ -24,6 +24,7 @@ export const HuitacaVideoCard: React.FC<HuitacaVideoCardProps> = ({
   onVideoChange
 }) => {
   const { t } = useLanguage();
+  const canEdit = useIsAdmin(); // Only a signed-in administrator sees upload controls
   const [activeTab, setActiveTab] = useState<'video' | 'photos'>('video');
   const [videoSrc, setVideoSrc] = useState<string>(() => {
     try {
@@ -159,7 +160,7 @@ export const HuitacaVideoCard: React.FC<HuitacaVideoCardProps> = ({
   return (
     <div className={`relative w-full overflow-hidden select-none group bg-slate-950 rounded-t-2xl flex flex-col justify-end ${className}`}>
       {/* Hidden File Input for uploading custom video */}
-      {PUBLIC_UPLOADS_ENABLED && (
+      {canEdit && (
 <input
         type="file"
         ref={fileInputRef}
@@ -215,7 +216,7 @@ export const HuitacaVideoCard: React.FC<HuitacaVideoCardProps> = ({
 
           {/* Top Right: Upload Video & Fullscreen */}
           <div className="absolute top-3 right-3 z-20 flex items-center space-x-1.5 pointer-events-auto">
-            {PUBLIC_UPLOADS_ENABLED && (
+            {canEdit && (
 <button
               type="button"
               onClick={(e) => {
