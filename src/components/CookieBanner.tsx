@@ -48,10 +48,12 @@ export const CookieBanner: React.FC<{ onOpenCookiePolicy: () => void }> = ({ onO
       className="fixed inset-x-0 bottom-0 z-[60] p-4 sm:p-6"
     >
       <div className="mx-auto max-w-3xl rounded-2xl border border-slate-300 bg-white p-5 shadow-2xl space-y-4">
-        <h2 id="cookie-banner-title" className="text-base font-bold text-slate-900">Usamos cookies y almacenamiento local</h2>
+        <h2 id="cookie-banner-title" className="text-base font-bold text-slate-900">Usamos cookies y datos de terceros</h2>
         <p className="text-sm text-slate-700 leading-relaxed">
-          Guardamos en tu navegador lo necesario para que el sitio funcione. Hoy no usamos cookies de publicidad ni de
-          analítica de terceros. Si algún día las usamos, te pediremos permiso antes.
+          Usamos cookies esenciales para que el sitio funcione. Además, con tu permiso, usamos herramientas de analítica
+          (como Google Analytics) y de publicidad (como Meta) para medir las visitas y mejorar el sitio. Esos datos se
+          envían a proveedores de terceros, algunos fuera de Colombia. Si eliges "Solo esenciales", no se cargan.
+          Puedes cambiar tu elección cuando quieras en la política de cookies.
         </p>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <button
@@ -74,7 +76,7 @@ export const CookieBanner: React.FC<{ onOpenCookiePolicy: () => void }> = ({ onO
               onClick={() => choose('all')}
               className="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
             >
-              Aceptar todas
+              Aceptar analítica y publicidad
             </button>
           </div>
         </div>

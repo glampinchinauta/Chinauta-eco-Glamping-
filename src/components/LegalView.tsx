@@ -60,6 +60,7 @@ const PrivacyContent: React.FC = () => (
         <li>Datos de la reserva: fechas, domo, número de huéspedes, mascotas, complementos, comidas y notas que escribas.</li>
         <li>Tu aceptación de estos términos, la fecha y la versión aceptada, y tu confirmación de ser mayor de edad.</li>
         <li>Tu autorización para ofertas, solo si la marcas (es una casilla aparte y sin marcar).</li>
+        <li>Datos de navegación (páginas visitadas, dispositivo, región aproximada) mediante herramientas de analítica y publicidad, solo si aceptas esas cookies.</li>
       </ul>
       <P>No pedimos datos sensibles (salud, creencias, orientación sexual, biométricos) ni datos financieros de tarjetas en este sitio.</P>
     </Section>
@@ -98,8 +99,14 @@ const PrivacyContent: React.FC = () => (
         <li>Google (Firebase): autenticación del personal administrativo. Acuerdo de tratamiento: <Rich text="[PENDIENTE: firmar o aceptar el acuerdo de tratamiento de datos]" />.</li>
         <li>Google (Gemini API): procesa los mensajes del asistente virtual. Acuerdo de tratamiento: <Rich text="[PENDIENTE]" />.</li>
         <li>Meta (WhatsApp): solo si tú nos escribes o abres un enlace de WhatsApp desde el sitio.</li>
+        <li>Google Analytics (analítica del sitio): solo si aceptas las cookies de analítica. Ver la pestaña "Cookies".</li>
+        <li>Meta (píxeles de publicidad): solo si aceptas las cookies de publicidad. <Rich text="[PENDIENTE: confirmar]" /></li>
         <li>Pasarelas de pago (Wompi, Mercado Pago): <Rich text="[PENDIENTE: el sitio ofrece estos métodos pero aún no están integrados; eliminarlos o integrarlos y publicar el proveedor]" />.</li>
       </ul>
+      <P>
+        Algunos de estos proveedores están fuera de Colombia. Tu consentimiento expreso autoriza esa transferencia
+        internacional, en los términos de la Ley 1581 de 2012.
+      </P>
       <P>No vendemos tus datos.</P>
     </Section>
 
@@ -304,21 +311,46 @@ const RefundsContent: React.FC = () => (
 
 const CookiesContent: React.FC = () => (
   <>
-    <Section title="1. Qué guardamos en tu navegador">
-      <P>
-        Este sitio no usa cookies de publicidad ni de analítica de terceros, ni píxeles de redes sociales.
-        Solo guardamos en tu navegador lo necesario para el funcionamiento:
-      </P>
-      <ul className="list-disc pl-5 space-y-1">
-        <li>Preferencias de la galería (fotos y videos que el personal sube a cada domo). Son de uso esencial.</li>
-        <li>Sesión del panel administrativo, solo para el personal. Es esencial.</li>
-        <li>Tu elección sobre este aviso de cookies (clave "egc_cookie_consent").</li>
+    <Section title="1. Tipos de cookies y almacenamiento">
+      <P>Usamos tres tipos de almacenamiento en tu navegador:</P>
+      <ul className="list-disc pl-5 space-y-2">
+        <li>
+          <strong>Esenciales (siempre activas):</strong> preferencias de la galería (fotos y videos que el personal sube a
+          cada domo), sesión del panel administrativo para el personal, sesión de tu cuenta de cliente y tu elección sobre
+          este aviso (clave "egc_cookie_consent"). Sin ellas el sitio no funciona.
+        </li>
+        <li>
+          <strong>Analítica (solo si aceptas):</strong> Google Analytics u otra herramienta equivalente, para medir visitas,
+          páginas más vistas y el origen del tráfico, y así mejorar el sitio. Pueden guardar cookies como _ga y _ga_* con una
+          duración de hasta 14 meses, según la configuración de Google.
+        </li>
+        <li>
+          <strong>Publicidad y medición de anuncios (solo si aceptas):</strong> píxeles de redes sociales, como Meta, para
+          medir campañas y mostrar anuncios relevantes. <Rich text="[PENDIENTE: confirmar si se usarán píxeles de publicidad y cuáles]" />
+        </li>
       </ul>
     </Section>
-    <Section title="2. Si cambiamos esto">
+    <Section title="2. Tus datos de terceros">
       <P>
-        Si en el futuro usamos analítica o publicidad, esas herramientas no se activarán hasta que aceptes en este aviso,
-        y podrás cambiar tu elección en cualquier momento desde esta página.
+        Si aceptas las cookies de analítica o publicidad, autorizas que estos datos se envíen a proveedores como Google
+        (cuyos servidores pueden estar en Estados Unidos u otros países) y a Meta, para los fines indicados. Esa
+        transferencia internacional de datos se hace con tu consentimiento expreso. Los datos que recogen estas herramientas
+        son: páginas visitadas, tiempo en el sitio, tipo de dispositivo y navegador, ciudad o región aproximada y dirección
+        IP según el proveedor.
+      </P>
+      <P>
+        Este uso está sujeto a las condiciones de cada proveedor. Puedes consultarlas en sus propios sitios.
+      </P>
+    </Section>
+    <Section title="3. Aceptar, rechazar y cambiar tu elección">
+      <P>
+        Al entrar verás un aviso con dos opciones de igual peso: "Aceptar todas" o "Solo esenciales". Ninguna casilla viene
+        marcada por defecto. Si eliges solo esenciales, no se carga ninguna herramienta de analítica ni de publicidad.
+      </P>
+      <P>
+        Puedes cambiar tu elección en cualquier momento desde esta página (y borrar las cookies de tu navegador). Si retiras
+        tu consentimiento, dejamos de enviar datos a esas herramientas; los datos que ya recibieron se gestionan según la
+        política de cada proveedor.
       </P>
     </Section>
   </>

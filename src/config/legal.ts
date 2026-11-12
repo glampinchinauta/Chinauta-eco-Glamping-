@@ -48,6 +48,11 @@ export const RETENTION_PERIODS: { data: string; period: string; basis: string }[
     basis: 'Consentimiento previo, expreso e informado.',
   },
   {
+    data: 'Datos de analítica y publicidad (Google Analytics, Meta), solo con tu consentimiento',
+    period: 'Hasta 14 meses en las cookies; luego lo gestiona cada proveedor según su configuración',
+    basis: 'Consentimiento expreso para medir visitas y campañas.',
+  },
+  {
     data: 'Registros de auditoría del panel administrativo',
     period: '5 años',
     basis: 'Seguridad y control interno.',
