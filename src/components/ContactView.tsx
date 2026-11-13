@@ -96,7 +96,7 @@ export const ContactView: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center space-x-3 border border-emerald-500/30"
+            className="fixed bottom-24 lg:bottom-6 right-4 sm:right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center space-x-3 border border-emerald-500/30"
           >
             <CheckCircle className="w-5 h-5 text-emerald-400" />
             <span className="text-sm font-medium">{toastMsg}</span>

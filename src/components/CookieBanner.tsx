@@ -47,11 +47,11 @@ export const CookieBanner: React.FC<{ onOpenCookiePolicy: () => void }> = ({ onO
       role="dialog"
       aria-modal="false"
       aria-labelledby="cookie-banner-title"
-      className="fixed inset-x-0 bottom-0 z-[60] p-4 sm:p-6"
+      className="fixed inset-x-0 bottom-0 z-[60] p-2 sm:p-6"
     >
-      <div className="mx-auto max-w-3xl rounded-2xl border border-slate-300 bg-white p-5 shadow-2xl space-y-4">
+      <div className="mx-auto max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl border border-slate-300 bg-white p-4 sm:p-5 shadow-2xl space-y-3 sm:space-y-4">
         <h2 id="cookie-banner-title" className="text-base font-bold text-slate-900">Usamos cookies y datos de terceros</h2>
-        <p className="text-sm text-slate-700 leading-relaxed">
+        <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
           Usamos cookies esenciales para que el sitio funcione. Además, con tu permiso, usamos herramientas de analítica
           (como Google Analytics) y de publicidad (como Meta) para medir las visitas y mejorar el sitio. Esos datos se
           envían a proveedores de terceros, algunos fuera de Colombia. Si eliges "Solo esenciales", no se cargan.
@@ -65,7 +65,7 @@ export const CookieBanner: React.FC<{ onOpenCookiePolicy: () => void }> = ({ onO
           >
             Ver política de cookies
           </button>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row">
             <button
               type="button"
               onClick={() => choose('essential')}

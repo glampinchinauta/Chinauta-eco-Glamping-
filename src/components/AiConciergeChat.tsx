@@ -41,7 +41,7 @@ export const AiConciergeChat: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-[calc(4.25rem+16px)] md:bottom-6 right-4 sm:right-6 z-50">
+    <div className="fixed bottom-[calc(4.25rem+16px)] lg:bottom-6 right-4 sm:right-6 z-50">
       {!isOpen ? (
         <button
           onClick={() => setIsOpen(true)}

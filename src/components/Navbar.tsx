@@ -67,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             
             {/* Logo & Brand */}
             <div 
-              className="flex items-center space-x-3 cursor-pointer group select-none" 
+              className="flex min-w-0 items-center space-x-3 cursor-pointer group select-none" 
               onClick={() => handleNavClick('home')}
             >
               <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white flex items-center justify-center shadow-md shadow-slate-300/40 relative overflow-hidden border border-slate-200 group-hover:scale-105 transition-transform">
@@ -84,26 +84,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                   />
                 </picture>
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center space-x-1.5">
                   <span className="text-base sm:text-lg font-black tracking-tight text-slate-900 group-hover:text-emerald-700 transition-colors">
                     CHINAUTA
                   </span>
-                  <span className="text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 tracking-wider">
+                  <span className="hidden min-[400px]:inline-block lg:hidden xl:inline-block text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 tracking-wider">
                     ECO GLAMPING
                   </span>
                 </div>
-                <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium tracking-widest uppercase">
+                <p className="truncate text-[10px] sm:text-[11px] text-slate-500 font-medium tracking-widest uppercase">
                   Fusagasugá • Colombia
                 </p>
               </div>
             </div>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden md:flex items-center space-x-1 lg:space-x-1.5 xl:space-x-2">
+            <nav className="hidden lg:flex items-center space-x-1 xl:space-x-1.5 2xl:space-x-2">
               <button
                 onClick={() => handleNavClick('home')}
-                className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-2.5 xl:px-3.5 py-2 rounded-lg text-[13px] xl:text-sm font-medium whitespace-nowrap transition-all ${
                   activeTab === 'home'
                     ? 'bg-emerald-50 text-emerald-700 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
@@ -114,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <button
                 onClick={() => handleNavClick('availability')}
-                className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-2.5 xl:px-3.5 py-2 rounded-lg text-[13px] xl:text-sm font-medium whitespace-nowrap transition-all ${
                   activeTab === 'availability'
                     ? 'bg-emerald-50 text-emerald-700 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
@@ -125,7 +125,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <button
                 onClick={() => handleNavClick('domes')}
-                className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center space-x-1 ${
+                className={`px-2.5 xl:px-3.5 py-2 rounded-lg text-[13px] xl:text-sm font-medium whitespace-nowrap transition-all flex items-center space-x-1 ${
                   activeTab === 'domes'
                     ? 'bg-emerald-50 text-emerald-700 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
@@ -139,7 +139,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <button
                 onClick={() => handleNavClick('contact')}
-                className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-2.5 xl:px-3.5 py-2 rounded-lg text-[13px] xl:text-sm font-medium whitespace-nowrap transition-all ${
                   activeTab === 'contact'
                     ? 'bg-emerald-50 text-emerald-700 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
@@ -153,7 +153,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsExplorarDropdownOpen(!isExplorarDropdownOpen)}
-                  className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center space-x-1 ${
+                  className={`px-2.5 xl:px-3.5 py-2 rounded-lg text-[13px] xl:text-sm font-medium whitespace-nowrap transition-all flex items-center space-x-1 ${
                     isExplorarDropdownOpen || activeTab === 'map'
                       ? 'bg-slate-100 text-slate-900'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
@@ -272,7 +272,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </nav>
 
             {/* Desktop Actions (visible on md+) */}
-            <div className="hidden md:flex items-center space-x-2 lg:space-x-3">
+            <div className="hidden lg:flex items-center space-x-2 xl:space-x-3">
               {/* Language Switcher */}
               <LanguageSwitcher variant="compact" />
 
@@ -301,12 +301,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* Mobile & Tablet Hamburger Button (visible below md) */}
-            <div className="flex items-center space-x-2 md:hidden">
-              <LanguageSwitcher variant="compact" className="scale-90 origin-right" />
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:hidden">
+              {/* In very narrow phones the language switcher lives inside the menu (see below). */}
+              <div className="hidden min-[480px]:block">
+                <LanguageSwitcher variant="compact" className="scale-90 origin-right" />
+              </div>
 
               <button
                 onClick={onOpenBooking}
-                className="px-3 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-700 shadow-sm"
+                className="px-2.5 sm:px-3 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-700 shadow-sm"
               >
                 {t('nav.book')}
               </button>
@@ -336,10 +339,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.25, ease: 'easeInOut' }}
-              className="md:hidden border-t border-slate-200/90 bg-white/98 backdrop-blur-xl shadow-2xl overflow-y-auto max-h-[calc(100vh-5rem)]"
+              className="lg:hidden border-t border-slate-200/90 bg-white/98 backdrop-blur-xl shadow-2xl overflow-y-auto max-h-[calc(100vh-5rem)]"
             >
               <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-4">
                 
+                {/* Language: the header shows it only from 480px up */}
+                <LanguageSwitcher variant="full" className="min-[480px]:hidden" />
+
                 {/* Primary Action Buttons */}
                 <div className="grid grid-cols-2 gap-2.5">
                   <button
@@ -563,7 +569,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </header>
 
       {/* Mobile Bottom Navigation Bar for Mobile Phones */}
-      <nav aria-label="Navegación móvil inferior" className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-2 py-2 flex items-center justify-around shadow-xl">
+      <nav aria-label="Navegación móvil inferior" className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-2 py-2 flex items-center justify-around shadow-xl">
         <button
           onClick={() => handleNavClick('home')}
           className={`flex flex-col items-center py-1 px-2 rounded-xl text-[11px] font-semibold transition-colors ${activeTab === 'home' ? 'text-emerald-700 bg-emerald-50' : 'text-slate-600'}`}
