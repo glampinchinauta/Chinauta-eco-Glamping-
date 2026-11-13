@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Compass, CheckCircle2, ArrowRight, ArrowLeft, ShieldCheck, CreditCard, Sparkles, Heart, Sun, Clock, Dog, Wine } from 'lucide-react';
 import { Dome } from '../types';
+import { readJson } from '../lib/api';
 import { ImageCarousel } from './ImageCarousel';
 import { getDomeImages, DEFAULT_DOMES } from '../utils/domeImages';
 import { useLanguage } from '../context/LanguageContext';
@@ -65,7 +66,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
     setPromoMsg('');
     try {
       const res = await fetch(`/api/promo-codes/validate?code=${encodeURIComponent(code)}`);
-      const data = await res.json();
+      const data = await readJson(res);
       if (res.ok && data.valid) {
         setAppliedPromo({ code: data.code, percent: data.percent });
         setPromoMsg(language === 'en' ? `Code applied: ${data.percent}% off` : `Código aplicado: ${data.percent}% de descuento`);
@@ -85,7 +86,10 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const [foodChoices, setFoodChoices] = useState<Record<string, { preparation: string; meat: string; side: string; qty: number }>>({});
   const [bbqOnly, setBbqOnly] = useState(false); // Guest brings food and cooks at the BBQ zone
   const setFoodChoice = (id: string, patch: { preparation?: string; meat?: string; side?: string; qty?: number }) =>
-    setFoodChoices(prev => ({ ...prev, [id]: { preparation: '', meat: '', side: '', qty: 0, ...prev[id], ...patch } }));
+    setFoodChoices(prev => {
+      const defaults = { preparation: '', meat: '', side: '', qty: 0 };
+      return { ...prev, [id]: { ...defaults, ...(prev[id] || {}), ...patch } };
+    });
   // Meat options are the meat-type entries of the dish; the rest are cooking styles.
   const isMeatOption = (p: string) => /^(carne de res|cerdo|pechuga)$/i.test(p.trim());
   // Meat types offered for any dish whose name mentions "carne", even if the saved menu lacks them.
@@ -172,7 +176,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
     try {
       const effectiveCheckOut = bookingType === 'pasadia' ? checkIn : checkOut;
       const res = await fetch(`/api/availability?checkIn=${checkIn}&checkOut=${effectiveCheckOut}`);
-      const data = await res.json();
+      const data = await readJson(res);
       if (Array.isArray(data)) {
         setDomes(data);
       } else {
@@ -314,7 +318,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
         })
       });
 
-      const data = await res.json();
+      const data = await readJson(res);
       if (!res.ok) {
         throw new Error(data.error || t('wizard.booking_process_err'));
       }

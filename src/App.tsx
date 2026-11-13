@@ -11,6 +11,7 @@ import { FAQSection } from './components/FAQSection';
 import { DecorationsSection } from './components/DecorationsSection';
 import { BookingWizardModal } from './components/BookingWizardModal';
 import { MyReservationsModal } from './components/MyReservationsModal';
+import { CustomerAccountModal } from './components/CustomerAccountModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AiConciergeChat } from './components/AiConciergeChat';
@@ -33,6 +34,7 @@ function AppContent() {
   const [bookingCheckOut, setBookingCheckOut] = useState<string | undefined>(undefined);
 
   const [isMyReservationsOpen, setIsMyReservationsOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
 
   const handleOpenBooking = (domeId?: number) => {
@@ -69,6 +71,7 @@ function AppContent() {
         onOpenBooking={() => handleOpenBooking()}
         onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
         onOpenMyReservations={() => setIsMyReservationsOpen(true)}
+        onOpenAccount={() => setIsAccountOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -182,6 +185,12 @@ function AppContent() {
         onSuccess={(code) => {
           // Success callback
         }}
+      />
+
+      {/* Customer account (register / sign in / my reservations) */}
+      <CustomerAccountModal
+        isOpen={isAccountOpen}
+        onClose={() => setIsAccountOpen(false)}
       />
 
       {/* My Reservations Modal */}

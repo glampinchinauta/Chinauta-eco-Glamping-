@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Calendar, Compass, Phone, Shield, Search, Home, Utensils, 
   Menu, X, ChevronDown, MapPin, Sparkles, Waves, Clock, 
-  MessageSquare, ChevronRight, ExternalLink, HelpCircle
+  MessageSquare, ChevronRight, ExternalLink, HelpCircle, UserCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../context/LanguageContext';
@@ -14,6 +14,7 @@ interface NavbarProps {
   onOpenBooking: () => void;
   onOpenAdminLogin: () => void;
   onOpenMyReservations: () => void;
+  onOpenAccount: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -21,7 +22,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onOpenBooking,
   onOpenAdminLogin,
-  onOpenMyReservations
+  onOpenMyReservations,
+  onOpenAccount
 }) => {
   const { t, language } = useLanguage();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -277,6 +279,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               <LanguageSwitcher variant="compact" />
 
               <button
+                onClick={onOpenAccount}
+                className="flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-100/85 transition-colors border border-slate-200 shadow-2xs"
+              >
+                <UserCircle className="w-4 h-4 text-emerald-600" />
+                <span className="hidden xl:inline">{t('nav.my_account')}</span>
+              </button>
+
+              <button
                 onClick={onOpenMyReservations}
                 className="flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-100/85 transition-colors border border-slate-200 shadow-2xs"
               >
@@ -352,6 +362,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     <Calendar className="w-4 h-4" />
                     <span>{t('nav.book_now')}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      setIsAvailableMenuOpen(false);
+                      onOpenAccount();
+                    }}
+                    className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-200 flex items-center justify-center space-x-1.5 active:scale-98"
+                  >
+                    <UserCircle className="w-4 h-4 text-emerald-600" />
+                    <span>{t('nav.my_account')}</span>
                   </button>
 
                   <button
