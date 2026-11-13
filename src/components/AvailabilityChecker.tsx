@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ImageCarousel } from './ImageCarousel';
 import { getDomeImages } from '../utils/domeImages';
 import { useLanguage } from '../context/LanguageContext';
+import { readJson } from '../utils/api';
 
 interface AvailabilityCheckerProps {
   onOpenBookingWithDates: (checkIn: string, checkOut: string, domeId: number) => void;
@@ -34,7 +35,7 @@ export const AvailabilityChecker: React.FC<AvailabilityCheckerProps> = ({ onOpen
     setLoading(true);
     try {
       const res = await fetch(`/api/availability?checkIn=${checkIn}&checkOut=${checkOut}`);
-      const data = await res.json();
+      const data = await readJson(res);
       if (Array.isArray(data)) {
         setResults(data);
         setSearched(true);

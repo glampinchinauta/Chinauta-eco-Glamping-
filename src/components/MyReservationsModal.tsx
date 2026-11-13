@@ -3,6 +3,7 @@ import { X, Search, Phone } from 'lucide-react';
 import { Reservation } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { AccountPanel } from './AccountPanel';
+import { readJson } from '../utils/api';
 
 interface MyReservationsModalProps {
   isOpen: boolean;
@@ -27,7 +28,7 @@ export const MyReservationsModal: React.FC<MyReservationsModalProps> = ({ isOpen
     try {
       const params = new URLSearchParams({ code: searchTerm.trim(), contact: contactTerm.trim() });
       const res = await fetch(`/api/reservations/lookup?${params.toString()}`);
-      const data = await res.json();
+      const data = await readJson(res);
       if (Array.isArray(data)) {
         setReservations(data);
         setSearched(true);

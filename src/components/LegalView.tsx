@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { COMPANY, LEGAL_VERSION, RETENTION_PERIODS } from '../config/legal';
+import { readJson } from '../utils/api';
 
 type LegalSection = 'privacidad' | 'terminos' | 'reembolsos' | 'cookies' | 'derechos' | 'mis-datos';
 
@@ -390,7 +391,7 @@ const MyDataContent: React.FC = () => {
     setMessage('');
     try {
       const res = await fetch(`/api/privacy/export?code=${encodeURIComponent(code.trim())}&contact=${encodeURIComponent(contact.trim())}`);
-      const data = await res.json();
+      const data = await readJson(res);
       if (!res.ok) throw new Error(data.error || 'No se pudo descargar tus datos.');
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -425,7 +426,7 @@ const MyDataContent: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: code.trim(), contact: contact.trim(), confirm: true }),
       });
-      const data = await res.json();
+      const data = await readJson(res);
       if (!res.ok) throw new Error(data.error || 'No se pudo eliminar tus datos.');
       setIsError(false);
       setMessage(data.message || 'Tus datos personales fueron eliminados.');

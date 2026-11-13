@@ -4,6 +4,7 @@ import { Dome } from '../types';
 import { ImageCarousel } from './ImageCarousel';
 import { getDomeImages, DEFAULT_DOMES } from '../utils/domeImages';
 import { useLanguage } from '../context/LanguageContext';
+import { readJson } from '../utils/api';
 import { CHINAUTA_MENU_ITEMS } from './FoodMenuSection';
 import { isColombianHoliday } from '../utils/colombiaHolidays';
 
@@ -180,7 +181,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
     try {
       const effectiveCheckOut = bookingType === 'pasadia' ? checkIn : checkOut;
       const res = await fetch(`/api/availability?checkIn=${checkIn}&checkOut=${effectiveCheckOut}`);
-      const data = await res.json();
+      const data = await readJson(res);
       if (Array.isArray(data)) {
         setDomes(data);
       } else {
@@ -333,7 +334,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
         })
       });
 
-      const data = await res.json();
+      const data = await readJson(res);
       if (!res.ok) {
         throw new Error(data.error || t('wizard.booking_process_err'));
       }

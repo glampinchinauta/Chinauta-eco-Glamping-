@@ -2066,6 +2066,26 @@ app.post("/api/ai/chat", async (req, res) => {
   }
 });
 
+// Every /api answer is JSON: unknown routes, malformed request bodies and unexpected errors never return an HTML page
+// (the website would otherwise fail with "Unexpected token '<'" when confirming a booking).
+app.use("/api", (_req, res) => {
+  res.status(404).json({ error: "Ruta no encontrada." });
+});
+
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (res.headersSent) return next(err);
+  if (!req.path.startsWith("/api")) return next(err);
+  const status = err?.type === "entity.parse.failed" ? 400 : Number(err?.status || err?.statusCode) || 500;
+  if (status >= 500) console.error("[api] error no controlado:", err);
+  res.status(status >= 400 && status < 600 ? status : 500).json({
+    error: status === 400
+      ? "La solicitud no es válida: el cuerpo no es un JSON correcto."
+      : status === 413
+        ? "La solicitud es demasiado grande."
+        : "Ocurrió un error inesperado. Inténtalo de nuevo.",
+  });
+});
+
 async function startServer() {
   // Vite middleware setup for development, or static serving for production
   if (process.env.NODE_ENV !== "production") {
@@ -2077,7 +2097,9 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*all", (req, res) => {
+    // Any other page of the site opens the app (works the same in Express 4 and 5).
+    app.use((req, res, next) => {
+      if (req.method !== "GET" && req.method !== "HEAD") return next();
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
