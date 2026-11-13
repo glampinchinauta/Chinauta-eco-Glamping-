@@ -3,15 +3,15 @@
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
 
 async function startServer(mode: "dev" | "prod", port: number): Promise<{ base: string; stop: () => void }> {
-  const db = path.join(os.tmpdir(), `egc-api-json-${mode}-${Date.now()}.db`);
-  fs.copyFileSync(path.join(root, "glamping.db"), db);
-  const env = { ...process.env, GLAMPING_DB_PATH: db, DEFAULT_APP_PORT: String(port) } as NodeJS.ProcessEnv;
+  // Memory mode on purpose: the test must never touch the real Firestore.
+  const env = { ...process.env, DEFAULT_APP_PORT: String(port) } as NodeJS.ProcessEnv;
+  delete env.FIREBASE_SERVICE_ACCOUNT;
+  delete env.FIREBASE_SERVICE_ACCOUNT_BASE64;
   let child: ChildProcess;
   if (mode === "prod") {
     env.NODE_ENV = "production";
@@ -25,7 +25,7 @@ async function startServer(mode: "dev" | "prod", port: number): Promise<{ base: 
     await new Promise((r) => setTimeout(r, 1000));
     if (i === 59) throw new Error(`el servidor (${mode}) no arrancó`);
   }
-  return { base, stop: () => { child.kill(); try { fs.unlinkSync(db); } catch { /* en uso */ } } };
+  return { base, stop: () => { child.kill(); } };
 }
 
 const isJson = (r: Response) => (r.headers.get("content-type") || "").includes("application/json");

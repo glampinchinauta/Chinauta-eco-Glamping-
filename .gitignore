@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Llaves privadas de Firebase (cuenta de servicio): nunca se suben al repositorio
+*firebase-adminsdk*.json
+serviceAccount*.json
+service-account*.json
