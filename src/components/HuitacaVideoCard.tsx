@@ -18,7 +18,7 @@ interface HuitacaVideoCardProps {
 export const HuitacaVideoCard: React.FC<HuitacaVideoCardProps> = ({
   images,
   domeName = 'Domo Huitaca',
-  pricePerNight = 380000,
+  pricePerNight = 350000,
   overlayBadge,
   className = 'h-64 sm:h-72',
   onVideoChange

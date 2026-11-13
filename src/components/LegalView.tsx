@@ -57,7 +57,7 @@ const PrivacyContent: React.FC = () => (
       <ul className="list-disc pl-5 space-y-1">
         <li>Para reservar: nombre, correo electrónico y teléfono o WhatsApp.</li>
         <li>Documento de identidad: <Rich text="[PENDIENTE: confirmar si es obligatorio por el registro de huéspedes; hoy es opcional]" />.</li>
-        <li>Datos de la reserva: fechas, domo, número de huéspedes, mascotas, complementos, comidas y notas que escribas.</li>
+        <li>Datos de la reserva: fechas, domo, número de huéspedes, mascotas, servicios adicionales, comidas y notas que escribas.</li>
         <li>Tu aceptación de estos términos, la fecha y la versión aceptada, y tu confirmación de ser mayor de edad.</li>
         <li>Tu autorización para ofertas, solo si la marcas (es una casilla aparte y sin marcar).</li>
         <li>Datos de navegación (páginas visitadas, dispositivo, región aproximada) mediante herramientas de analítica y publicidad, solo si aceptas esas cookies.</li>

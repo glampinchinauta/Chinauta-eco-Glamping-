@@ -209,7 +209,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
     .filter(i => (foodChoices[String(i.id)]?.qty || 0) > 0)
     .map(i => {
       const c = foodChoices[String(i.id)];
-      return `${i.title}${c.meat ? ` - ${c.meat}` : ''}${c.preparation ? ` (${c.preparation})` : ''}${c.side ? ` + ${c.side}` : ''} x${c.qty}`;
+      return `${i.title}${c.meat ? ` - ${c.meat}` : ''}${c.preparation ? ` (${c.preparation})` : ''} x${c.qty}`;
     });
   const foodMissingNames: string[] = bbqOnly ? [] : menuItems
     .filter(i => {
@@ -229,7 +229,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const diffTime = Math.abs(end.getTime() - start.getTime());
   const nights = bookingType === 'pasadia' ? 1 : Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
-  const baseRate = bookingType === 'pasadia' ? 250000 : (selectedDome ? selectedDome.price_per_night : 380000);
+  const baseRate = bookingType === 'pasadia' ? 250000 : (selectedDome ? selectedDome.price_per_night : 350000);
   const baseTotal = bookingType === 'pasadia' ? baseRate : nights * baseRate;
 
   // Extra persons ($70,000 per extra person per night)
@@ -835,20 +835,14 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                           </select>
                         </div>
                       )}
-                      {active && groups.sides.length > 0 && (
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-slate-600">{language === 'en' ? 'Side dish' : 'Complemento'}</label>
-                          <select
-                            value={choice.side}
-                            onChange={e => setFoodChoice(String(item.id), { side: e.target.value })}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium bg-white"
-                          >
-                            <option value="">{language === 'en' ? 'Standard side' : 'Complemento estándar'}</option>
-                            {groups.sides.map((s, idx) => (
-                              <option key={s} value={s}>{sideLabel(idx)}</option>
-                            ))}
-                          </select>
-                        </div>
+                      {(groups.sides.length > 0 || item.beverage) && (
+                        <p className="text-xs font-semibold text-emerald-800">
+                          {language === 'en' ? 'Included in the price: ' : 'Incluido en el precio: '}
+                          {[
+                            ...groups.sides.map((_: string, idx: number) => sideLabel(idx)),
+                            language === 'en' ? (item.beverage_en || item.beverage) : item.beverage,
+                          ].filter(Boolean).join(', ')}
+                        </p>
                       )}
                     </div>
                   );

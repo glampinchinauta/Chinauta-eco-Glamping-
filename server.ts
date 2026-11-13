@@ -640,6 +640,25 @@ if (!db.prepare(`SELECT 1 FROM app_migrations WHERE name = ?`).get(PRICE_MIGRATI
   db.prepare(`INSERT INTO app_migrations (name) VALUES (?)`).run(PRICE_MIGRATION);
 }
 
+// One-time: menu as requested by the owner. Fries, salad and juice (or soda for the burger) are INCLUDED in the price;
+// there are no side dishes to choose or pay for. Meats: beef, pork or chicken breast, au gratin or in mushroom sauce.
+runOnce("menu_included_2026_11", () => {
+  const update = db.prepare(`UPDATE menu_items SET price = ?, sides = ?, beverage = ?, preparations = COALESCE(?, preparations), description = COALESCE(?, description), description_en = COALESCE(?, description_en) WHERE title LIKE ?`);
+  update.run(60000, JSON.stringify(["Papas fritas", "Ensalada"]), "Jugo natural", null, null, null, "Trucha%");
+  update.run(
+    50000, JSON.stringify(["Papas fritas", "Ensalada"]), "Jugo natural",
+    JSON.stringify(["Carne de res", "Cerdo", "Pechuga", "Gratinada con queso", "En salsa de champiñones"]),
+    "Carne de res, cerdo o pechuga, sazonada al estilo campestre y preparada a tu preferencia: gratinada con queso o en salsa de champiñones. Incluye papas fritas, ensalada y jugo natural.",
+    "Beef, pork or chicken breast, seasoned in rustic style and prepared to your liking: au gratin with cheese or in mushroom sauce. Includes french fries, salad and natural juice.",
+    "Carne%"
+  );
+  db.prepare(`UPDATE menu_items SET title = ?, title_en = ? WHERE title LIKE 'Carne%'`).run(
+    "Carnes Gratinadas o en Salsa de Champiñones (Res, Cerdo o Pechuga)",
+    "Au Gratin or Mushroom Sauce Meats (Beef, Pork or Chicken Breast)"
+  );
+  update.run(40000, JSON.stringify(["Papas fritas"]), "Gaseosa", null, null, null, "Combo Hamburguesa%");
+});
+
 // Amenities shared by every dome (appended after the sync above on each start; idempotent)
 const AMENITIES_TEXT = "Nevera tipo bar con bebidas, Canastas de snacks (costo adicional), Zona BBQ a gas, Parqueadero gratis";
 try {
@@ -750,8 +769,8 @@ try {
       "Trucha fresca marinada en hierbas nativas y preparada a tu preferencia (gratinada al horno, en cremosa salsa de champiñones o asada a la parrilla).",
       "Fresh Andean trout seasoned with local herbs, cooked to your preference (baked au gratin, creamy mushroom sauce, or charbroiled).",
       JSON.stringify(["Gratinada", "En salsa de champiñones", "Asada a la parrilla"]),
-      JSON.stringify(["Papas a la francesa", "Ensalada fresca de la casa"]),
-      "Jugo natural de fruta de estación",
+      JSON.stringify(["Papas fritas", "Ensalada"]),
+      "Jugo natural",
       60000,
       "/assets/images/trucha-gratinada.webp",
       JSON.stringify(["/assets/images/trucha-gratinada.webp", "/assets/images/trucha-salsa-champinones.webp"]),
@@ -763,11 +782,11 @@ try {
       "Carnes Gratinadas o en Salsa de Champiñones (Res, Cerdo o Pechuga)",
       "Au Gratin or Mushroom Sauce Meats (Beef, Pork or Chicken Breast)",
       "Almuerzos y Comidas",
-      "Carne de res, cerdo o pechuga, sazonada al estilo campestre y preparada a tu preferencia: gratinada con queso o en salsa de champiñones. También disponible asada a la parrilla.",
-      "Beef, pork or chicken breast, seasoned in rustic style and prepared to your liking: au gratin with cheese or in mushroom sauce. Also available grilled.",
-      JSON.stringify(["Carne de res", "Cerdo", "Pechuga", "Gratinada con queso", "En salsa de champiñones", "Asada a la parrilla"]),
-      JSON.stringify(["Papas a la francesa", "Ensalada fresca"]),
-      "Jugo natural de fruta de estación",
+      "Carne de res, cerdo o pechuga, sazonada al estilo campestre y preparada a tu preferencia: gratinada con queso o en salsa de champiñones. Incluye papas fritas, ensalada y jugo natural.",
+      "Beef, pork or chicken breast, seasoned in rustic style and prepared to your liking: au gratin with cheese or in mushroom sauce. Includes french fries, salad and natural juice.",
+      JSON.stringify(["Carne de res", "Cerdo", "Pechuga", "Gratinada con queso", "En salsa de champiñones"]),
+      JSON.stringify(["Papas fritas", "Ensalada"]),
+      "Jugo natural",
       50000,
       "/assets/images/carne-res-gratinada.webp",
       JSON.stringify([
@@ -788,8 +807,8 @@ try {
       "Hamburguesa gourmet artesanal con carne selecta 100% de res, queso fundido, vegetales frescos y pan artesanal dorado.",
       "Gourmet artisan 100% beef burger with melted artisan cheese, bacon, and crisp vegetables on a brioche bun.",
       JSON.stringify(["Término Medio", "Bien Asada", "Con Queso Extra"]),
-      JSON.stringify(["Papas a la francesa crujientes"]),
-      "Gaseosa Postobón de 400ml",
+      JSON.stringify(["Papas fritas"]),
+      "Gaseosa",
       40000,
       "/assets/images/hamburguesa-papas.webp",
       JSON.stringify(["/assets/images/hamburguesa-papas.webp"]),
@@ -2011,9 +2030,12 @@ app.post("/api/ai/chat", async (req, res) => {
     Ofreces experiencias de desconexión, naturaleza, jacuzzis privados, mallas de descanso, gastronomía local y avistamiento de estrellas.
     
     MENÚ CHINAUTA ECO GLAMPING (CENAS Y ALMUERZOS):
-    #1 Trucha gratinada o en salsa de champiñones asada. Incluye papas a la francesa, ensalada y jugo natural ($38.000 COP).
-    #2 Carne de res gratinada, ensalada de champiñones o asada. Incluye papas a la francesa, ensalada y jugo natural ($38.000 COP).
-    #5 Combo de hamburguesa artesanal. Incluye papa a la francesa y gaseosa Postobón de 400ml ($30.000 COP).
+    #1 Trucha gratinada, en salsa de champiñones o asada a la parrilla. Incluye papas fritas, ensalada y jugo natural ($60.000 COP).
+    #2 Carne de res, cerdo o pechuga, gratinada con queso o en salsa de champiñones. Incluye papas fritas, ensalada y jugo natural ($50.000 COP).
+    #5 Combo de hamburguesa artesanal. Incluye papas fritas y gaseosa ($40.000 COP).
+    Lo que se indica como incluido ya va en el precio del plato: no se cobra aparte y no hay complementos para elegir.
+
+    TARIFAS POR NOCHE (COP): Huitaca $350.000, Bochica $400.000, Bachué $400.000, Luna Chía $420.000, Chiminichagua $450.000, Xue Sol $450.000.
 
     Responde de forma amable, profesional, elegante y acogedora a los clientes, ayudándoles con información sobre tarifas, ubicación, clima, reservas, el menú gastronómico y servicios adicionales.`;
 

@@ -17,7 +17,7 @@ export const DEFAULT_DOMES: Dome[] = [
     code: "DOMO-01",
     description: "Romántico domo geodésico con jacuzzi privado de hidromasaje al aire libre, baño privado, zona BBQ, cocina pequeña y vista privilegiada sobre las montañas de Chinauta.",
     capacity: 2,
-    price_per_night: 380000,
+    price_per_night: 350000,
     image_url: "/assets/images/dome_1_1791403584294.jpg",
     images: [
       "/assets/images/dome_1_1791403584294.jpg",
@@ -38,7 +38,7 @@ export const DEFAULT_DOMES: Dome[] = [
     code: "DOMO-02",
     description: "Domo espacioso equipado con 1 cama King size y 1 cama pequeña (único domo con 2 camas), jacuzzi privado de hidromasaje, zona barbacoa (BBQ), cocina pequeña y vista premium.",
     capacity: 3,
-    price_per_night: 450000,
+    price_per_night: 400000,
     image_url: "/assets/images/dome_2_1791404907620.jpg",
     images: [
       "/assets/images/dome_2_1791404907620.jpg",
@@ -59,7 +59,7 @@ export const DEFAULT_DOMES: Dome[] = [
     code: "DOMO-03",
     description: "Acogedor domo inmerso en la naturaleza con jacuzzi privado de hidromasaje, zona barbacoa (BBQ), cocina pequeña, 1 cama King, baño privado y vista al bosque nativo.",
     capacity: 2,
-    price_per_night: 350000,
+    price_per_night: 400000,
     image_url: chinautaRomanticDomeNight,
     images: [
       chinautaRomanticDomeNight,
@@ -97,7 +97,7 @@ export const DEFAULT_DOMES: Dome[] = [
     code: "DOMO-05",
     description: "Domo de descanso con jacuzzi privado de hidromasaje, balcón privado, zona BBQ, cocina pequeña, 1 cama King, baño privado y la mejor vista del glamping.",
     capacity: 2,
-    price_per_night: 390000,
+    price_per_night: 450000,
     image_url: "/assets/images/dome_5_1791404612181.jpg",
     images: [
       "/assets/images/dome_5_1791404612181.jpg",
@@ -117,7 +117,7 @@ export const DEFAULT_DOMES: Dome[] = [
     code: "DOMO-06",
     description: "Domo con jacuzzi privado de hidromasaje al aire libre, vista panorámica a la montaña, hamaca, zona BBQ, cocina pequeña, 1 cama King, baño privado y desayuno campesino incluido.",
     capacity: 2,
-    price_per_night: 480000,
+    price_per_night: 450000,
     image_url: bochicaJacuzziDeck,
     images: [
       bochicaJacuzziDeck,

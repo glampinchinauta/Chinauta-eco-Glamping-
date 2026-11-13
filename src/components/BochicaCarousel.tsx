@@ -50,7 +50,7 @@ interface BochicaCarouselProps {
 export const BochicaCarousel: React.FC<BochicaCarouselProps> = ({
   className = 'h-72',
   overlayBadge,
-  pricePerNight = 450000
+  pricePerNight = 400000
 }) => {
   const { t } = useLanguage();
 

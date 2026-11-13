@@ -65,7 +65,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
   const [newResName, setNewResName] = useState('');
   const [newResPhone, setNewResPhone] = useState('');
   const [newResEmail, setNewResEmail] = useState('');
-  const [newResAmount, setNewResAmount] = useState(380000);
+  const [newResAmount, setNewResAmount] = useState(350000);
 
   // Maintenance form state
   const [maintDomeId, setMaintDomeId] = useState(1);
@@ -1529,7 +1529,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                     </div>
                     <div className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs space-y-1">
                       <div><strong className="text-slate-700">Preparaciones:</strong> {item.preparations.join(', ')}</div>
-                      <div><strong className="text-slate-700">Acompañamientos:</strong> {item.sides.join(' + ')}</div>
+                      <div><strong className="text-slate-700">Incluye:</strong> {item.sides.join(' + ')}</div>
                       <div><strong className="text-slate-700">Bebida:</strong> {item.beverage}</div>
                     </div>
                     <div className="flex items-center justify-between pt-2">
