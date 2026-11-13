@@ -1060,6 +1060,27 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           </div>
         )}
 
+        {/* While choosing food, the price is always visible right above the buttons */}
+        {step === 7 && (
+          <div
+            className="mx-4 sm:mx-6 mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm space-y-0.5"
+            aria-live="polite"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-semibold text-emerald-900">
+                {language === 'en' ? 'Meals selected' : 'Comida seleccionada'}
+              </span>
+              <span className="font-black text-emerald-800">
+                ${(bbqOnly ? BBQ_ZONE_FEE : foodTotal).toLocaleString('es-CO')} COP
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 text-xs text-emerald-900">
+              <span>{language === 'en' ? 'Booking total so far' : 'Total de la reserva hasta ahora'}</span>
+              <span className="font-bold">${totalAmount.toLocaleString('es-CO')} COP</span>
+            </div>
+          </div>
+        )}
+
         {/* Footer Actions */}
         <div className="p-4 sm:p-6 bg-slate-50 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {step > 1 && step < 9 ? (

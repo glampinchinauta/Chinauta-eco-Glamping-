@@ -647,16 +647,27 @@ runOnce("menu_included_2026_11", () => {
   update.run(60000, JSON.stringify(["Papas fritas", "Ensalada"]), "Jugo natural", null, null, null, "Trucha%");
   update.run(
     50000, JSON.stringify(["Papas fritas", "Ensalada"]), "Jugo natural",
-    JSON.stringify(["Carne de res", "Cerdo", "Pechuga", "Gratinada con queso", "En salsa de champiñones"]),
-    "Carne de res, cerdo o pechuga, sazonada al estilo campestre y preparada a tu preferencia: gratinada con queso o en salsa de champiñones. Incluye papas fritas, ensalada y jugo natural.",
-    "Beef, pork or chicken breast, seasoned in rustic style and prepared to your liking: au gratin with cheese or in mushroom sauce. Includes french fries, salad and natural juice.",
+    JSON.stringify(["Carne de res", "Cerdo", "Pechuga", "Gratinada con queso", "En salsa de champiñones", "Asada a la parrilla"]),
+    "Carne de res, cerdo o pechuga, sazonada al estilo campestre y preparada a tu preferencia: gratinada con queso, en salsa de champiñones o asada a la parrilla. Incluye papas fritas, ensalada y jugo natural.",
+    "Beef, pork or chicken breast, seasoned in rustic style and prepared to your liking: au gratin with cheese, in mushroom sauce or grilled. Includes french fries, salad and natural juice.",
     "Carne%"
   );
   db.prepare(`UPDATE menu_items SET title = ?, title_en = ? WHERE title LIKE 'Carne%'`).run(
-    "Carnes Gratinadas o en Salsa de Champiñones (Res, Cerdo o Pechuga)",
-    "Au Gratin or Mushroom Sauce Meats (Beef, Pork or Chicken Breast)"
+    "Carnes Gratinadas, en Salsa de Champiñones o a la Parrilla (Res, Cerdo o Pechuga)",
+    "Au Gratin, Mushroom Sauce or Grilled Meats (Beef, Pork or Chicken Breast)"
   );
   update.run(40000, JSON.stringify(["Papas fritas"]), "Gaseosa", null, null, null, "Combo Hamburguesa%");
+});
+
+// One-time: the owner wants grilled meat on the menu (beef, pork or chicken breast "asada a la parrilla").
+runOnce("menu_carnes_parrilla_2026_11", () => {
+  db.prepare(`UPDATE menu_items SET title = ?, title_en = ?, preparations = ?, description = ?, description_en = ? WHERE title LIKE 'Carne%'`).run(
+    "Carnes Gratinadas, en Salsa de Champiñones o a la Parrilla (Res, Cerdo o Pechuga)",
+    "Au Gratin, Mushroom Sauce or Grilled Meats (Beef, Pork or Chicken Breast)",
+    JSON.stringify(["Carne de res", "Cerdo", "Pechuga", "Gratinada con queso", "En salsa de champiñones", "Asada a la parrilla"]),
+    "Carne de res, cerdo o pechuga, sazonada al estilo campestre y preparada a tu preferencia: gratinada con queso, en salsa de champiñones o asada a la parrilla. Incluye papas fritas, ensalada y jugo natural.",
+    "Beef, pork or chicken breast, seasoned in rustic style and prepared to your liking: au gratin with cheese, in mushroom sauce or grilled. Includes french fries, salad and natural juice."
+  );
 });
 
 // Amenities shared by every dome (appended after the sync above on each start; idempotent)
@@ -779,12 +790,12 @@ try {
     );
     insertMenu.run(
       2,
-      "Carnes Gratinadas o en Salsa de Champiñones (Res, Cerdo o Pechuga)",
-      "Au Gratin or Mushroom Sauce Meats (Beef, Pork or Chicken Breast)",
+      "Carnes Gratinadas, en Salsa de Champiñones o a la Parrilla (Res, Cerdo o Pechuga)",
+      "Au Gratin, Mushroom Sauce or Grilled Meats (Beef, Pork or Chicken Breast)",
       "Almuerzos y Comidas",
-      "Carne de res, cerdo o pechuga, sazonada al estilo campestre y preparada a tu preferencia: gratinada con queso o en salsa de champiñones. Incluye papas fritas, ensalada y jugo natural.",
-      "Beef, pork or chicken breast, seasoned in rustic style and prepared to your liking: au gratin with cheese or in mushroom sauce. Includes french fries, salad and natural juice.",
-      JSON.stringify(["Carne de res", "Cerdo", "Pechuga", "Gratinada con queso", "En salsa de champiñones"]),
+      "Carne de res, cerdo o pechuga, sazonada al estilo campestre y preparada a tu preferencia: gratinada con queso, en salsa de champiñones o asada a la parrilla. Incluye papas fritas, ensalada y jugo natural.",
+      "Beef, pork or chicken breast, seasoned in rustic style and prepared to your liking: au gratin with cheese, in mushroom sauce or grilled. Includes french fries, salad and natural juice.",
+      JSON.stringify(["Carne de res", "Cerdo", "Pechuga", "Gratinada con queso", "En salsa de champiñones", "Asada a la parrilla"]),
       JSON.stringify(["Papas fritas", "Ensalada"]),
       "Jugo natural",
       50000,
@@ -2031,7 +2042,7 @@ app.post("/api/ai/chat", async (req, res) => {
     
     MENÚ CHINAUTA ECO GLAMPING (CENAS Y ALMUERZOS):
     #1 Trucha gratinada, en salsa de champiñones o asada a la parrilla. Incluye papas fritas, ensalada y jugo natural ($60.000 COP).
-    #2 Carne de res, cerdo o pechuga, gratinada con queso o en salsa de champiñones. Incluye papas fritas, ensalada y jugo natural ($50.000 COP).
+    #2 Carne de res, cerdo o pechuga, gratinada con queso, en salsa de champiñones o asada a la parrilla. Incluye papas fritas, ensalada y jugo natural ($50.000 COP).
     #5 Combo de hamburguesa artesanal. Incluye papas fritas y gaseosa ($40.000 COP).
     Lo que se indica como incluido ya va en el precio del plato: no se cobra aparte y no hay complementos para elegir.
 
