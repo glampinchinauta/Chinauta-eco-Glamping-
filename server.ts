@@ -55,7 +55,8 @@ async function getFirebaseCerts(): Promise<Record<string, string>> {
   return certs;
 }
 
-async function verifyAdminToken(token: string): Promise<any> {
+// Verifies a Firebase ID token (signature, project, expiry). Does not decide the role.
+async function verifyFirebaseToken(token: string): Promise<any> {
   const parts = token.split(".");
   if (parts.length !== 3) throw new Error("Token inválido.");
   const [h, p, s] = parts;
@@ -72,9 +73,28 @@ async function verifyAdminToken(token: string): Promise<any> {
     throw new Error("Token inválido.");
   }
   if (!(payload.exp > now) || payload.iat > now + 300) throw new Error("La sesión venció. Inicia sesión de nuevo.");
+  return payload;
+}
+
+// Admins: a verified Google/email account on the admin list.
+async function verifyAdminToken(token: string): Promise<any> {
+  const payload = await verifyFirebaseToken(token);
   if (!payload.email || payload.email_verified !== true) throw new Error("Correo no verificado.");
   if (!ADMIN_EMAILS.includes(String(payload.email).toLowerCase())) throw new Error("Sin permisos de administrador.");
   return payload;
+}
+
+// Customers: any signed-in Firebase account. Whether it may see data is decided per endpoint.
+async function requireUser(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  if (!token) return res.status(401).json({ error: "Inicia sesión para ver tu cuenta." });
+  try {
+    (req as any).user = await verifyFirebaseToken(token);
+    next();
+  } catch (err: any) {
+    res.status(401).json({ error: err.message || "No autorizado." });
+  }
 }
 
 async function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -111,6 +131,10 @@ const PUBLIC_READS = new Set([
 app.use("/api", (req, res, next) => {
   // Express ignores letter case in routes, so the check must ignore it too (/api/RESERVATIONS).
   const full = ("/api" + req.path.replace(/\/+$/, "")).toLowerCase();
+  // Customer account routes: any signed-in customer, scoped to their own data inside the handler.
+  if (full === "/api/me" || full.startsWith("/api/me/")) {
+    return requireUser(req, res, next);
+  }
   const isRead = req.method === "GET" || req.method === "HEAD";
   const isPublic = isRead ? PUBLIC_READS.has(full) : PUBLIC_WRITES.has(full);
   if (!isPublic) {
@@ -1298,6 +1322,33 @@ app.get("/api/reservations/lookup", (req, res) => {
   res.json(matches.map(({ customer_email, customer_phone, customer_whatsapp, ...safe }) => safe));
 });
 
+// Customer account: who is signed in, and their own reservations (only with a verified email).
+app.get("/api/me", (req, res) => {
+  const u = (req as any).user;
+  res.json({ email: u.email || "", name: u.name || "", email_verified: u.email_verified === true });
+});
+
+app.get("/api/me/reservations", (req, res) => {
+  try {
+    const u = (req as any).user;
+    if (!u.email || u.email_verified !== true) {
+      return res.status(403).json({ error: "Verifica tu correo para ver tus reservas." });
+    }
+    const rows = db.prepare(`
+      SELECT r.reservation_code, r.check_in, r.check_out, r.guests, r.status, r.payment_status,
+             r.total_amount, r.amount_pending, r.created_at, d.name as dome_name
+      FROM reservations r
+      JOIN customers c ON r.customer_id = c.id
+      JOIN domes d ON r.dome_id = d.id
+      WHERE LOWER(c.email) = ?
+      ORDER BY r.check_in DESC
+    `).all(String(u.email).toLowerCase());
+    res.json(rows);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/api/reservations", (req, res) => {
   try {
     const reservations = db.prepare(`
@@ -1338,6 +1389,12 @@ app.post("/api/reservations", (req, res) => {
     return res.status(400).json({ error: "La fecha de salida debe ser posterior a la fecha de entrada." });
   }
 
+  // No bookings in the past (Colombia time).
+  const todayBogota = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+  if (check_in < todayBogota) {
+    return res.status(400).json({ error: "La fecha de entrada no puede ser anterior a hoy." });
+  }
+
   const diffMs = outDate.getTime() - inDate.getTime();
   const nights = isDayPass ? 1 : Math.round(diffMs / (1000 * 60 * 60 * 24));
   if (nights <= 0) {
@@ -1350,9 +1407,9 @@ app.post("/api/reservations", (req, res) => {
 
     // 1. Check if dome exists and is available
     const dome = db.prepare("SELECT * FROM domes WHERE id = ?").get(dome_id) as any;
-    if (!dome || dome.status === 'Fuera de servicio') {
+    if (!dome || dome.status !== 'Disponible') {
       db.exec("ROLLBACK;");
-      return res.status(400).json({ error: "El domo seleccionado no está disponible o se encuentra fuera de servicio." });
+      return res.status(400).json({ error: "El domo seleccionado no está disponible para reservar en este momento." });
     }
 
     // Check dome capacity
@@ -1450,7 +1507,11 @@ app.post("/api/reservations", (req, res) => {
     }
 
     // 5. Generate unique reservation code
-    const randomCode = "EGC-" + Math.floor(1000 + Math.random() * 9000);
+    // Pick a code that no reservation uses yet (the table requires it to be unique).
+    let randomCode = "";
+    do {
+      randomCode = "EGC-" + Math.floor(1000 + Math.random() * 9000);
+    } while (db.prepare("SELECT 1 FROM reservations WHERE reservation_code = ?").get(randomCode));
 
     // 6. Insert reservation with server calculated total
     const resStmt = db.prepare(`
@@ -1942,7 +2003,8 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*all", (req, res) => {
+    // Any page address (not /api) returns the app, so direct links and refreshes work.
+    app.get(/^(?!\/api\/).*$/, (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
