@@ -1,12 +1,12 @@
 {
-  "projectId": "gen-lang-client-0262845140",
-  "appId": "1:201796105392:web:750c5b5d2f6b50345bb775",
-  "apiKey": "AIzaSyDZStezEMnBzMrZL0fBXfDlPvbeFlTE1NI",
-  "authDomain": "gen-lang-client-0262845140.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-ecoglampingchina-05d7ca5a-6d7c-4ac4-b5c3-f856d96e2552",
-  "storageBucket": "gen-lang-client-0262845140.firebasestorage.app",
-  "messagingSenderId": "201796105392",
-  "measurementId": "",
-  "oAuthClientId": "201796105392-af3sapbbq30febrslpani1a9go6utr1p.apps.googleusercontent.com",
+  "projectId": "eco-glampin-chinauta",
+  "appId": "1:785626891320:web:185acbc8a82c12dbd552cd",
+  "apiKey": "AIzaSyCg9nJ0AuSwWU9KBbOv-O_2znNG2mV2peg",
+  "authDomain": "eco-glampin-chinauta.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "eco-glampin-chinauta.firebasestorage.app",
+  "messagingSenderId": "785626891320",
+  "measurementId": "G-MCJY6FGMZQ",
+  "oAuthClientId": "785626891320-rp7cn667gpfja29t9rhb1ai8bjvp9u4t.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

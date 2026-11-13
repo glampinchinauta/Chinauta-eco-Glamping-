@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Shield, LogIn } from 'lucide-react';
 import { AdminUser } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { auth } from '../lib/firebase';
-import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { GoogleAuthProvider, getRedirectResult, signInWithPopup, signInWithRedirect, signOut, type User } from 'firebase/auth';
 
 interface AdminLoginModalProps {
   isOpen: boolean;
@@ -16,38 +16,88 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const adminEmailEnv: string = import.meta.env.VITE_ADMIN_EMAIL || 'ecoglampingventas@gmail.com';
+
+  // Valida que la cuenta de Google sea la de administración; si no, cierra la sesión.
+  const finishLogin = async (user: User) => {
+    const email = (user.email || '').toLowerCase();
+    if (!email || (email !== adminEmailEnv.toLowerCase() && email !== 'ecoglampingventas@gmail.com')) {
+      await signOut(auth);
+      throw new Error(t('admin_login.unauthorized_email') || 'El correo electrónico no tiene privilegios de administrador autorizados.');
+    }
+    const adminUser: AdminUser = {
+      id: 1,
+      username: email.split('@')[0] || 'admin',
+      full_name: user.displayName || 'Administrador Eco Glamping',
+      email,
+      role: 'SUPERADMIN',
+      status: 'Activo'
+    };
+    onLoginSuccess(adminUser);
+    onClose();
+  };
+
+  const friendlyError = (err: any): string => {
+    switch (err?.code) {
+      case 'auth/popup-closed-by-user':
+      case 'auth/cancelled-popup-request':
+        return 'Cerraste la ventana de Google antes de terminar. Inténtalo de nuevo.';
+      case 'auth/unauthorized-domain':
+        return 'Este sitio no está autorizado en Firebase. Agrega el dominio en Authentication → Configuración → Dominios autorizados.';
+      case 'auth/operation-not-allowed':
+        return 'El inicio de sesión con Google no está activado en Firebase (Authentication → Método de acceso).';
+      case 'auth/network-request-failed':
+        return 'Sin conexión. Revisa tu internet e inténtalo de nuevo.';
+      default:
+        return err?.message || t('admin_login.err_creds');
+    }
+  };
+
+  // Si el navegador (por ejemplo, en celulares) obligó a usar redirección, aquí se recibe el resultado al volver.
+  useEffect(() => {
+    let cancelled = false;
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (!result || cancelled) return;
+        setLoading(true);
+        await finishLogin(result.user);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(friendlyError(err));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!isOpen) return null;
 
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      const adminEmailEnv = import.meta.env.VITE_ADMIN_EMAIL || 'ecoglampingventas@gmail.com';
-
-      if (user.email && user.email.toLowerCase() !== adminEmailEnv.toLowerCase() && user.email.toLowerCase() !== 'ecoglampingventas@gmail.com') {
-        await signOut(auth);
-        throw new Error(t('admin_login.unauthorized_email') || 'El correo electrónico no tiene privilegios de administrador autorizados.');
+      let result;
+      try {
+        result = await signInWithPopup(auth, provider);
+      } catch (err: any) {
+        // Celulares o navegadores que bloquean ventanas emergentes: se usa redirección a Google.
+        if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/operation-not-supported-in-this-environment') {
+          await signInWithRedirect(auth, provider);
+          return;
+        }
+        throw err;
       }
-
-      const adminUser: AdminUser = {
-        id: 1,
-        username: user.email?.split('@')[0] || 'admin',
-        full_name: user.displayName || 'Administrador Eco Glamping',
-        email: user.email || adminEmailEnv,
-        role: 'SUPERADMIN',
-        status: 'Activo'
-      };
-
-      onLoginSuccess(adminUser);
-      onClose();
+      await finishLogin(result.user);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || t('admin_login.err_creds'));
+      setError(friendlyError(err));
     } finally {
       setLoading(false);
     }

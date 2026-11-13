@@ -6,8 +6,14 @@ y guarda todo en **Firestore**. Antes usaba un archivo SQLite, que en Vercel no 
 ## Lo que tienes que hacer tú (una sola vez)
 
 ### 1. Confirmar que Firestore existe
-Firebase Console → proyecto `gen-lang-client-0262845140` → **Firestore Database**. Debe existir la base indicada en
+Firebase Console → proyecto `eco-glampin-chinauta` → **Firestore Database**. Debe existir la base indicada en
 `firebase-applet-config.json` (`firestoreDatabaseId`). Si no existe, créala en modo **Nativo**.
+
+### 1b. Activar el inicio de sesión (Firebase → Authentication)
+- **Método de acceso**: activa **Google** (panel de administración) y **Correo y contraseña** (clientes).
+- **Configuración → Dominios autorizados**: agrega el dominio de Vercel (`tu-proyecto.vercel.app`) y, cuando lo compres, el dominio propio.
+- No pongas `FIREBASE_PROJECT_ID` en Vercel con el proyecto anterior: se toma de `firebase-applet-config.json` (`eco-glampin-chinauta`) y debe coincidir con el de la llave del servidor.
+- El secreto del cliente OAuth se pega solo en la consola de Firebase; nunca va en el código ni en el chat.
 
 ### 2. Crear la llave del servidor
 Firebase Console → ⚙ Configuración del proyecto → **Cuentas de servicio** → **Generar nueva clave privada**.
@@ -32,7 +38,7 @@ Opcionales, solo si cambian: `FIREBASE_PROJECT_ID`, `FIRESTORE_DATABASE_ID`, `FI
 Después de guardar las variables, haz un **Redeploy**.
 
 ### 4. Para subir fotos desde el panel
-Activa **Storage** en Firebase Console (el bucket suele ser `gen-lang-client-0262845140.firebasestorage.app`).
+Activa **Storage** en Firebase Console (el bucket suele ser `eco-glampin-chinauta.firebasestorage.app`).
 Las fotos se guardan ahí con un enlace público.
 
 ## Cómo comprobar que quedó bien
