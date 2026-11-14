@@ -6,6 +6,7 @@ import { Navbar } from './components/Navbar';
 import { HomePortal } from './components/HomePortal';
 import { LegalSection, readLegalParam } from './components/LegalView';
 import { CookieBanner } from './components/CookieBanner';
+import { MotionConfig, motion } from 'framer-motion';
 import { AdminUser } from './types';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { useDynamicSEO } from './utils/seoConfig';
@@ -115,6 +116,7 @@ function AppContent() {
       {/* Main Content Area */}
       <div className="flex-1 pb-20 lg:pb-0 overflow-x-hidden">
         <Suspense fallback={<PageLoading />}>
+        <motion.div key={activeTab} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
         {activeTab === 'home' && (
           <HomePortal
             onOpenBooking={handleOpenBooking}
@@ -158,6 +160,7 @@ function AppContent() {
         {activeTab === 'legal' && (
           <LegalView key={legalSection} initialSection={legalSection} />
         )}
+        </motion.div>
         </Suspense>
       </div>
 
@@ -268,7 +271,9 @@ function AppContent() {
 export function App() {
   return (
     <LanguageProvider>
-      <AppContent />
+      <MotionConfig reducedMotion="user">
+        <AppContent />
+      </MotionConfig>
     </LanguageProvider>
   );
 }
