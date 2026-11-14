@@ -424,6 +424,19 @@ export function createApp(deps: AppDeps) {
   app.get("/api/menu", async (_req, res, next) => {
     try { res.json(await store.list("menu_items")); } catch (e) { next(e); }
   });
+  // Solo administrador: deja el menú tal como lo aprobó el dueño (platos, fotos, descripciones y precios originales).
+  // Borra los platos actuales y carga los del menú aprobado; queda registrado en la auditoría.
+  app.post("/api/menu/restore-defaults", async (req, res) => {
+    try {
+      const existing = await store.list("menu_items");
+      for (const r of existing) await store.remove("menu_items", r.id);
+      const stamp = sqlTime(now());
+      for (const row of SEED.menu_items) await store.set("menu_items", row.id, { ...row, created_at: stamp });
+      await store.setCounter("menu_items", Math.max(0, ...SEED.menu_items.map((r) => Number(r.id) || 0)));
+      await audit((req as any).adminEmail, "RESTAURAR_MENU", "Menu", "todos", `Menú restaurado al original (${SEED.menu_items.length} platos; se reemplazaron ${existing.length})`);
+      res.json({ success: true, items: await store.list("menu_items") });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
   app.post("/api/menu", async (req, res) => {
     try {
       const { item_number, title, title_en, category, description, description_en, preparations, sides, beverage, price, image, images, video_url, badge, user_name } = req.body;

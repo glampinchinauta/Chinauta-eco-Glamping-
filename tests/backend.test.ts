@@ -7,6 +7,7 @@ import { createApp } from "../api/app";
 import { FirestoreStore, MemoryStore } from "../api/store";
 import { FakeFirestore } from "./fake-firestore";
 import { FakeUploader } from "../api/uploads";
+import { DEFAULT_MENU_ITEMS } from "../src/data/defaultMenu";
 
 const PROJECT = "proyecto-prueba";
 const ADMIN = "admin@test.invalid";
@@ -108,9 +109,9 @@ test("los ajustes iniciales usan el WhatsApp real", async () => {
 });
 
 // ---------------------------------------------------------------- reservas y precios
-test("domo 5 un sábado con trucha, carne y 2 combos = $640.000", async () => {
+test("domo 5 un sábado con trucha, carne y 2 combos (platos 1, 2 y 5) = $640.000", async () => {
   const sat = nextDay(6, 100);
-  const r = await book(5, sat, plus(sat, 1), { food_items: [{ id: 1, qty: 1 }, { id: 2, qty: 1 }, { id: 3, qty: 2 }] });
+  const r = await book(5, sat, plus(sat, 1), { food_items: [{ id: 1, qty: 1 }, { id: 2, qty: 1 }, { id: 5, qty: 2 }] });
   assert.equal(r.status, 200, r.text);
   assert.match(r.data.reservation_code, /^EGC-\d{4,6}$/);
   const list = await call("GET", "/api/reservations", { auth: admin() });
@@ -391,6 +392,44 @@ test("JSON mal formado, rutas inexistentes y cuerpos vacíos responden JSON", as
   const nope = await call("GET", "/api/ruta-que-no-existe", { auth: admin() });
   assert.equal(nope.status, 404);
   assert.ok(nope.type.includes("application/json"));
+});
+
+// ---------------------------------------------------------------- menú aprobado
+const parseList = (v: any) => (typeof v === "string" ? JSON.parse(v || "[]") : v || []);
+test("el menú inicial del servidor coincide con el menú aprobado (platos, fotos, descripciones y precios)", async () => {
+  const api = (await call("GET", "/api/menu")).data;
+  const want = DEFAULT_MENU_ITEMS;
+  assert.equal(api.length >= want.length, true);
+  for (const w of want) {
+    const a = api.find((x: any) => x.id === w.id);
+    assert.ok(a, `falta el plato ${w.id}`);
+    for (const k of ["item_number", "title", "title_en", "category", "category_en", "description", "description_en", "beverage", "beverage_en", "price", "image", "badge", "badge_en"] as const)
+      assert.equal(a[k], (w as any)[k], `plato ${w.id}: ${k}`);
+    for (const k of ["preparations", "preparations_en", "sides", "sides_en", "images"] as const)
+      assert.deepEqual(parseList(a[k]), (w as any)[k], `plato ${w.id}: ${k}`);
+    assert.ok(!/unsplash/.test(String(a.image)), "sin fotos de stock");
+  }
+});
+test("restaurar el menú original: solo administrador, reemplaza los platos y queda en la auditoría", async () => {
+  assert.equal((await call("POST", "/api/menu/restore-defaults", { body: {} })).status, 401);
+  assert.equal((await call("POST", "/api/menu/restore-defaults", { auth: token("otro@test.invalid"), body: {} })).status, 401);
+  // el dueño cambia un plato y agrega otro
+  await call("PUT", "/api/menu/1", { auth: admin(), body: { title: "Plato cambiado", price: 1, image: "https://images.unsplash.com/x" } });
+  await call("POST", "/api/menu", { auth: admin(), body: { title: "Plato extra", category: "Bebidas", price: 5000 } });
+  const r = await call("POST", "/api/menu/restore-defaults", { auth: admin(), body: {} });
+  assert.equal(r.status, 200);
+  const menu = (await call("GET", "/api/menu")).data;
+  assert.deepEqual(menu.map((m: any) => m.id).sort(), DEFAULT_MENU_ITEMS.map((m) => m.id).sort());
+  const one = menu.find((m: any) => m.id === 1);
+  assert.equal(one.title, DEFAULT_MENU_ITEMS[0].title);
+  assert.equal(one.price, 60000);
+  assert.ok(String(one.image).startsWith("/assets/images/"));
+  const log = (await call("GET", "/api/audit", { auth: admin() })).data;
+  assert.ok(log.some((l: any) => l.action === "RESTAURAR_MENU"));
+  // un plato nuevo después de restaurar recibe un id nuevo (sin chocar con los restaurados)
+  const nuevo = await call("POST", "/api/menu", { auth: admin(), body: { title: "Limonada 2", category: "Bebidas", price: 8000 } });
+  assert.equal(nuevo.status, 200);
+  assert.ok(Number(nuevo.data.id) > 5);
 });
 
 // ---------------------------------------------------------------- seguridad
