@@ -284,7 +284,7 @@ export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigat
                     <button
                       type="button"
                       onClick={() => onOpenBooking(dome.id)}
-                      className="inline-flex items-center space-x-1.5 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 transition-all shadow-md shadow-emerald-700/20 active:scale-95 cursor-pointer"
+                      className="inline-flex items-center justify-center space-x-1.5 px-4 sm:px-5 py-2.5 min-h-11 rounded-2xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 transition-all shadow-md shadow-emerald-700/20 active:scale-95 cursor-pointer"
                     >
                       <span>{language === 'en' ? 'Book Dome' : 'Reservar Domo'}</span>
                       <ChevronRight className="w-4 h-4" />

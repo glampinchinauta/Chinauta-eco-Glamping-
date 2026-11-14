@@ -650,7 +650,7 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({ onOpenBooking }) => 
                           key={idx}
                           type="button"
                           onClick={() => setSliderIndex(idx)}
-                          className={`h-2 rounded-full transition-all duration-300 ${
+                          className={`relative h-2 rounded-full transition-all duration-300 before:content-[''] before:absolute before:-inset-x-1.5 before:-inset-y-3 ${
                             safeIdx === idx
                               ? 'w-6 bg-emerald-400 shadow-xs'
                               : 'w-2 bg-white/40 hover:bg-white/80'
