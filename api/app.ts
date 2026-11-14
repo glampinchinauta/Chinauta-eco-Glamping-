@@ -7,10 +7,10 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { GoogleGenAI } from "@google/genai";
-import { verifyFirebaseIdToken, normalizeEmail } from "../server-auth";
-import { sqlTime, type Row, type Store } from "./store";
-import type { Uploader } from "./uploads";
-import { SEED } from "./seed-data";
+import { verifyFirebaseIdToken, normalizeEmail } from "../server-auth.js";
+import { sqlTime, type Row, type Store } from "./store.js";
+import type { Uploader } from "./uploads.js";
+import { SEED } from "./seed-data.js";
 
 export interface AppDeps {
   store: Store;

@@ -3,8 +3,8 @@
  * Variables de entorno necesarias en Vercel: ver docs/FIRESTORE.md
  */
 import express from "express";
-import { createApp } from "./app";
-import { createBackendFromEnv } from "./factory";
+import { createApp } from "./app.js";
+import { createBackendFromEnv } from "./factory.js";
 
 let app: express.Express;
 try {

@@ -3,8 +3,8 @@ import path from "path";
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
-import { DiskUploader, StorageUploader, type Uploader } from "./uploads";
-import { FirestoreStore, MemoryStore, type Store } from "./store";
+import { DiskUploader, StorageUploader, type Uploader } from "./uploads.js";
+import { FirestoreStore, MemoryStore, type Store } from "./store.js";
 
 /**
  * Credenciales de Firebase para el servidor. Se leen de una variable de entorno:
