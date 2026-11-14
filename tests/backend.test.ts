@@ -28,7 +28,7 @@ const store = useFirestore ? new FirestoreStore(new FakeFirestore() as any) : ne
 const uploader = new FakeUploader();
 const app = createApp({
   store, uploader,
-  env: { FIREBASE_PROJECT_ID: PROJECT, ADMIN_EMAILS: ADMIN } as NodeJS.ProcessEnv,
+  env: { FIREBASE_PROJECT_ID: PROJECT, ADMIN_EMAILS: ADMIN, RATE_LIMIT_SCALE: "1000" } as NodeJS.ProcessEnv,
   getCert: async (kid) => (kid === "k1" ? publicPem : undefined),
 });
 
@@ -391,6 +391,35 @@ test("JSON mal formado, rutas inexistentes y cuerpos vacíos responden JSON", as
   const nope = await call("GET", "/api/ruta-que-no-existe", { auth: admin() });
   assert.equal(nope.status, 404);
   assert.ok(nope.type.includes("application/json"));
+});
+
+// ---------------------------------------------------------------- seguridad
+test("límite de intentos: la validación de códigos promo frena el abuso (429 con Retry-After)", async () => {
+  const strict = createApp({
+    store: new MemoryStore(), uploader,
+    env: { FIREBASE_PROJECT_ID: PROJECT, ADMIN_EMAILS: ADMIN } as NodeJS.ProcessEnv,
+    getCert: async () => undefined,
+  });
+  const srv = http.createServer(strict);
+  await new Promise<void>((r) => srv.listen(0, r));
+  const url = `http://127.0.0.1:${(srv.address() as any).port}/api/promo-codes/validate?code=X&check_in=2030-01-01`;
+  let last: Response | undefined;
+  for (let i = 0; i < 32; i++) last = await fetch(url);
+  srv.close();
+  assert.equal(last!.status, 429);
+  assert.ok(last!.headers.get("retry-after"));
+  assert.ok((last!.headers.get("content-type") || "").includes("application/json"));
+});
+test("cuerpos de más de 1 MB se rechazan (413) fuera de las subidas del administrador", async () => {
+  const big = JSON.stringify({ customer: { name: "x".repeat(1_500_000) } });
+  const r = await call("POST", "/api/reservations", { raw: big });
+  assert.equal(r.status, 413);
+  assert.ok(r.type.includes("application/json"));
+});
+test("las respuestas de la API llevan cabeceras de seguridad y no revelan Express", async () => {
+  const res = await fetch(base + "/api/domes");
+  assert.equal(res.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(res.headers.get("x-powered-by"), null);
 });
 
 (async () => {
