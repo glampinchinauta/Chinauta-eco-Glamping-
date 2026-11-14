@@ -207,7 +207,6 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
         'amenityFeature': [
           { '@type': 'LocationFeatureSpecification', 'name': 'Private Hydromassage Jacuzzi', 'value': true },
           { '@type': 'LocationFeatureSpecification', 'name': 'Panoramic Catamaran Lounging Mesh', 'value': true },
-          { '@type': 'LocationFeatureSpecification', 'name': 'High-Speed Wi-Fi', 'value': true },
           { '@type': 'LocationFeatureSpecification', 'name': 'Free Private Parking', 'value': true },
           { '@type': 'LocationFeatureSpecification', 'name': 'Pet Friendly Accommodation', 'value': true },
           { '@type': 'LocationFeatureSpecification', 'name': 'Restaurant & Romantic Dinners', 'value': true }
@@ -337,7 +336,7 @@ export function updateSEOTags(metadata: SEOMetadata, language: 'es' | 'en'): voi
   setMeta('name', 'author', 'Eco Glamping Chinauta');
   setMeta('name', 'robots', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
 
-  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://ecoglampingchinauta.com';
+  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://www.ecoglamping.app';
   const canonicalUrl = `${currentOrigin}${metadata.canonicalPath || window.location.pathname}`;
 
   setMeta('property', 'og:title', metadata.ogTitle || metadata.title);

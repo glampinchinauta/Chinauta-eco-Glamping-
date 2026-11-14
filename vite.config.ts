@@ -3,10 +3,10 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, type Plugin} from 'vite';
 
-// Dirección pública del sitio, tomada del entorno (SITE_URL, o el dominio de producción que Vercel entrega).
+// Dirección pública del sitio: SITE_URL si está definida; si no, el dominio oficial.
 // Sirve para las vistas previas en redes, el mapa del sitio (sitemap.xml) y robots.txt sin escribir el dominio a mano.
 const siteUrl = (() => {
-  const raw = process.env.SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : '');
+  const raw = process.env.SITE_URL || 'https://www.ecoglamping.app';
   return raw.replace(/\/+$/, '');
 })();
 
