@@ -1,25 +1,41 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { loadAnalyticsIfConsented } from './lib/analytics';
 import { signOut } from 'firebase/auth';
 import { auth } from './lib/firebase';
 import { Navbar } from './components/Navbar';
 import { HomePortal } from './components/HomePortal';
-import { AvailabilityChecker } from './components/AvailabilityChecker';
-import { ContactView } from './components/ContactView';
-import { InteractiveMap } from './components/InteractiveMap';
-import { FoodMenuSection } from './components/FoodMenuSection';
-import { FAQSection } from './components/FAQSection';
-import { DecorationsSection } from './components/DecorationsSection';
-import { BookingWizardModal } from './components/BookingWizardModal';
-import { MyReservationsModal } from './components/MyReservationsModal';
-import { AdminLoginModal } from './components/AdminLoginModal';
-import { AdminDashboard } from './components/AdminDashboard';
-import { AiConciergeChat } from './components/AiConciergeChat';
-import { LegalView, LegalSection, readLegalParam } from './components/LegalView';
+import { LegalSection, readLegalParam } from './components/LegalView';
 import { CookieBanner } from './components/CookieBanner';
 import { AdminUser } from './types';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { useDynamicSEO } from './utils/seoConfig';
+
+// Las partes pesadas se descargan solo cuando se necesitan: la portada abre mucho más rápido en el celular.
+const lazyNamed = <K extends string>(load: () => Promise<Record<K, React.ComponentType<any>>>, key: K) =>
+  lazy(() => load().then((m) => ({ default: m[key] })));
+const AvailabilityChecker = lazyNamed(() => import('./components/AvailabilityChecker'), 'AvailabilityChecker');
+const ContactView = lazyNamed(() => import('./components/ContactView'), 'ContactView');
+const InteractiveMap = lazyNamed(() => import('./components/InteractiveMap'), 'InteractiveMap');
+const FoodMenuSection = lazyNamed(() => import('./components/FoodMenuSection'), 'FoodMenuSection');
+const FAQSection = lazyNamed(() => import('./components/FAQSection'), 'FAQSection');
+const DecorationsSection = lazyNamed(() => import('./components/DecorationsSection'), 'DecorationsSection');
+const LegalView = lazyNamed(() => import('./components/LegalView'), 'LegalView');
+const BookingWizardModal = lazyNamed(() => import('./components/BookingWizardModal'), 'BookingWizardModal');
+const MyReservationsModal = lazyNamed(() => import('./components/MyReservationsModal'), 'MyReservationsModal');
+const AdminLoginModal = lazyNamed(() => import('./components/AdminLoginModal'), 'AdminLoginModal');
+const AdminDashboard = lazyNamed(() => import('./components/AdminDashboard'), 'AdminDashboard');
+const AiConciergeChat = lazyNamed(() => import('./components/AiConciergeChat'), 'AiConciergeChat');
+
+/** Verdadero desde la primera vez que `value` fue verdadero (para montar un módulo pesado solo tras abrirlo). */
+function useEverTrue(value: boolean) {
+  const [ever, setEver] = useState(value);
+  useEffect(() => { if (value) setEver(true); }, [value]);
+  return ever || value;
+}
+
+const PageLoading = () => (
+  <div className="flex items-center justify-center py-24 text-slate-400 text-sm" role="status" aria-live="polite">Cargando…</div>
+);
 
 function AppContent() {
   const { t, language } = useLanguage();
@@ -63,13 +79,24 @@ function AppContent() {
     setIsBookingOpen(true);
   };
 
+  const bookingMounted = useEverTrue(isBookingOpen);
+  const reservationsMounted = useEverTrue(isMyReservationsOpen);
+  const loginMounted = useEverTrue(isAdminLoginOpen);
+  const [chatReady, setChatReady] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setChatReady(true), 3000);
+    return () => window.clearTimeout(id);
+  }, []);
+
   // If admin is logged in, show admin dashboard
   if (adminUser) {
     return (
+      <Suspense fallback={<PageLoading />}>
       <AdminDashboard
         user={adminUser}
         onLogout={() => { setAdminUser(null); signOut(auth).catch(() => {}); }}
       />
+      </Suspense>
     );
   }
 
@@ -87,6 +114,7 @@ function AppContent() {
 
       {/* Main Content Area */}
       <div className="flex-1 pb-20 lg:pb-0 overflow-x-hidden">
+        <Suspense fallback={<PageLoading />}>
         {activeTab === 'home' && (
           <HomePortal
             onOpenBooking={handleOpenBooking}
@@ -130,6 +158,7 @@ function AppContent() {
         {activeTab === 'legal' && (
           <LegalView key={legalSection} initialSection={legalSection} />
         )}
+        </Suspense>
       </div>
 
       {/* Footer */}
@@ -200,35 +229,37 @@ function AppContent() {
       </footer>
 
       {/* Floating AI Concierge Chatbot */}
-      <AiConciergeChat />
+      {chatReady && <Suspense fallback={null}><AiConciergeChat /></Suspense>}
 
       {/* Cookie notice */}
       <CookieBanner onOpenCookiePolicy={() => openLegal('cookies')} />
 
       {/* Booking Wizard Modal */}
-      <BookingWizardModal
+      <Suspense fallback={null}>
+      {bookingMounted && <BookingWizardModal
         isOpen={isBookingOpen}
         onClose={() => setIsBookingOpen(false)}
         initialDomeId={bookingDomeId}
         initialCheckIn={bookingCheckIn}
         initialCheckOut={bookingCheckOut}
-        onSuccess={(code) => {
+        onSuccess={(code: string) => {
           // Success callback
         }}
-      />
+      />}
 
       {/* My Reservations Modal */}
-      <MyReservationsModal
+      {reservationsMounted && <MyReservationsModal
         isOpen={isMyReservationsOpen}
         onClose={() => setIsMyReservationsOpen(false)}
-      />
+      />}
 
       {/* Admin Login Modal */}
-      <AdminLoginModal
+      {loginMounted && <AdminLoginModal
         isOpen={isAdminLoginOpen}
         onClose={() => setIsAdminLoginOpen(false)}
-        onLoginSuccess={(user) => setAdminUser(user)}
-      />
+        onLoginSuccess={(user: AdminUser) => setAdminUser(user)}
+      />}
+      </Suspense>
 
     </div>
   );
