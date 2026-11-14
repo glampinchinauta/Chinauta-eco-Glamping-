@@ -218,7 +218,7 @@ function AppContent() {
               Vía Principal Chinauta Km 4.5<br />
               Fusagasugá, Cundinamarca, Colombia<br />
               WhatsApp: +57 321 310 9331 / +57 310 123 4567<br />
-              contacto@ecoglampingchinauta.com
+              ecoglampingventas@gmail.com
             </p>
           </div>
         </div>

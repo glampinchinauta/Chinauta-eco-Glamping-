@@ -294,7 +294,7 @@ export const SEED = {
   "settings": {
     "glamping_name": "Eco Glamping Chinauta",
     "whatsapp": "+57 321 310 9331",
-    "email": "contacto@ecoglampingchinauta.com",
+    "email": "ecoglampingventas@gmail.com",
     "address": "Vía Principal Chinauta Km 4.5, Fusagasugá, Cundinamarca",
     "currency": "COP",
     "timezone": "America/Bogota"

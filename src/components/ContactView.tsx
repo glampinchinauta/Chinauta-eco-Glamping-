@@ -155,9 +155,9 @@ export const ContactView: React.FC = () => {
             <Mail className="w-7 h-7" />
           </div>
           <h4 className="text-lg font-bold text-slate-900">{t('contact.email_card_title')}</h4>
-          <p className="text-slate-600 text-sm">contacto@ecoglampingchinauta.com</p>
+          <p className="text-slate-600 text-sm">ecoglampingventas@gmail.com</p>
           <a
-            href="mailto:contacto@ecoglampingchinauta.com"
+            href="mailto:ecoglampingventas@gmail.com"
             className="inline-block px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold text-xs hover:bg-slate-800 transition-colors"
           >
             {t('contact.email_btn')}

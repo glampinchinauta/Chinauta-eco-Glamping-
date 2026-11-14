@@ -433,7 +433,7 @@ const translations: Record<Language, Translations> = {
     'contact.desc': 'Estamos ubicados en el clima ideal de Chinauta (Fusagasugá, Cundinamarca), a solo 1.5 horas de Bogotá.',
     'contact.address': 'Vía Principal Chinauta Km 4.5, Fusagasugá, Cundinamarca, Colombia',
     'contact.whatsapp': 'WhatsApp: +57 321 310 9331 / +57 310 123 4567',
-    'contact.email': 'contacto@ecoglampingchinauta.com',
+    'contact.email': 'ecoglampingventas@gmail.com',
     'contact.hours': 'Atención al Cliente: Todos los días 7:00 AM - 9:00 PM',
 
     // Footer
@@ -890,7 +890,7 @@ const translations: Record<Language, Translations> = {
     'contact.desc': 'We are located in the tropical warm microclimate of Chinauta (Fusagasugá, Cundinamarca), just 1.5 hours from Bogotá.',
     'contact.address': 'Main Highway Chinauta Km 4.5, Fusagasugá, Cundinamarca, Colombia',
     'contact.whatsapp': 'WhatsApp: +57 321 310 9331 / +57 310 123 4567',
-    'contact.email': 'contacto@ecoglampingchinauta.com',
+    'contact.email': 'ecoglampingventas@gmail.com',
     'contact.hours': 'Front Desk Support: Daily 7:00 AM - 9:00 PM',
 
     // Footer
