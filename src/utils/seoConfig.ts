@@ -27,7 +27,7 @@ export interface SEOMetadata {
   structuredData?: Record<string, any>;
 }
 
-const DEFAULT_SHARE_IMAGE = 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=1200&h=630&q=85';
+const DEFAULT_SHARE_IMAGE = '/assets/images/og-chinauta.jpg';
 
 export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata>> = {
   es: {
@@ -45,7 +45,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
         '@type': 'LodgingBusiness',
         'name': 'Eco Glamping Chinauta',
         'description': 'Glamping exclusivo con domos geodésicos de lujo, jacuzzis privados y vistas panorámicas a las montañas.',
-        'url': 'https://ecoglampingchinauta.com',
+        'url': '/',
         'telephone': '+573213109331',
         'email': 'contacto@ecoglampingchinauta.com',
         'priceRange': '$$$',
@@ -65,7 +65,6 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
         'amenityFeature': [
           { '@type': 'LocationFeatureSpecification', 'name': 'Jacuzzi Privado con Hidromasaje', 'value': true },
           { '@type': 'LocationFeatureSpecification', 'name': 'Malla Catamarán Panorámica', 'value': true },
-          { '@type': 'LocationFeatureSpecification', 'name': 'WiFi de Alta Velocidad', 'value': true },
           { '@type': 'LocationFeatureSpecification', 'name': 'Parqueadero Privado Gratuito', 'value': true },
           { '@type': 'LocationFeatureSpecification', 'name': 'Pet Friendly', 'value': true },
           { '@type': 'LocationFeatureSpecification', 'name': 'Restaurante y Cenas Románticas', 'value': true }
@@ -78,9 +77,9 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
       keywords: 'domos glamping, domo huitaca, domo bochica, domo bachue, cabañas con jacuzzi, glamping parejas chinauta',
       ogTitle: 'Nuestros 6 Domos Ancestrales | Eco Glamping Chinauta',
       ogDescription: 'Elige tu domo geodésico preferido con hidromasaje, cama king, asoleadoras y arquitectura bioclimática.',
-      ogImage: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&h=630&q=85',
+      ogImage: '/assets/images/og-chinauta.jpg',
       ogType: 'website',
-      canonicalPath: '/#domes'
+      canonicalPath: '/'
     },
     availability: {
       title: 'Consultar Disponibilidad y Tarifas en Tiempo Real | Eco Glamping Chinauta',
@@ -90,7 +89,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
       ogDescription: 'Selecciona tus fechas de check-in y salida para reservar tu domo con tarifa preferencial.',
       ogImage: DEFAULT_SHARE_IMAGE,
       ogType: 'website',
-      canonicalPath: '/#availability'
+      canonicalPath: '/'
     },
     menu: {
       title: 'Menú Gastronómico y Restaurante | Eco Glamping Chinauta',
@@ -98,9 +97,9 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
       keywords: 'restaurante glamping chinauta, cenas romanticas fusagasuga, menu campestre chinauta, trucha gratinada',
       ogTitle: 'Menú Gastronómico Artesanal | Eco Glamping Chinauta',
       ogDescription: 'Almuerzos campestres, cenas gourmet para parejas, tabla de quesos y bebidas naturales.',
-      ogImage: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=1200&h=630&q=85',
+      ogImage: '/assets/images/og-chinauta.jpg',
       ogType: 'website',
-      canonicalPath: '/#menu'
+      canonicalPath: '/'
     },
     map: {
       title: 'Mapa Interactivo y Rutas de Acceso | Eco Glamping Chinauta',
@@ -110,7 +109,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
       ogDescription: 'Ruta pavimentada y segura hasta nuestras instalaciones en el kilómetro 4.5 de la vía a Chinauta.',
       ogImage: DEFAULT_SHARE_IMAGE,
       ogType: 'place',
-      canonicalPath: '/#map'
+      canonicalPath: '/'
     },
     contact: {
       title: 'Contacto y Ubicación | Eco Glamping Chinauta',
@@ -120,7 +119,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
       ogDescription: 'Estamos disponibles 24/7 para asistirte con reservas, celebraciones de aniversario y peticiones personalizadas.',
       ogImage: DEFAULT_SHARE_IMAGE,
       ogType: 'website',
-      canonicalPath: '/#contact'
+      canonicalPath: '/'
     },
     faq: {
       title: 'Preguntas Frecuentes (FAQ) | Eco Glamping Chinauta',
@@ -130,7 +129,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
       ogDescription: 'Todo lo que necesitas saber antes de tu visita: horarios, mascotas, jacuzzi privado, alimentación y parqueadero.',
       ogImage: DEFAULT_SHARE_IMAGE,
       ogType: 'website',
-      canonicalPath: '/#faq',
+      canonicalPath: '/',
       structuredData: {
         '@context': 'https://schema.org',
         '@type': 'FAQPage',
@@ -188,7 +187,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
         '@type': 'LodgingBusiness',
         'name': 'Eco Glamping Chinauta',
         'description': 'Exclusive eco glamping featuring luxury geodesic domes, private hydromassage jacuzzis, and sweeping mountain panoramas.',
-        'url': 'https://ecoglampingchinauta.com',
+        'url': '/',
         'telephone': '+573213109331',
         'email': 'contacto@ecoglampingchinauta.com',
         'priceRange': '$$$',
@@ -221,9 +220,9 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
       keywords: 'geodesic domes glamping, private jacuzzi glamping, huitaca dome, couples retreat chinauta',
       ogTitle: 'Our 6 Ancestral Domes | Eco Glamping Chinauta',
       ogDescription: 'Select your preferred geodesic dome with hot tub, king bed, sun loungers, and bioclimatic architecture.',
-      ogImage: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&h=630&q=85',
+      ogImage: '/assets/images/og-chinauta.jpg',
       ogType: 'website',
-      canonicalPath: '/#domes'
+      canonicalPath: '/'
     },
     availability: {
       title: 'Check Real-Time Availability & Rates | Eco Glamping Chinauta',
@@ -233,7 +232,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
       ogDescription: 'Select your arrival and departure dates to lock in your luxury dome at guaranteed direct rates.',
       ogImage: DEFAULT_SHARE_IMAGE,
       ogType: 'website',
-      canonicalPath: '/#availability'
+      canonicalPath: '/'
     },
     menu: {
       title: 'Artisan Dining & Restaurant Menu | Eco Glamping Chinauta',
@@ -241,9 +240,9 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
       keywords: 'glamping restaurant chinauta, romantic dinners colombia, rustic dining menu, artisan rainbow trout',
       ogTitle: 'Artisan Culinary Menu | Eco Glamping Chinauta',
       ogDescription: 'Fresh country lunches, romantic dinners for couples, cheese boards, and natural fruit beverages.',
-      ogImage: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=1200&h=630&q=85',
+      ogImage: '/assets/images/og-chinauta.jpg',
       ogType: 'website',
-      canonicalPath: '/#menu'
+      canonicalPath: '/'
     },
     map: {
       title: 'Interactive Map & Scenic Grounds | Eco Glamping Chinauta',
@@ -253,7 +252,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
       ogDescription: 'Safe, fully paved access road straight to our entrance at Km 4.5 along the main Chinauta road.',
       ogImage: DEFAULT_SHARE_IMAGE,
       ogType: 'place',
-      canonicalPath: '/#map'
+      canonicalPath: '/'
     },
     contact: {
       title: 'Contact & Location | Eco Glamping Chinauta',
@@ -263,7 +262,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
       ogDescription: 'We are available 24/7 to assist you with bookings, special celebrations, and custom trip requests.',
       ogImage: DEFAULT_SHARE_IMAGE,
       ogType: 'website',
-      canonicalPath: '/#contact'
+      canonicalPath: '/'
     },
     faq: {
       title: 'Frequently Asked Questions (FAQ) | Eco Glamping Chinauta',
@@ -273,7 +272,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
       ogDescription: 'Everything you need to know before visiting: schedules, pets, private jacuzzi, on-site food, and parking.',
       ogImage: DEFAULT_SHARE_IMAGE,
       ogType: 'website',
-      canonicalPath: '/#faq',
+      canonicalPath: '/',
       structuredData: {
         '@context': 'https://schema.org',
         '@type': 'FAQPage',
@@ -343,7 +342,8 @@ export function updateSEOTags(metadata: SEOMetadata, language: 'es' | 'en'): voi
 
   setMeta('property', 'og:title', metadata.ogTitle || metadata.title);
   setMeta('property', 'og:description', metadata.ogDescription || metadata.description);
-  setMeta('property', 'og:image', metadata.ogImage || DEFAULT_SHARE_IMAGE);
+  const abs = (u: string) => (u.startsWith('/') ? `${currentOrigin}${u}` : u);
+  setMeta('property', 'og:image', abs(metadata.ogImage || DEFAULT_SHARE_IMAGE));
   setMeta('property', 'og:url', canonicalUrl);
   setMeta('property', 'og:type', metadata.ogType || 'website');
   setMeta('property', 'og:site_name', 'Eco Glamping Chinauta');
@@ -352,7 +352,7 @@ export function updateSEOTags(metadata: SEOMetadata, language: 'es' | 'en'): voi
   setMeta('name', 'twitter:card', metadata.twitterCard || 'summary_large_image');
   setMeta('name', 'twitter:title', metadata.twitterTitle || metadata.ogTitle || metadata.title);
   setMeta('name', 'twitter:description', metadata.twitterDescription || metadata.ogDescription || metadata.description);
-  setMeta('name', 'twitter:image', metadata.twitterImage || metadata.ogImage || DEFAULT_SHARE_IMAGE);
+  setMeta('name', 'twitter:image', abs(metadata.twitterImage || metadata.ogImage || DEFAULT_SHARE_IMAGE));
 
   let canonicalEl = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
   if (!canonicalEl) {
@@ -370,13 +370,18 @@ export function updateSEOTags(metadata: SEOMetadata, language: 'es' | 'en'): voi
       scriptEl.type = 'application/ld+json';
       document.head.appendChild(scriptEl);
     }
-    scriptEl.textContent = JSON.stringify(metadata.structuredData, null, 2);
+    scriptEl.textContent = JSON.stringify(withSiteUrl(metadata.structuredData, currentOrigin), null, 2);
   } else if (scriptEl) {
     const baseStructuredData = SEO_CONFIGS[language].home.structuredData;
     if (baseStructuredData) {
-      scriptEl.textContent = JSON.stringify(baseStructuredData, null, 2);
+      scriptEl.textContent = JSON.stringify(withSiteUrl(baseStructuredData, currentOrigin), null, 2);
     }
   }
+}
+
+/** Usa la dirección real del sitio (la que el visitante está viendo) en los datos estructurados y agrega la foto principal. */
+function withSiteUrl(data: Record<string, any>, origin: string): Record<string, any> {
+  return { ...data, url: data.url === '/' || !data.url ? `${origin}/` : data.url, image: data.image || `${origin}/assets/images/og-chinauta.jpg` };
 }
 
 export function useDynamicSEO(
