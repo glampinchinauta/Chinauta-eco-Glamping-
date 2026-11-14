@@ -433,7 +433,7 @@ const translations: Record<Language, Translations> = {
     'contact.desc': 'Estamos ubicados en el clima ideal de Chinauta (Fusagasugá, Cundinamarca), a solo 1.5 horas de Bogotá.',
     'contact.address': 'Vía Principal Chinauta Km 4.5, Fusagasugá, Cundinamarca, Colombia',
     'contact.whatsapp': 'WhatsApp: +57 321 310 9331 / +57 310 123 4567',
-    'contact.email': 'contacto@ecoglampingchinauta.com',
+    'contact.email': 'ecoglampingventas@gmail.com',
     'contact.hours': 'Atención al Cliente: Todos los días 7:00 AM - 9:00 PM',
 
     // Footer
@@ -457,7 +457,7 @@ const translations: Record<Language, Translations> = {
     'faq.item4_q': '¿Cómo es el acceso y la ubicación?',
     'faq.item4_a': 'Estamos ubicados en el kilómetro 4.5 de la Vía Principal Chinauta, Fusagasugá. La vía de acceso está completamente pavimentada y apta para cualquier tipo de vehículo.',
     'faq.item5_q': '¿Qué incluyen las tarifas de reserva?',
-    'faq.item5_a': 'Incluyen el alojamiento en el domo seleccionado, jacuzzi privado, desayuno campesino artesanal, WiFi de alta velocidad, parqueadero y uso de zonas comunes.',
+    'faq.item5_a': 'Incluyen el alojamiento en el domo seleccionado, jacuzzi privado, desayuno campesino artesanal, parqueadero y uso de zonas comunes.',
     'faq.item6_q': '¿Cuáles son los métodos de pago aceptados?',
     'faq.item6_a': 'Aceptamos transferencias bancarias (Bancolombia, Nequi, Daviplata), pagos a través de la pasarela Wompi con tarjetas de crédito/débito y efectivo.',
     'faq.more_help_title': '¿Tienes alguna otra pregunta?',
@@ -890,7 +890,7 @@ const translations: Record<Language, Translations> = {
     'contact.desc': 'We are located in the tropical warm microclimate of Chinauta (Fusagasugá, Cundinamarca), just 1.5 hours from Bogotá.',
     'contact.address': 'Main Highway Chinauta Km 4.5, Fusagasugá, Cundinamarca, Colombia',
     'contact.whatsapp': 'WhatsApp: +57 321 310 9331 / +57 310 123 4567',
-    'contact.email': 'contacto@ecoglampingchinauta.com',
+    'contact.email': 'ecoglampingventas@gmail.com',
     'contact.hours': 'Front Desk Support: Daily 7:00 AM - 9:00 PM',
 
     // Footer
@@ -914,7 +914,7 @@ const translations: Record<Language, Translations> = {
     'faq.item4_q': 'How is the access and location?',
     'faq.item4_a': 'We are located at Km 4.5 along the main Chinauta road in Fusagasugá. The access road is fully paved and suitable for all vehicle types.',
     'faq.item5_q': 'What is included in the reservation rates?',
-    'faq.item5_a': 'Rates include accommodation in your selected dome, private hot tub, artisan country breakfast, high-speed Wi-Fi, parking, and common grounds access.',
+    'faq.item5_a': 'Rates include accommodation in your selected dome, private hot tub, artisan country breakfast, parking, and common grounds access.',
     'faq.item6_q': 'What payment methods are accepted?',
     'faq.item6_a': 'We accept bank wire transfers, Wompi secure payment gateway with credit/debit cards, and cash.',
     'faq.more_help_title': 'Do you have another question?',

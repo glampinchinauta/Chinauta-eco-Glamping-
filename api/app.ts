@@ -57,8 +57,45 @@ export function createApp(deps: AppDeps) {
   // Behind Vercel's proxy: use the real visitor IP (needed for the per-IP limit on privacy requests).
   app.set("trust proxy", 1);
 
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+  // Cabeceras de seguridad básicas en todas las respuestas de la API.
+  app.disable("x-powered-by");
+  app.use("/api", (_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
+
+  // Tamaño máximo del cuerpo: 1 MB para todo, salvo las subidas de fotos y videos del administrador (hasta 50 MB).
+  const isUploadPath = (p: string) => /^\/api\/upload-(video|image|media)\/?$/i.test(p);
+  const smallJson = express.json({ limit: "1mb" });
+  const bigJson = express.json({ limit: "50mb" });
+  app.use((req, res, next) => (isUploadPath(req.path) ? bigJson : smallJson)(req, res, next));
+  app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+
+  // Límite de intentos por visitante (en memoria, por instancia): frena abusos sin molestar al uso normal.
+  const hits = new Map<string, { count: number; resetAt: number }>();
+  const rateScale = Number(env.RATE_LIMIT_SCALE) > 0 ? Number(env.RATE_LIMIT_SCALE) : 1; // solo las pruebas lo cambian
+  function rateLimit(name: string, baseMax: number, windowMs: number): express.RequestHandler {
+    const max = baseMax * rateScale;
+    return (req, res, next) => {
+      const key = `${name}:${req.ip || req.socket.remoteAddress || "unknown"}`;
+      const t = Date.now();
+      if (hits.size > 5000) for (const [k, v] of hits) if (v.resetAt < t) hits.delete(k);
+      const entry = hits.get(key);
+      if (!entry || entry.resetAt < t) { hits.set(key, { count: 1, resetAt: t + windowMs }); return next(); }
+      entry.count += 1;
+      if (entry.count > max) {
+        res.setHeader("Retry-After", String(Math.ceil((entry.resetAt - t) / 1000)));
+        return res.status(429).json({ error: "Demasiados intentos. Espera unos minutos e inténtalo de nuevo." });
+      }
+      next();
+    };
+  }
+  app.post("/api/reservations", rateLimit("reservations", 20, 15 * 60 * 1000));
+  app.post("/api/ai/chat", rateLimit("ai", 30, 15 * 60 * 1000));
+  app.get("/api/promo-codes/validate", rateLimit("promo", 30, 15 * 60 * 1000));
+  app.get("/api/reservations/lookup", rateLimit("lookup", 30, 15 * 60 * 1000));
 
   // ---------- Admin authentication (Firebase Google sign-in, verified on the server) ----------
   const FIREBASE_PROJECT_ID: string = env.FIREBASE_PROJECT_ID || (() => {
@@ -386,6 +423,19 @@ export function createApp(deps: AppDeps) {
   // ---------- Menu ----------
   app.get("/api/menu", async (_req, res, next) => {
     try { res.json(await store.list("menu_items")); } catch (e) { next(e); }
+  });
+  // Solo administrador: deja el menú tal como lo aprobó el dueño (platos, fotos, descripciones y precios originales).
+  // Borra los platos actuales y carga los del menú aprobado; queda registrado en la auditoría.
+  app.post("/api/menu/restore-defaults", async (req, res) => {
+    try {
+      const existing = await store.list("menu_items");
+      for (const r of existing) await store.remove("menu_items", r.id);
+      const stamp = sqlTime(now());
+      for (const row of SEED.menu_items) await store.set("menu_items", row.id, { ...row, created_at: stamp });
+      await store.setCounter("menu_items", Math.max(0, ...SEED.menu_items.map((r) => Number(r.id) || 0)));
+      await audit((req as any).adminEmail, "RESTAURAR_MENU", "Menu", "todos", `Menú restaurado al original (${SEED.menu_items.length} platos; se reemplazaron ${existing.length})`);
+      res.json({ success: true, items: await store.list("menu_items") });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
   app.post("/api/menu", async (req, res) => {
     try {
@@ -1144,7 +1194,8 @@ export function createApp(deps: AppDeps) {
   // =============================================================================================
   app.post("/api/ai/chat", async (req, res) => {
     try {
-      const { message } = req.body;
+      const message = String(req.body?.message ?? "").trim().slice(0, 1000);
+      if (!message) return res.status(400).json({ reply: "Escribe tu pregunta y con gusto te ayudo." });
       const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY || "" });
 
       const systemInstruction = `Eres el Asistente Virtual Inteligente de "Eco Glamping Chinauta", un exclusivo centro de glamping ubicado en Chinauta / Fusagasugá, Cundinamarca, Colombia.

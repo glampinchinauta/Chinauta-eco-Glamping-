@@ -72,3 +72,35 @@
 }
 
 
+
+
+/* ---------- Movimiento ---------- */
+html { scroll-behavior: smooth; }
+
+/* Botones: se hunden un poco al tocarlos */
+.egc-press { transition: transform .25s cubic-bezier(.22,1,.36,1), box-shadow .3s, background-color .3s; }
+.egc-press:active { transform: scale(.97); }
+
+/* Destellos que flotan lentamente sobre la portada */
+.egc-aurora {
+  background:
+    radial-gradient(40% 35% at 20% 30%, rgba(52, 211, 153, .16), transparent 70%),
+    radial-gradient(35% 30% at 80% 60%, rgba(34, 211, 238, .12), transparent 70%);
+  animation: egc-drift 18s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+@keyframes egc-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); opacity: .8; }
+  to   { transform: translate3d(3%, 2%, 0) scale(1.08); opacity: 1; }
+}
+
+/* Quien pide "reducir movimiento" en su dispositivo no ve animaciones continuas ni desplazamientos */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

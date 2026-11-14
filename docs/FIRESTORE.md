@@ -11,7 +11,7 @@ Firebase Console → proyecto `eco-glampin-chinauta` → **Firestore Database**.
 
 ### 1b. Activar el inicio de sesión (Firebase → Authentication)
 - **Método de acceso**: activa **Google** (panel de administración) y **Correo y contraseña** (clientes).
-- **Configuración → Dominios autorizados**: agrega el dominio de Vercel (`tu-proyecto.vercel.app`) y, cuando lo compres, el dominio propio.
+- **Configuración → Dominios autorizados**: agrega el dominio de Vercel (`tu-proyecto.vercel.app`) y el dominio propio: `www.ecoglamping.app` y `ecoglamping.app` (sin esto, el inicio de sesión con Google falla en ese dominio).
 - No pongas `FIREBASE_PROJECT_ID` en Vercel con el proyecto anterior: se toma de `firebase-applet-config.json` (`eco-glampin-chinauta`) y debe coincidir con el de la llave del servidor.
 - El secreto del cliente OAuth se pega solo en la consola de Firebase; nunca va en el código ni en el chat.
 

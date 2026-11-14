@@ -2,33 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Toda la información se lee y se escribe a través de la API del servidor (cuenta de servicio),
+    // que valida permisos y datos. Desde el navegador no se permite acceso directo a ninguna colección.
+    // Así las reservas y los datos de los huéspedes nunca quedan expuestos públicamente.
     match /{document=**} {
       allow read, write: if false;
-    }
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    match /domes/{domeId} {
-      allow read: if true;
-      allow write: if isSignedIn();
-    }
-
-    match /reservations/{reservationId} {
-      allow read: if true;
-      allow create: if request.resource.data.keys().hasAll(['reservation_code', 'customer_name', 'dome_id', 'check_in', 'check_out', 'total_amount']);
-      allow update, delete: if isSignedIn();
-    }
-
-    match /menu_items/{itemId} {
-      allow read: if true;
-      allow write: if isSignedIn();
-    }
-
-    match /testimonials/{testimonialId} {
-      allow read: if true;
-      allow write: if isSignedIn();
     }
   }
 }
