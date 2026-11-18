@@ -32,7 +32,11 @@ Conviértelo a base64 (en PowerShell, cambia la ruta):
 | `FIREBASE_SERVICE_ACCOUNT_BASE64` | lo que copiaste en el paso 2 (márcala como **Sensitive**) |
 | `ADMIN_EMAILS` | correos con permiso de administrador, separados por coma (hoy `ecoglampingventas@gmail.com`) |
 | `GEMINI_API_KEY` | llave de Gemini para el asistente virtual (de la cuenta del cliente) |
-| `VITE_GA_MEASUREMENT_ID` | opcional, el ID `G-…` de Google Analytics |
+| `VITE_GA_MEASUREMENT_ID` | opcional, el ID `G-…` de Google Analytics (solo carga si el visitante acepta cookies) |
+| `SUBADMIN_EMAILS` | opcional, correos de recepción (subadministradores), separados por coma |
+| `RESEND_API_KEY` | opcional, llave de Resend para enviar avisos de reserva por correo (marcar **Sensitive**) |
+| `NOTIFY_EMAILS` | opcional, correos que reciben el aviso de cada reserva (si no, usa `ADMIN_EMAILS`) |
+| `NOTIFY_FROM` | opcional, remitente verificado en Resend, p. ej. `Eco Glamping <reservas@ecoglamping.app>` |
 
 Opcionales, solo si cambian: `FIREBASE_PROJECT_ID`, `FIRESTORE_DATABASE_ID`, `FIREBASE_STORAGE_BUCKET`.
 Después de guardar las variables, haz un **Redeploy**.
@@ -68,9 +72,9 @@ No hace falta crear índices.
 - **Tamaño de archivos:** Vercel acepta solicitudes de hasta ~4,5 MB. Las fotos del panel deben pesar menos de ~3 MB;
   los videos grandes no se pueden subir por esta vía (usa un enlace).
 - **Límite de intentos de la consulta de privacidad:** cuenta por instancia del servidor, no es global.
-- **Gráficas del panel de administración** (`/api/analytics/charts`): muestran cifras de ejemplo fijas (ocupación 84,2 %,
-  ingresos mensuales, etc.), no datos reales. Conviene reemplazarlas antes de tomar decisiones con ellas.
-- **Política de mascotas:** el texto de cada domo dice "No se admiten mascotas", pero el formulario cobra $30.000 por mascota.
-  Falta decidir cuál es la regla real y unificarla.
+- **Gráficas del panel de administración** (`/api/analytics/charts`): se calculan con las reservas reales (por mes de llegada; ocupación de los últimos 30 días). Sin reservas muestran ceros.
+- **Mascotas:** se aceptan en todos los domos, bien comportadas, con $30.000 por mascota por estadía (texto de domos, formulario y SEO coinciden).
+- **Roles:** `ADMIN_EMAILS` = administrador total; `SUBADMIN_EMAILS` = recepción (ve todo; solo cambia reservas, pagos, clientes y bloqueos; no ve usuarios, auditoría ni ajustes). El servidor lo verifica en cada solicitud.
+- **Avisos de reserva:** el cliente ve un botón "Confirmar por WhatsApp" al terminar. Si defines `RESEND_API_KEY`, también salen correos al administrador y al cliente.
 - **Inicio de sesión por usuario y contraseña** (`/api/auth/login`) se eliminó: el panel entra solo con Google.
 - El archivo `glamping.db` (SQLite) ya no se usa y se quitó del repositorio.

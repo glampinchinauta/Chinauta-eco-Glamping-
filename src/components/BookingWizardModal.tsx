@@ -1049,6 +1049,14 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                   <span className="text-emerald-700">${totalAmount.toLocaleString('es-CO')} COP</span>
                 </div>
               </div>
+              <a
+                href={`https://wa.me/573213109331?text=${encodeURIComponent(`Hola, acabo de hacer la reserva ${confirmedCode} en Eco Glamping Chinauta (${selectedDome?.name || ''}, ${checkIn} al ${checkOut}). Quedo atento(a) a la confirmación.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center w-full py-3.5 rounded-2xl bg-emerald-600 text-white font-semibold text-sm shadow-lg hover:bg-emerald-700 transition-colors"
+              >
+                {language === 'en' ? 'Confirm on WhatsApp' : 'Confirmar por WhatsApp'}
+              </a>
             </div>
           )}
 

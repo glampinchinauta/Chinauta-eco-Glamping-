@@ -30,7 +30,7 @@ export const DEFAULT_DOMES: Dome[] = [
     ],
     status: "Disponible",
     features: "Jacuzzi privado de hidromasaje, Baño privado, 1 Cama King, Zona BBQ, Cocina pequeña, Desayuno campesino incluido",
-    policies: "No se admiten mascotas. Check-in: 3:00 PM. Check-out: 12:00 PM."
+    policies: "Se aceptan mascotas bien comportadas: $30.000 por mascota por estadía. Check-in: 3:00 PM. Check-out: 12:00 PM."
   },
   {
     id: 2,

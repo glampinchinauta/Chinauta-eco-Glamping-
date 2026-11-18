@@ -10,6 +10,7 @@ import { FakeUploader } from "../api/uploads";
 
 const PROJECT = "proyecto-prueba";
 const ADMIN = "admin@test.invalid";
+const SUBADMIN = "recepcion@test.invalid";
 const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
 const publicPem = publicKey.export({ type: "spki", format: "pem" }).toString();
 const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
@@ -28,7 +29,7 @@ const store = useFirestore ? new FirestoreStore(new FakeFirestore() as any) : ne
 const uploader = new FakeUploader();
 const app = createApp({
   store, uploader,
-  env: { FIREBASE_PROJECT_ID: PROJECT, ADMIN_EMAILS: ADMIN } as NodeJS.ProcessEnv,
+  env: { FIREBASE_PROJECT_ID: PROJECT, ADMIN_EMAILS: ADMIN, SUBADMIN_EMAILS: SUBADMIN } as NodeJS.ProcessEnv,
   getCert: async (kid) => (kid === "k1" ? publicPem : undefined),
 });
 
@@ -391,6 +392,33 @@ test("JSON mal formado, rutas inexistentes y cuerpos vacíos responden JSON", as
   const nope = await call("GET", "/api/ruta-que-no-existe", { auth: admin() });
   assert.equal(nope.status, 404);
   assert.ok(nope.type.includes("application/json"));
+});
+
+test("recepción ve reservas pero no usuarios, auditoría, ajustes ni precios", async () => {
+  const sub = token(SUBADMIN);
+  assert.equal((await call("GET", "/api/reservations", { auth: sub })).status, 200);
+  assert.equal((await call("GET", "/api/users", { auth: sub })).status, 403);
+  assert.equal((await call("GET", "/api/audit", { auth: sub })).status, 403);
+  assert.equal((await call("GET", "/api/settings", { auth: sub })).status, 403);
+  assert.equal((await call("PUT", "/api/domes/1", { auth: sub, body: { price_per_night: 1 } })).status, 403);
+  assert.equal((await call("GET", "/api/auth/me", { auth: sub })).data.role, "RECEPCION");
+  assert.equal((await call("GET", "/api/auth/me", { auth: admin() })).data.role, "SUPERADMIN");
+  assert.equal((await call("GET", "/api/auth/me", { auth: token("otro@test.invalid") })).status, 401);
+});
+
+test("las gráficas usan datos reales, no cifras de ejemplo", async () => {
+  const r = await call("GET", "/api/analytics/charts", { auth: admin() });
+  assert.equal(r.status, 200);
+  assert.equal(r.data.monthlyRevenue.length, 6);
+  assert.notEqual(r.data.summary.avgTicketCOP, 412000);
+  assert.notEqual(r.data.summary.avgOccupancy, 84.2);
+  assert.ok(r.data.domeOccupancy.every((d: any) => d.occupancyRate >= 0 && d.occupancyRate <= 100));
+});
+
+test("la política de mascotas es una sola en todos los domos", async () => {
+  const domes = (await call("GET", "/api/domes")).data;
+  assert.ok(domes.every((d: any) => !/No se admiten mascotas|bajo solicitud/i.test(d.policies)));
+  assert.ok(domes.some((d: any) => /30.000 por mascota/.test(d.policies)));
 });
 
 (async () => {

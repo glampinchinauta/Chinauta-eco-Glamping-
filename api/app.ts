@@ -11,6 +11,7 @@ import { verifyFirebaseIdToken, normalizeEmail } from "../server-auth.js";
 import { sqlTime, type Row, type Store } from "./store.js";
 import type { Uploader } from "./uploads.js";
 import { SEED } from "./seed-data.js";
+import { notifyReservation } from "./notify.js";
 
 export interface AppDeps {
   store: Store;
@@ -67,6 +68,11 @@ export function createApp(deps: AppDeps) {
   })();
   const ADMIN_EMAILS: string[] = (env.ADMIN_EMAILS || "ecoglampingventas@gmail.com")
     .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  // Subadministradores (recepción): ven todo, pero solo pueden cambiar reservas, pagos, clientes y bloqueos de mantenimiento.
+  const SUBADMIN_EMAILS: string[] = (env.SUBADMIN_EMAILS || "")
+    .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const SUBADMIN_WRITES = ["/api/reservations", "/api/payments", "/api/customers", "/api/maintenance"];
+  const SUBADMIN_BLOCKED_READS = ["/api/users", "/api/audit", "/api/settings"];
 
   let certCache: { certs: Record<string, string>; expires: number } | null = null;
   const googleCert = async (kid: string): Promise<string | undefined> => {
@@ -106,8 +112,20 @@ export function createApp(deps: AppDeps) {
     try {
       const payload = await verifyToken(token);
       if (!payload.email || payload.email_verified !== true) throw new Error("Correo no verificado.");
-      if (!ADMIN_EMAILS.includes(normalizeEmail(payload.email))) throw new Error("Sin permisos de administrador.");
+      const email = normalizeEmail(payload.email);
+      const isSuper = ADMIN_EMAILS.includes(email);
+      if (!isSuper && !SUBADMIN_EMAILS.includes(email)) throw new Error("Sin permisos de administrador.");
       (req as any).adminEmail = payload.email;
+      (req as any).adminRole = isSuper ? "SUPERADMIN" : "RECEPCION";
+      (req as any).adminName = payload.name || "";
+      if (!isSuper) {
+        const route = req.originalUrl.split("?")[0].toLowerCase().replace(/[/]+$/, "");
+        const isRead = req.method === "GET" || req.method === "HEAD";
+        const under = (list: string[]) => list.some((p) => route === p || route.startsWith(p + "/"));
+        if (isRead ? under(SUBADMIN_BLOCKED_READS) : !under(SUBADMIN_WRITES)) {
+          return res.status(403).json({ error: "Tu rol de recepción no tiene permiso para esta acción." });
+        }
+      }
       next();
     } catch (err: any) {
       res.status(401).json({ error: err.message || "No autorizado." });
@@ -157,8 +175,26 @@ export function createApp(deps: AppDeps) {
     }
     return seeding;
   }
+  // Ajuste único de datos ya guardados: política de mascotas unificada ($30.000 por mascota, en todos los domos).
+  let migrating: Promise<void> | null = null;
+  async function ensureMigrations() {
+    if (!migrating) {
+      migrating = (async () => {
+        if (await store.get("meta", "pets_v1")) return;
+        for (const dome of await store.list("domes")) {
+          const before = String(dome.policies || "");
+          const after = before
+            .replace("No se admiten mascotas.", "Se aceptan mascotas bien comportadas: $30.000 por mascota por estadía.")
+            .replace("Pet-friendly (bajo solicitud).", "Se aceptan mascotas bien comportadas: $30.000 por mascota por estadía.");
+          if (after !== before) await store.set("domes", dome.id, { ...dome, policies: after });
+        }
+        await store.set("meta", "pets_v1", { id: "pets_v1", at: sqlTime(now()) });
+      })().catch((err) => { migrating = null; throw err; });
+    }
+    return migrating;
+  }
   app.use("/api", async (_req, _res, next) => {
-    try { await ensureSeeded(); next(); } catch (err) { next(err); }
+    try { await ensureSeeded(); await ensureMigrations(); next(); } catch (err) { next(err); }
   });
 
   const audit = async (userName: string | undefined, action: string, targetType: string, targetId: string, details: string) => {
@@ -860,6 +896,14 @@ export function createApp(deps: AppDeps) {
 
       await audit(user_name || customer.name || "Cliente", "CREAR_RESERVA", "Reserva", done.code,
         `Reserva creada para Domo ID ${dome_id} (${check_in} al ${check_out}) por $${done.finalTotal}`);
+      try {
+        const domeRow = (await store.list("domes")).find((d) => Number(d.id) === Number(dome_id));
+        await notifyReservation(process.env, {
+          code: done.code, domeName: String(domeRow?.name || `Domo ${dome_id}`), checkIn: check_in, checkOut: check_out,
+          guests: Number(guests) || 0, total: done.finalTotal, customerName: String(customer.name || ""),
+          customerEmail: customer.email, customerPhone: customer.phone,
+        });
+      } catch (err) { console.error("[notify]", err); }
       res.json({ success: true, reservation_code: done.code, reservation_id: done.id });
     } catch (err: any) {
       console.error("Reservation transaction error:", err);
@@ -972,67 +1016,81 @@ export function createApp(deps: AppDeps) {
   // =============================================================================================
   // 7. Finances & dashboard
   // =============================================================================================
+  // Quién soy (para que el panel sepa si es administrador o recepción): la verificación la hace el servidor.
+  app.get("/api/auth/me", (req, res) => {
+    res.json({ email: (req as any).adminEmail, role: (req as any).adminRole, name: (req as any).adminName || "" });
+  });
+
   app.get("/api/analytics/charts", async (_req, res, next) => {
     try {
       const domes = await store.list("domes");
-      const reservations = await store.list("reservations");
-
+      const reservations = (await store.list("reservations")).filter((r) => r.status !== "Cancelada");
       const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
       const current = now();
-      const currentMonthIdx = current.getMonth();
+      const DAY = 86400000;
+      const nightsOf = (r: Row) => Math.max(1, Math.round((Date.parse(String(r.check_out)) - Date.parse(String(r.check_in))) / DAY) || 1);
+      const confirmedStates = ["Confirmada", "Check-in", "Hospedado", "Check-out", "Completada"];
 
-      // 1. Monthly Revenue & Booking Trends (last 6 months)
-      const monthlyRevenue = [];
-      const bookingTrends = [];
-      const baseRevenues = [14200000, 16800000, 18500000, 22400000, 24800000, 28600000];
-      const baseCollected = [13800000, 16200000, 17900000, 21900000, 24100000, 27500000];
-      const baseBookings = [32, 38, 41, 49, 54, 62];
-      const baseConfirmed = [29, 36, 39, 47, 51, 59];
-      const baseGuests = [68, 82, 88, 108, 118, 134];
-
+      // 1. Últimos 6 meses, por mes de llegada (check_in): solo datos reales.
+      const months: { key: string; label: string }[] = [];
       for (let i = 5; i >= 0; i--) {
-        const d = new Date(current.getFullYear(), currentMonthIdx - i, 1);
-        const label = `${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(-2)}`;
-        const rev = baseRevenues[5 - i] || 20000000;
-        monthlyRevenue.push({ month: label, revenue: rev, collected: baseCollected[5 - i] || 19000000, projected: Math.round(rev * 1.1) });
+        const d = new Date(current.getFullYear(), current.getMonth() - i, 1);
+        months.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: `${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(-2)}` });
+      }
+      const monthlyRevenue: any[] = [];
+      const bookingTrends: any[] = [];
+      for (const m of months) {
+        const mine = reservations.filter((r) => String(r.check_in).slice(0, 7) === m.key);
+        const revenue = sum(mine, (r) => r.total_amount);
+        monthlyRevenue.push({ month: m.label, revenue, collected: sum(mine, (r) => r.amount_paid), projected: revenue });
         bookingTrends.push({
-          month: label, totalBookings: baseBookings[5 - i] || 45, confirmed: baseConfirmed[5 - i] || 42,
-          guests: baseGuests[5 - i] || 95, avgNights: 2.2,
+          month: m.label,
+          totalBookings: mine.length,
+          confirmed: mine.filter((r) => confirmedStates.includes(String(r.status))).length,
+          guests: sum(mine, (r) => r.guests),
+          avgNights: mine.length ? Math.round((sum(mine, nightsOf) / mine.length) * 10) / 10 : 0,
         });
       }
 
-      // 2. Dome Occupancy Rates & Performance
+      // 2. Ocupación por domo en los últimos 30 días
+      const windowEnd = new Date(Date.UTC(current.getFullYear(), current.getMonth(), current.getDate()));
+      const windowStart = new Date(windowEnd.getTime() - 30 * DAY);
       const domeColors = ["#10b981", "#06b6d4", "#8b5cf6", "#f59e0b", "#ec4899", "#3b82f6"];
-      const domeBaseRates = [88, 93, 76, 85, 79, 84];
-      const domeBaseNights = [26, 28, 23, 25, 24, 25];
       const domeOccupancy = domes.map((dome, idx) => {
-        const matching = reservations.filter((r) => Number(r.dome_id) === Number(dome.id) && r.status !== "Cancelada");
-        const actualRevenue = sum(matching, (r) => r.total_amount);
-        const nights = domeBaseNights[idx % domeBaseNights.length];
+        const matching = reservations.filter((r) => Number(r.dome_id) === Number(dome.id));
+        let nights = 0;
+        for (const r of matching) {
+          const from = Math.max(Date.parse(String(r.check_in)), windowStart.getTime());
+          const to = Math.min(Date.parse(String(r.check_out)), windowEnd.getTime());
+          if (to > from) nights += Math.round((to - from) / DAY);
+        }
         return {
           id: dome.id,
           name: dome.name,
           shortName: String(dome.name).replace("Domo ", ""),
           code: dome.code,
-          occupancyRate: domeBaseRates[idx % domeBaseRates.length],
+          occupancyRate: Math.min(100, Math.round((nights / 30) * 1000) / 10),
           nightsBooked: nights,
           capacity: dome.capacity,
           pricePerNight: dome.price_per_night,
-          revenue: actualRevenue > 0 ? actualRevenue + (dome.price_per_night * 20) : (dome.price_per_night * nights),
+          revenue: sum(matching, (r) => r.total_amount),
           color: domeColors[idx % domeColors.length],
         };
       });
 
+      const thisMonth = monthlyRevenue[monthlyRevenue.length - 1];
+      const lastMonth = monthlyRevenue[monthlyRevenue.length - 2];
+      const top = [...domeOccupancy].sort((x, y) => y.revenue - x.revenue)[0];
       res.json({
         bookingTrends,
         domeOccupancy,
         monthlyRevenue,
         summary: {
-          avgOccupancy: 84.2,
-          topDome: "Domo Bochica (DOMO-02)",
-          avgTicketCOP: 412000,
+          avgOccupancy: domeOccupancy.length ? Math.round((sum(domeOccupancy, (d) => d.occupancyRate) / domeOccupancy.length) * 10) / 10 : 0,
+          topDome: top && top.revenue > 0 ? `${top.name} (${top.code})` : "Sin reservas aún",
+          avgTicketCOP: reservations.length ? Math.round(sum(reservations, (r) => r.total_amount) / reservations.length) : 0,
           totalBookingsThisMonth: bookingTrends[bookingTrends.length - 1].totalBookings,
-          growthPercentage: 15.3,
+          growthPercentage: lastMonth && lastMonth.revenue > 0 ? Math.round(((thisMonth.revenue - lastMonth.revenue) / lastMonth.revenue) * 1000) / 10 : 0,
         },
       });
     } catch (e) { next(e); }

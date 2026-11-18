@@ -14,7 +14,7 @@ export const SEED = {
       "image_url": "/assets/images/dome_1_1791403584294.jpg",
       "status": "Disponible",
       "features": "Jacuzzi privado de hidromasaje, Baño privado, 1 Cama King, Desayuno campesino incluido, Zona de fogata, Malla de descanso, Nevera tipo bar con bebidas, Canastas de snacks (costo adicional), Zona BBQ a gas, Parqueadero gratis",
-      "policies": "No se admiten mascotas. Check-in: 3:00 PM. Check-out: 12:00 PM.",
+      "policies": "Se aceptan mascotas bien comportadas: $30.000 por mascota por estadía. Check-in: 3:00 PM. Check-out: 12:00 PM.",
       "images": "[\"/assets/images/dome_1_1791403584294.jpg\",\"/assets/images/dome_1_1791403455449.jpg\",\"/assets/images/dome_1_1791403422738.jpg\",\"/assets/images/dome_1_1790625768325.jpg\",\"/assets/images/huitaca_deck_jacuzzi_1790621224807.jpg\",\"/assets/images/huitaca_catamaran_mesh_1790621260604.jpg\",\"/assets/images/huitaca_entrance_steps_1790621247333.jpg\"]",
       "video_url": "/assets/videos/domo_1_user_video.mp4"
     },
@@ -56,7 +56,7 @@ export const SEED = {
       "image_url": "/assets/images/dome_4_1791404275513.jpg",
       "status": "Disponible",
       "features": "Jacuzzi privado de hidromasaje, Baño privado, 1 Cama King, Zona de fogata privada, Desayuno campesino incluido, Vista panorámica, Nevera tipo bar con bebidas, Canastas de snacks (costo adicional), Zona BBQ a gas, Parqueadero gratis",
-      "policies": "Pet-friendly (bajo solicitud). Check-in: 3:00 PM.",
+      "policies": "Se aceptan mascotas bien comportadas: $30.000 por mascota por estadía. Check-in: 3:00 PM.",
       "images": "[\"/assets/images/dome_4_1791404275513.jpg\",\"/assets/images/dome_4_1791404266017.jpg\",\"/assets/images/dome_4_1791404251064.jpg\",\"/assets/images/dome_4_1791404236234.jpg\",\"/assets/images/dome_4_1791404217055.jpg\",\"/assets/images/chinauta_romantic_dome_night.jpg\"]",
       "video_url": null
     },

@@ -16,21 +16,23 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const adminEmailEnv: string = import.meta.env.VITE_ADMIN_EMAIL || 'ecoglampingventas@gmail.com';
-
   // Valida que la cuenta de Google sea la de administración; si no, cierra la sesión.
   const finishLogin = async (user: User) => {
-    const email = (user.email || '').toLowerCase();
-    if (!email || (email !== adminEmailEnv.toLowerCase() && email !== 'ecoglampingventas@gmail.com')) {
+    // El servidor decide si la cuenta es de administración (y con qué rol); aquí no se confía en el navegador.
+    const token = await user.getIdToken();
+    const res = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) {
       await signOut(auth);
       throw new Error(t('admin_login.unauthorized_email') || 'El correo electrónico no tiene privilegios de administrador autorizados.');
     }
+    const me = await res.json();
+    const email = String(me.email || user.email || '').toLowerCase();
     const adminUser: AdminUser = {
       id: 1,
       username: email.split('@')[0] || 'admin',
-      full_name: user.displayName || 'Administrador Eco Glamping',
+      full_name: user.displayName || me.name || 'Administrador Eco Glamping',
       email,
-      role: 'SUPERADMIN',
+      role: me.role === 'RECEPCION' ? 'RECEPCION' : 'SUPERADMIN',
       status: 'Activo'
     };
     onLoginSuccess(adminUser);

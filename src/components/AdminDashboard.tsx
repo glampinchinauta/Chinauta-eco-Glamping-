@@ -251,13 +251,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
 
     return Object.keys(monthlyMap).map((month, idx) => {
       const data = monthlyMap[month];
-      const baseRev = (analyticsData?.monthlyRevenue || [])[idx]?.revenue || (3500000 + (idx * 1200000));
-      const baseCol = (analyticsData?.monthlyRevenue || [])[idx]?.collected || (3200000 + (idx * 1100000));
-      return {
+            return {
         month,
-        revenue: data.revenue > 0 ? data.revenue : baseRev,
-        collected: data.collected > 0 ? data.collected : baseCol,
-        reservationsCount: data.count > 0 ? data.count : Math.floor(15 + idx * 3)
+        revenue: data.revenue,
+        collected: data.collected,
+        reservationsCount: data.count
       };
     });
   };
@@ -599,7 +597,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                   </div>
                 </div>
                 <div className="flex items-baseline justify-between">
-                  <h3 className="text-3xl font-bold text-slate-900">{analyticsData?.summary?.avgOccupancy || 84.2}%</h3>
+                  <h3 className="text-3xl font-bold text-slate-900">{analyticsData?.summary?.avgOccupancy ?? 0}%</h3>
                   <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center space-x-0.5">
                     <ArrowUpRight className="w-3.5 h-3.5" />
                     <span>+4.8%</span>
@@ -616,7 +614,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">{analyticsData?.summary?.topDome || 'Domo Bochica (DOMO-02)'}</h3>
+                  <h3 className="text-xl font-bold text-slate-900">{analyticsData?.summary?.topDome || 'Sin reservas aún'}</h3>
                   <p className="text-xs font-bold text-teal-600 mt-1">93% de ocupación este mes</p>
                 </div>
                 <p className="text-xs text-slate-500">1 Cama King + 1 Cama Pequeña</p>
@@ -630,9 +628,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                   </div>
                 </div>
                 <div className="flex items-baseline justify-between">
-                  <h3 className="text-3xl font-bold text-slate-900">+{analyticsData?.summary?.growthPercentage || 15.3}%</h3>
+                  <h3 className="text-3xl font-bold text-slate-900">{(analyticsData?.summary?.growthPercentage ?? 0) > 0 ? '+' : ''}{analyticsData?.summary?.growthPercentage ?? 0}%</h3>
                   <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                    {analyticsData?.summary?.totalBookingsThisMonth || 62} reservas
+                    {analyticsData?.summary?.totalBookingsThisMonth ?? 0} reservas
                   </span>
                 </div>
                 <p className="text-xs text-slate-500">Comparado con el mes anterior</p>
@@ -647,7 +645,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-slate-900">
-                    ${(analyticsData?.summary?.avgTicketCOP || 412000).toLocaleString('es-CO')}
+                    ${(analyticsData?.summary?.avgTicketCOP ?? 0).toLocaleString('es-CO')}
                   </h3>
                   <p className="text-xs font-bold text-amber-600 mt-1">COP por noche / domo</p>
                 </div>
