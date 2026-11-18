@@ -11,3 +11,6 @@ coverage/
 *firebase-adminsdk*.json
 serviceAccount*.json
 service-account*.json
+
+# Lo genera npm en cada equipo; en Vercel rompe la instalación por dependencias de pares
+package-lock.json
