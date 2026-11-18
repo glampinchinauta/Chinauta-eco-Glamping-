@@ -17,7 +17,8 @@ import { MediaGallery } from './MediaGallery';
 import { ResponsivePicture } from './ResponsivePicture';
 import { getDomeImages, DEFAULT_DOMES } from '../utils/domeImages';
 import { useLanguage } from '../context/LanguageContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, useScroll, useSpring, useTransform, type Variants } from 'framer-motion';
+import { Reveal, RevealGroup, RevealItem } from './motion/Reveal';
 import { getResponsiveImageData } from '../utils/imageUtils';
 import regeneratedDome2Image from '../assets/images/regenerated_image_1790617455020.jpg';
 import bochicaRomanticDecor from '../assets/images/bochica_romantic_decor_1790618007934.jpg';
@@ -31,22 +32,27 @@ interface HomePortalProps {
   onNavigateTab: (tab: string) => void;
 }
 
+const heroContainer: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.14, delayChildren: 0.15 } },
+};
+const heroItem: Variants = {
+  hidden: { opacity: 0, y: 26 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] as const } },
+};
+
 export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigateTab }) => {
   const { t, language } = useLanguage();
   const [domes, setDomes] = useState<Dome[]>(DEFAULT_DOMES);
   const [loading, setLoading] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
-      if (totalScroll > 0) {
-        setScrollProgress((window.scrollY / totalScroll) * 100);
-      }
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  // Progreso de lectura y parallax: se calculan fuera de React (sin re-render en cada scroll).
+  const heroRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll();
+  const progressX = useSpring(scrollYProgress, { stiffness: 120, damping: 24, mass: 0.4 });
+  const { scrollYProgress: heroProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
+  const heroImageY = useTransform(heroProgress, [0, 1], ['0%', '18%']);
+  const heroTextY = useTransform(heroProgress, [0, 1], ['0%', '-8%']);
+  const heroFade = useTransform(heroProgress, [0, 0.8], [1, 0.2]);
 
   // Real uploaded videos for Domes (Domos 1, 3, 5 and custom uploaded)
   const [domeVideos, setDomeVideos] = useState<Record<number, string>>({
@@ -112,16 +118,13 @@ export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigat
     >
       {/* Slim Scroll Reading Progress Bar */}
       <div className="fixed top-0 left-0 right-0 h-1 bg-slate-200/50 z-50 pointer-events-none">
-        <div 
-          className="h-full bg-emerald-500 transition-all duration-100 ease-out"
-          style={{ width: `${scrollProgress}%` }}
-        />
+        <motion.div className="h-full origin-left bg-emerald-500" style={{ scaleX: progressX }} />
       </div>
       
       {/* Hero Section */}
-      <section className="relative min-h-[85vh] flex items-center justify-center bg-slate-950 overflow-hidden">
+      <section ref={heroRef} className="relative min-h-[85vh] flex items-center justify-center bg-slate-950 overflow-hidden">
         {/* Background image with subtle dark overlay */}
-        <div className="absolute inset-0 z-0 opacity-55">
+        <motion.div className="absolute inset-0 z-0 opacity-55 will-change-transform" style={{ y: heroImageY }} initial={{ scale: 1.12 }} animate={{ scale: 1 }} transition={{ duration: 2.4, ease: [0.22, 1, 0.36, 1] }}>
           <ResponsivePicture
             src={chinautaRomanticDomeNight}
             alt="Eco Glamping Chinauta - Pareja bajo las estrellas"
@@ -132,43 +135,51 @@ export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigat
             className="w-full h-full object-cover scale-105"
             pictureClassName="w-full h-full block"
           />
-        </div>
+        </motion.div>
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent z-0"></div>
+        {/* Destellos suaves que flotan sobre el cielo estrellado */}
+        <div aria-hidden className="egc-aurora absolute inset-0 z-0 pointer-events-none" />
 
-        <div className="relative z-10 max-w-5xl mx-auto px-4 text-center space-y-8 pt-12">
-          <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm font-medium backdrop-blur-md">
+        <motion.div
+          className="relative z-10 max-w-5xl mx-auto px-4 text-center space-y-8 pt-12"
+          style={{ y: heroTextY, opacity: heroFade }}
+          variants={heroContainer}
+          initial="hidden"
+          animate="show"
+        >
+          <motion.div variants={heroItem} className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm font-medium backdrop-blur-md">
             <Sparkles className="w-4 h-4 text-emerald-400" />
             <span>{t('hero.badge')}</span>
-          </div>
+          </motion.div>
 
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white">
+          <motion.h1 variants={heroItem} className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white">
             {t('hero.title_p1')} <br />
             <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
               {t('hero.title_p2')}
             </span>
-          </h1>
+          </motion.h1>
 
-          <p className="max-w-2xl mx-auto text-base sm:text-xl text-slate-300 font-normal leading-relaxed">
+          <motion.p variants={heroItem} className="max-w-2xl mx-auto text-base sm:text-xl text-slate-300 font-normal leading-relaxed">
             {t('hero.desc')}
-          </p>
+          </motion.p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+          <motion.div variants={heroItem} className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <button
               onClick={() => onOpenBooking()}
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl text-base font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-xl shadow-emerald-900/40 transition-all transform hover:-translate-y-0.5"
+              className="egc-press w-full sm:w-auto px-8 py-4 rounded-2xl text-base font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-xl shadow-emerald-900/40 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/30"
             >
               {t('hero.book_btn')}
             </button>
             <button
               onClick={() => onNavigateTab('availability')}
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl text-base font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all"
+              className="egc-press w-full sm:w-auto px-8 py-4 rounded-2xl text-base font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all hover:-translate-y-0.5"
             >
               {t('hero.check_btn')}
             </button>
-          </div>
+          </motion.div>
 
           {/* Quick stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-12 max-w-3xl mx-auto border-t border-white/10">
+          <motion.div variants={heroItem} className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-12 max-w-3xl mx-auto border-t border-white/10">
             <div className="text-center">
               <p className="text-2xl sm:text-3xl font-bold text-emerald-400">{t('stats.domes_count')}</p>
               <p className="text-xs text-slate-400 uppercase tracking-wider mt-1">{t('stats.domes_label')}</p>
@@ -185,18 +196,18 @@ export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigat
               <p className="text-2xl sm:text-3xl font-bold text-teal-400">{t('stats.service_count')}</p>
               <p className="text-xs text-slate-400 uppercase tracking-wider mt-1">{t('stats.service_label')}</p>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* Weather Widget Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <Reveal as="section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <WeatherWidget />
-      </section>
+      </Reveal>
 
       {/* Domes Showcase */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+        <Reveal className="text-center max-w-3xl mx-auto space-y-4 mb-16">
           <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold tracking-wide uppercase">
             <Sparkles className="w-4 h-4 text-emerald-600" />
             <span>{language === 'en' ? 'Exclusive Stays' : 'Hospedaje Exclusivo'}</span>
@@ -209,14 +220,14 @@ export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigat
               ? 'Inspired by the sacred forces of nature and Muisca mythology. Each dome features a private open-air hot jacuzzi, solarium deck, romantic decor, and panoramic mountain views.'
               : 'Inspirados en las fuerzas sagradas de la naturaleza y la mitología muisca. Cada domo cuenta con jacuzzi privado al aire libre, deck solárium, ambiente romántico y vista panorámica a las montañas de Chinauta.'}
           </p>
-        </div>
+        </Reveal>
 
         {loading ? (
           <div className="text-center py-12 text-slate-500 font-medium">{t('domes.loading')}</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <RevealGroup stagger={0.12} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {domes.map(dome => (
-              <div key={dome.id} className="glass-card rounded-3xl overflow-hidden shadow-lg border border-slate-200/90 flex flex-col hover:shadow-2xl transition-all duration-300 group bg-white">
+              <RevealItem key={dome.id} className="glass-card rounded-3xl overflow-hidden shadow-lg border border-slate-200/90 flex flex-col hover:shadow-2xl hover:-translate-y-1.5 transition-[transform,box-shadow] duration-500 ease-out group bg-white">
                 <DomeMediaCard
                   dome={dome}
                   onOpenBooking={() => onOpenBooking(dome.id)}
@@ -284,78 +295,78 @@ export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigat
                     <button
                       type="button"
                       onClick={() => onOpenBooking(dome.id)}
-                      className="inline-flex items-center space-x-1.5 px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 transition-all shadow-md shadow-emerald-700/20 active:scale-95 cursor-pointer"
+                      className="inline-flex items-center justify-center space-x-1.5 px-4 sm:px-5 py-2.5 min-h-11 rounded-2xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 transition-all shadow-md shadow-emerald-700/20 active:scale-95 cursor-pointer"
                     >
                       <span>{language === 'en' ? 'Book Dome' : 'Reservar Domo'}</span>
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-              </div>
+              </RevealItem>
             ))}
-          </div>
+          </RevealGroup>
         )}
       </section>
 
       {/* Dedicated Interactive Photo & Video Gallery Component */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <Reveal as="section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <MediaGallery onOpenBooking={onOpenBooking} />
-      </section>
+      </Reveal>
 
       {/* Food Menu Section */}
-      <section className="bg-slate-50/50 py-12 border-y border-slate-200/60">
+      <Reveal as="section" distance={20} className="bg-slate-50/50 py-12 border-y border-slate-200/60">
         <FoodMenuSection onOpenBooking={onOpenBooking} />
-      </section>
+      </Reveal>
 
       {/* Services & Amenities */}
       <section className="bg-slate-900 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+          <Reveal className="text-center max-w-3xl mx-auto space-y-4 mb-16">
             <h2 className="text-xs uppercase tracking-widest text-emerald-400 font-bold">Comodidades</h2>
             <h3 className="text-3xl sm:text-4xl font-bold text-white">Una Experiencia Todo Incluido</h3>
             <p className="text-slate-300 text-base">
               Diseñado para ofrecer el máximo descanso, privacidad y desconexión en medio de la naturaleza de Chinauta.
             </p>
-          </div>
+          </Reveal>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="glass-dark p-6 rounded-2xl border border-slate-800 space-y-4">
+          <RevealGroup className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <RevealItem className="glass-dark p-6 rounded-2xl border border-slate-800 space-y-4 transition-[transform,border-color] duration-500 hover:-translate-y-1.5 hover:border-emerald-500/40">
               <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                 <Waves className="w-6 h-6" />
               </div>
               <h4 className="text-lg font-bold text-white">Jacuzzis de Hidromasaje</h4>
               <p className="text-slate-400 text-sm">Jacuzzis privados de hidromasaje en deck al aire libre con vista a las montañas.</p>
-            </div>
+            </RevealItem>
 
-            <div className="glass-dark p-6 rounded-2xl border border-slate-800 space-y-4">
+            <RevealItem className="glass-dark p-6 rounded-2xl border border-slate-800 space-y-4 transition-[transform,border-color] duration-500 hover:-translate-y-1.5 hover:border-emerald-500/40">
               <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                 <Coffee className="w-6 h-6" />
               </div>
               <h4 className="text-lg font-bold text-white">Desayuno Campesino</h4>
               <p className="text-slate-400 text-sm">Incluido todas las mañanas, elaborado con ingredientes locales frescos de la región.</p>
-            </div>
+            </RevealItem>
 
-            <div className="glass-dark p-6 rounded-2xl border border-slate-800 space-y-4">
+            <RevealItem className="glass-dark p-6 rounded-2xl border border-slate-800 space-y-4 transition-[transform,border-color] duration-500 hover:-translate-y-1.5 hover:border-emerald-500/40">
               <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                 <Flame className="w-6 h-6" />
               </div>
               <h4 className="text-lg font-bold text-white">Fogata Comunitaria</h4>
               <p className="text-slate-400 text-sm">Una sola fogata comunitaria para todo el glamping, para compartir vino y malvaviscos.</p>
-            </div>
+            </RevealItem>
 
-            <div className="glass-dark p-6 rounded-2xl border border-slate-800 space-y-4">
+            <RevealItem className="glass-dark p-6 rounded-2xl border border-slate-800 space-y-4 transition-[transform,border-color] duration-500 hover:-translate-y-1.5 hover:border-emerald-500/40">
               <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                 <Sparkles className="w-6 h-6" />
               </div>
               <h4 className="text-lg font-bold text-white">Zona Barbacoa & Desconexión</h4>
               <p className="text-slate-400 text-sm">Zona BBQ y descanso total en medio de la naturaleza (cabañas libres de wifi).</p>
-            </div>
-          </div>
+            </RevealItem>
+          </RevealGroup>
         </div>
       </section>
 
       {/* Location & Contact Info */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <Reveal as="section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="glass-card rounded-3xl p-8 sm:p-12 border border-slate-200 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">
@@ -400,10 +411,10 @@ export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigat
             ]}
           />
         </div>
-      </section>
+      </Reveal>
 
       {/* Testimonials Section */}
-      <TestimonialsSection />
+      <Reveal distance={20}><TestimonialsSection /></Reveal>
 
     </motion.div>
   );

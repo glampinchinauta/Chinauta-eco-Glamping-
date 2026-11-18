@@ -86,7 +86,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const [foodChoices, setFoodChoices] = useState<Record<string, { preparation: string; meat: string; side: string; qty: number }>>({});
   const [bbqOnly, setBbqOnly] = useState(false); // Guest brings food and cooks at the BBQ zone
   const setFoodChoice = (id: string, patch: { preparation?: string; meat?: string; side?: string; qty?: number }) =>
-    setFoodChoices(prev => ({ ...prev, [id]: { preparation: '', meat: '', side: '', qty: 0, ...prev[id], ...patch } }));
+    setFoodChoices(prev => ({ ...prev, [id]: { ...(prev[id] ?? { preparation: '', meat: '', side: '', qty: 0 }), ...patch } }));
   // Meat options are the meat-type entries of the dish; the rest are cooking styles.
   const isMeatOption = (p: string) => /^(carne de res|cerdo|pechuga)$/i.test(p.trim());
   // Meat types offered for any dish whose name mentions "carne", even if the saved menu lacks them.

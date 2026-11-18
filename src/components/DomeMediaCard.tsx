@@ -388,7 +388,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
               type="button"
               onClick={toggleMute}
               aria-label={isMuted ? 'Activar sonido' : 'Silenciar sonido'}
-              className="p-2 rounded-full bg-slate-900/90 hover:bg-slate-800 text-white backdrop-blur-md border border-white/25 transition-transform active:scale-95 shadow-md cursor-pointer"
+              className="p-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center rounded-full bg-slate-900/90 hover:bg-slate-800 text-white backdrop-blur-md border border-white/25 transition-transform active:scale-95 shadow-md cursor-pointer"
             >
               {isMuted ? <VolumeX className="w-3.5 h-3.5 text-slate-300" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
             </button>
@@ -397,7 +397,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
               type="button"
               onClick={toggleFullscreen}
               aria-label="Pantalla completa"
-              className="p-2 rounded-full bg-slate-900/90 hover:bg-slate-800 text-white backdrop-blur-md border border-white/25 transition-transform active:scale-95 shadow-md cursor-pointer"
+              className="p-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center rounded-full bg-slate-900/90 hover:bg-slate-800 text-white backdrop-blur-md border border-white/25 transition-transform active:scale-95 shadow-md cursor-pointer"
             >
               <Maximize2 className="w-3.5 h-3.5 text-white" />
             </button>
@@ -501,7 +501,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
                 setIsFullscreenPhoto(true);
               }}
               title="Ver imagen en tamaño completo"
-              className="p-2 rounded-full bg-slate-900/90 hover:bg-slate-800 text-white backdrop-blur-md border border-white/25 transition-transform active:scale-95 shadow-md cursor-pointer"
+              className="p-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center rounded-full bg-slate-900/90 hover:bg-slate-800 text-white backdrop-blur-md border border-white/25 transition-transform active:scale-95 shadow-md cursor-pointer"
             >
               <Maximize2 className="w-3.5 h-3.5 text-white" />
             </button>
@@ -514,7 +514,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
                 type="button"
                 onClick={prevPhoto}
                 aria-label="Foto anterior"
-                className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white transition-opacity z-20 opacity-80 sm:opacity-0 group-hover/carousel:opacity-100 shadow-md backdrop-blur-xs"
+                className="absolute left-2 top-1/2 -translate-y-1/2 p-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center rounded-full bg-slate-900/70 hover:bg-slate-900 text-white transition-opacity z-20 opacity-80 sm:opacity-0 group-hover/carousel:opacity-100 shadow-md backdrop-blur-xs"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -522,7 +522,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
                 type="button"
                 onClick={nextPhoto}
                 aria-label="Siguiente foto"
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white transition-opacity z-20 opacity-80 sm:opacity-0 group-hover/carousel:opacity-100 shadow-md backdrop-blur-xs"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center rounded-full bg-slate-900/70 hover:bg-slate-900 text-white transition-opacity z-20 opacity-80 sm:opacity-0 group-hover/carousel:opacity-100 shadow-md backdrop-blur-xs"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -560,7 +560,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
               setActiveTab('video');
               setTimeout(safePlay, 50);
             }}
-            className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold transition-all flex items-center space-x-1.5 ${
+            className={`px-3 sm:px-3 py-1 min-h-11 sm:min-h-0 rounded-full text-xs font-semibold transition-all flex items-center space-x-1.5 ${
               activeTab === 'video'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'text-slate-300 hover:text-white'
@@ -576,7 +576,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
               e.stopPropagation();
               setActiveTab('photos');
             }}
-            className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold transition-all flex items-center space-x-1.5 ${
+            className={`px-3 sm:px-3 py-1 min-h-11 sm:min-h-0 rounded-full text-xs font-semibold transition-all flex items-center space-x-1.5 ${
               activeTab === 'photos'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'text-slate-300 hover:text-white'

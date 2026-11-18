@@ -45,10 +45,11 @@ export const AiConciergeChat: React.FC = () => {
       {!isOpen ? (
         <button
           onClick={() => setIsOpen(true)}
-          className="flex items-center space-x-2 px-5 py-3.5 rounded-full bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-xl shadow-emerald-700/30 hover:scale-105 transition-transform"
+          aria-label={t('chat.virtual_assistant')}
+          className="flex items-center justify-center sm:space-x-2 w-12 h-12 sm:w-auto sm:h-auto sm:px-5 sm:py-3.5 rounded-full bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-xl shadow-emerald-700/30 hover:scale-105 transition-transform"
         >
           <Sparkles className="w-5 h-5 animate-pulse" />
-          <span className="font-semibold text-sm">{t('chat.virtual_assistant')}</span>
+          <span className="hidden sm:inline font-semibold text-sm">{t('chat.virtual_assistant')}</span>
         </button>
       ) : (
         <div className="w-[calc(100vw-2rem)] max-w-sm sm:w-96 glass-card rounded-2xl shadow-2xl border border-emerald-200 overflow-hidden flex flex-col h-[480px] max-h-[75vh]">

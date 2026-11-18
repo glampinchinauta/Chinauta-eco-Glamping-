@@ -1,22 +1,19 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer, setDoc } from 'firebase/firestore';
-import { getMessaging, getToken, onMessage, Messaging } from 'firebase/messaging';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
-export let messaging: Messaging | null = null;
-try {
-  messaging = getMessaging(app);
-} catch (e) {
-  console.log("Firebase Messaging not supported in this environment", e);
-}
-
+// Firestore y Messaging se descargan solo cuando el personal activa notificaciones (el sitio público no los necesita).
 export async function requestStaffNotificationPermission(userId?: string) {
   try {
+    const [{ getFirestore, doc, setDoc }, { getMessaging, getToken }] = await Promise.all([
+      import('firebase/firestore'),
+      import('firebase/messaging'),
+    ]);
+    let messaging: ReturnType<typeof getMessaging> | null = null;
+    try { messaging = getMessaging(app); } catch (e) { console.log("Firebase Messaging not supported in this environment", e); }
     if (!messaging) {
       alert("Firebase Messaging no está disponible en este navegador.");
       return null;
@@ -30,7 +27,7 @@ export async function requestStaffNotificationPermission(userId?: string) {
       if (currentToken) {
         console.log("FCM Token obtained:", currentToken);
         if (userId) {
-          await setDoc(doc(db, 'staff_fcm_tokens', userId), {
+          await setDoc(doc(getFirestore(app, firebaseConfig.firestoreDatabaseId), 'staff_fcm_tokens', userId), {
             token: currentToken,
             updatedAt: new Date().toISOString()
           }, { merge: true });
@@ -47,18 +44,6 @@ export async function requestStaffNotificationPermission(userId?: string) {
   }
   return null;
 }
-
-// Test connection
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
-    }
-  }
-}
-testConnection();
 
 export enum OperationType {
   CREATE = 'create',

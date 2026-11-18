@@ -25,6 +25,14 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { t, language } = useLanguage();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // La barra superior gana sombra y se vuelve más compacta al bajar por la página.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   const [isAvailableMenuOpen, setIsAvailableMenuOpen] = useState(false);
   const [isExplorarDropdownOpen, setIsExplorarDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -61,7 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-xs transition-all">
+      <header className={`sticky top-0 z-40 backdrop-blur-md border-b border-slate-200/90 transition-[background-color,box-shadow] duration-500 ${scrolled ? 'bg-white/90 shadow-lg shadow-slate-900/5' : 'bg-white/95 shadow-xs'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             
