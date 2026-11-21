@@ -94,6 +94,12 @@ html { scroll-behavior: smooth; }
   to   { transform: translate3d(3%, 2%, 0) scale(1.08); opacity: 1; }
 }
 
+/* Ventanas del panel: el fondo aparece y la ventana sube suavemente */
+.egc-modal-bg { animation: egc-fade .25s ease-out both; }
+.egc-modal { animation: egc-pop .35s cubic-bezier(.22,1,.36,1) both; }
+@keyframes egc-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes egc-pop { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
+
 /* Quien pide "reducir movimiento" en su dispositivo no ve animaciones continuas ni desplazamientos */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

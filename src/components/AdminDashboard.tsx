@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, CalendarDays, BedDouble, Users, DollarSign, 
-  FileText, Shield, Settings, LogOut, Search, Plus, CheckCircle2, 
-  XCircle, AlertCircle, Clock, TrendingUp, BarChart3, ChevronRight, Filter, Download, Camera, Utensils,
-  Activity, ArrowUpRight, Sparkles, Percent, PieChart as PieIcon, RefreshCw, Menu, X, Bell
-} from 'lucide-react';
+import { LayoutDashboard, BedDouble, DollarSign, FileText, Shield, Settings, LogOut, Plus, TrendingUp, Utensils, Wallet, Activity, Sparkles, Percent, RefreshCw, Bell, PieChart as PieIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { requestStaffNotificationPermission } from '../lib/firebase';
+import { PageFade, SegmentedTabs, Modal, fieldClass, labelClass, fmtCOP, Card, EmptyState, LoadingBlocks, CountUp } from './admin/ui';
+import { TodayView } from './admin/TodayView';
+import { ReservationsView } from './admin/ReservationsView';
+import { CalendarView } from './admin/CalendarView';
+import { GuestsView } from './admin/GuestsView';
 import { CHINAUTA_MENU_ITEMS } from './FoodMenuSection';
 import { ImageCarousel } from './ImageCarousel';
 import { getDomeImages } from '../utils/domeImages';
@@ -37,11 +38,11 @@ const DATA_URLS: Record<DataKey, string> = {
 
 // Qué datos necesita cada vista.
 const VIEW_DATA: Record<ViewId, DataKey[]> = {
-  dashboard: ['metrics', 'finances'],
+  dashboard: ['finances', 'reservations', 'domes'],
   charts: ['analytics', 'reservations'],
   finances: ['finances', 'payments'],
   reservations: ['reservations', 'domes'],
-  calendar: ['reservations', 'domes'],
+  calendar: ['reservations', 'domes', 'maintenance'],
   customers: ['customers'],
   domes: ['domes', 'maintenance'],
   images: ['domes'],
@@ -54,7 +55,7 @@ const VIEW_DATA: Record<ViewId, DataKey[]> = {
 // Menú lateral: 6 secciones; las que tienen varias vistas las muestran como pestañas.
 const SECTIONS: {
   id: string; labelKey: string; icon: React.ComponentType<{ className?: string }>;
-  superOnly?: boolean; views: { id: ViewId; labelKey: string }[];
+  shortKey?: string; superOnly?: boolean; views: { id: ViewId; labelKey: string }[];
 }[] = [
   { id: 'summary', labelKey: 'admin.section_summary', icon: LayoutDashboard, views: [
     { id: 'dashboard', labelKey: 'admin.tab_today' },
@@ -70,15 +71,15 @@ const SECTIONS: {
     { id: 'domes', labelKey: 'admin.tab_domes' },
     { id: 'images', labelKey: 'admin.tab_photos' },
   ] },
-  { id: 'restaurant', labelKey: 'admin.menu_restaurant', icon: Utensils, views: [
+  { id: 'restaurant', labelKey: 'admin.menu_restaurant', shortKey: 'admin.nav_menu', icon: Utensils, views: [
     { id: 'restaurant', labelKey: 'admin.menu_restaurant' },
   ] },
   // Recepción no puede leer usuarios, auditoría ni configuración (lo bloquea el servidor), así que no los ve.
-  { id: 'team', labelKey: 'admin.section_team', icon: Shield, superOnly: true, views: [
+  { id: 'team', labelKey: 'admin.section_team', shortKey: 'admin.nav_team', icon: Shield, superOnly: true, views: [
     { id: 'users', labelKey: 'admin.menu_users' },
     { id: 'audit', labelKey: 'admin.menu_audit' },
   ] },
-  { id: 'settings', labelKey: 'admin.menu_settings', icon: Settings, superOnly: true, views: [
+  { id: 'settings', labelKey: 'admin.menu_settings', shortKey: 'admin.nav_settings', icon: Settings, superOnly: true, views: [
     { id: 'settings', labelKey: 'admin.menu_settings' },
   ] },
 ];
@@ -92,21 +93,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
   const { t } = useLanguage();
   // Recepción abre directo en Reservas; el administrador, en el resumen.
   const [activeMenu, setActiveMenu] = useState<ViewId>(user.role === 'RECEPCION' ? 'reservations' : 'dashboard');
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [metrics, setMetrics] = useState<any>(null);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [chartPeriod, setChartPeriod] = useState<'6m' | '1y' | 'all'>('6m');
 
-  // Reservation filter states
-  const [resStatusFilter, setResStatusFilter] = useState('ALL');
-  const [resDomeFilter, setResDomeFilter] = useState('ALL');
-  const [resDateFrom, setResDateFrom] = useState('');
-  const [resDateTo, setResDateTo] = useState('');
-  const [resSearchQuery, setResSearchQuery] = useState('');
-
   const handleMenuSelect = (menu: ViewId) => {
     setActiveMenu(menu);
-    setMobileNavOpen(false);
   };
   const [domes, setDomes] = useState<Dome[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -118,22 +110,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
   const [settings, setSettings] = useState<any>({});
   const [usersList, setUsersList] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState<Set<DataKey>>(new Set());
+  const [toast, setToast] = useState<{ msg: string; kind: 'ok' | 'error' } | null>(null);
+
+  const notify = (msg: string, kind: 'ok' | 'error' = 'ok') => {
+    setToast({ msg, kind });
+    window.setTimeout(() => setToast(cur => (cur && cur.msg === msg ? null : cur)), 3200);
+  };
 
   // Modals state
-  const [showNewReservationModal, setShowNewReservationModal] = useState(false);
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedResIdForPayment, setSelectedResIdForPayment] = useState<number | null>(null);
-
-  // New reservation form state
-  const [newResDomeId, setNewResDomeId] = useState<number>(1);
-  const [newResCheckIn, setNewResCheckIn] = useState('');
-  const [newResCheckOut, setNewResCheckOut] = useState('');
-  const [newResGuests, setNewResGuests] = useState(2);
-  const [newResName, setNewResName] = useState('');
-  const [newResPhone, setNewResPhone] = useState('');
-  const [newResEmail, setNewResEmail] = useState('');
-  const [newResAmount, setNewResAmount] = useState(350000);
 
   // Maintenance form state
   const [maintDomeId, setMaintDomeId] = useState(1);
@@ -153,22 +141,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
       const get = (url: string) => fetch(url).then(r => r.json()).catch(() => null);
       await Promise.all(keys.map(async key => {
         const data = await get(DATA_URLS[key]);
-        if (data === null || data === undefined) return;
-        const isList = Array.isArray(data);
-        const isObject = !isList && typeof data === 'object' && !(data as any).error;
-        switch (key) {
-          case 'metrics': if (isObject) setMetrics(data); break;
-          case 'domes': if (isList) setDomes(data); break;
-          case 'reservations': if (isList) setReservations(data); break;
-          case 'customers': if (isList) setCustomers(data); break;
-          case 'payments': if (isList) setPayments(data); break;
-          case 'maintenance': if (isList) setMaintenance(data); break;
-          case 'audit': if (isList) setAuditLogs(data); break;
-          case 'finances': if (isObject) setFinances(data); break;
-          case 'settings': if (isObject) setSettings(data); break;
-          case 'users': if (isList) setUsersList(data); break;
-          case 'analytics': if (isObject) setAnalyticsData(data); break;
+        if (data !== null && data !== undefined) {
+          const isList = Array.isArray(data);
+          const isObject = !isList && typeof data === 'object' && !(data as any).error;
+          switch (key) {
+            case 'metrics': if (isObject) setMetrics(data); break;
+            case 'domes': if (isList) setDomes(data); break;
+            case 'reservations': if (isList) setReservations(data); break;
+            case 'customers': if (isList) setCustomers(data); break;
+            case 'payments': if (isList) setPayments(data); break;
+            case 'maintenance': if (isList) setMaintenance(data); break;
+            case 'audit': if (isList) setAuditLogs(data); break;
+            case 'finances': if (isObject) setFinances(data); break;
+            case 'settings': if (isObject) setSettings(data); break;
+            case 'users': if (isList) setUsersList(data); break;
+            case 'analytics': if (isObject) setAnalyticsData(data); break;
+          }
         }
+        setLoaded(prev => new Set(prev).add(key));
       }));
     } catch (err) {
       console.error(err);
@@ -183,17 +173,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
     loadData(VIEW_DATA[activeMenu] || []);
   }, [activeMenu]);
 
+  // El cambio se ve al instante; si el servidor lo rechaza, se vuelve a cargar y se avisa.
   const handleUpdateStatus = async (id: number, status: string) => {
+    setReservations(prev => prev.map(r => (r.id === id ? { ...r, status: status as Reservation['status'] } : r)));
     try {
-      await fetch(`/api/reservations/${id}/status`, {
+      const res = await fetch(`/api/reservations/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, user_name: user.full_name })
       });
-      reload();
+      if (!res.ok) throw new Error('status');
+      notify(status === 'Cancelada' ? 'Reserva cancelada' : `Listo: ahora está «${status}»`);
+      loadData(['reservations']);
     } catch (err) {
-      alert(t('admin.alert_status_error'));
+      notify(t('admin.alert_status_error'), 'error');
+      reload();
     }
+  };
+
+  const openCollect = (resv: Reservation) => {
+    setSelectedResIdForPayment(resv.id);
+    setPayAmount(resv.amount_pending || resv.total_amount);
+    setShowPaymentModal(true);
   };
 
   const handleCreateMaintenance = async (e: React.FormEvent) => {
@@ -215,9 +216,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
 
       setShowMaintenanceModal(false);
       reload();
-      alert(t('admin.alert_maint_success'));
+      notify(t('admin.alert_maint_success'));
     } catch (err: any) {
-      alert(err.message);
+      notify(err.message, 'error');
     }
   };
 
@@ -240,9 +241,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
       setShowPaymentModal(false);
       setSelectedResIdForPayment(null);
       reload();
-      alert(t('admin.alert_payment_success'));
+      notify(t('admin.alert_payment_success'));
     } catch (err: any) {
-      alert(err.message);
+      notify(err.message, 'error');
     }
   };
 
@@ -261,9 +262,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
       });
       if (!res.ok) throw new Error("Error al actualizar la imagen");
       reload();
-      alert(t('admin.alert_img_success'));
+      notify(t('admin.alert_img_success'));
     } catch (err: any) {
-      alert(err.message);
+      notify(err.message, 'error');
     }
   };
 
@@ -283,9 +284,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
       });
       if (!res.ok) throw new Error("Error al actualizar las fotos");
       reload();
-      alert(t('admin.alert_gallery_success'));
+      notify(t('admin.alert_gallery_success'));
     } catch (err: any) {
-      alert(err.message);
+      notify(err.message, 'error');
     }
   };
 
@@ -329,54 +330,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
 
   const revenueOverviewData = calculateFirestoreRevenueOverview();
 
-  const filteredReservations = reservations.filter(resv => {
-    if (resStatusFilter !== 'ALL' && resv.status !== resStatusFilter) return false;
-    if (resDomeFilter !== 'ALL' && String(resv.dome_id) !== String(resDomeFilter)) return false;
-    if (resSearchQuery.trim()) {
-      const q = resSearchQuery.toLowerCase();
-      const matchCode = resv.reservation_code?.toLowerCase().includes(q);
-      const matchName = resv.customer_name?.toLowerCase().includes(q);
-      const matchPhone = resv.customer_phone?.toLowerCase().includes(q);
-      if (!matchCode && !matchName && !matchPhone) return false;
-    }
-    if (resDateFrom && resv.check_out < resDateFrom) return false;
-    if (resDateTo && resv.check_in > resDateTo) return false;
-    return true;
-  });
-
   const visibleSections = SECTIONS.filter(sec => !sec.superOnly || user.role === 'SUPERADMIN');
   const currentSection = visibleSections.find(sec => sec.views.some(v => v.id === activeMenu)) || visibleSections[0];
   const sectionViews = currentSection.views;
+  const isReady = (VIEW_DATA[activeMenu] || []).every(k => loaded.has(k));
+  const firstName = ((user.full_name || '').includes('@' ) ? user.full_name.split('@')[0] : (user.full_name || 'equipo').split(' ')[0]) || 'equipo';
+  const payingRes = reservations.find(r => r.id === selectedResIdForPayment);
+  const pendingCount = reservations.filter(r => ['Pendiente', 'Pendiente de pago'].includes(r.status)).length;
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
-      
-      {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0">
-        <div>
-          <div className="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold">
-                EGC
-              </div>
-              <div>
-                <h2 className="font-bold text-white text-sm">{t('admin.portal_title')}</h2>
-                <p className="text-xs text-emerald-400 font-medium">Eco Glamping Chinauta</p>
-              </div>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-emerald-50/50 flex flex-col md:flex-row">
 
-            {/* Mobile Sidebar Hamburger Toggle */}
-            <button
-              type="button"
-              onClick={() => setMobileNavOpen(!mobileNavOpen)}
-              className="md:hidden p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
-              aria-label={mobileNavOpen ? 'Cerrar menú admin' : 'Abrir menú admin'}
-            >
-              {mobileNavOpen ? <X className="w-5 h-5 text-emerald-400" /> : <Menu className="w-5 h-5 text-slate-200" />}
-            </button>
+      {/* Barra lateral (computador) */}
+      <aside className="hidden md:flex w-64 shrink-0 sticky top-0 h-screen flex-col justify-between bg-slate-950 text-slate-300 overflow-hidden">
+        <div aria-hidden className="egc-aurora absolute inset-0 pointer-events-none" />
+        <div className="relative">
+          <div className="p-6 flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/20">
+              EGC
+            </div>
+            <div>
+              <h2 className="font-bold text-white text-sm leading-tight">{t('admin.portal_title')}</h2>
+              <p className="text-xs text-emerald-400 font-medium">Eco Glamping Chinauta</p>
+            </div>
           </div>
 
-          <nav className={`p-4 space-y-1.5 text-sm font-medium ${mobileNavOpen ? 'block' : 'hidden md:block'}`}>
+          <nav className="px-3 space-y-1 text-sm font-medium" aria-label="Menú del panel">
             {visibleSections.map(section => {
               const Icon = section.icon;
               const isActive = section.id === currentSection.id;
@@ -384,180 +363,115 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                 <button
                   key={section.id}
                   onClick={() => handleMenuSelect(section.views[0].id)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${isActive ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors ${isActive ? 'text-white' : 'hover:bg-white/5 hover:text-white'}`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span>{t(section.labelKey)}</span>
+                  {isActive && (
+                    <motion.span
+                      layoutId="admin-nav-pill"
+                      className="absolute inset-0 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg shadow-emerald-900/40"
+                      transition={{ type: 'spring', stiffness: 450, damping: 38 }}
+                    />
+                  )}
+                  <Icon className="relative w-5 h-5" />
+                  <span className="relative">{t(section.labelKey)}</span>
+                  {section.id === 'reservations' && pendingCount > 0 && (
+                    <span title="Reservas por confirmar" className="relative ml-auto min-w-5 h-5 px-1.5 rounded-full bg-amber-400 text-slate-950 text-[11px] font-bold flex items-center justify-center">{pendingCount}</span>
+                  )}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        {/* User Info & Logout */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/40">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-xs font-bold text-white">{user.full_name}</p>
-              <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 mt-1">
-                {user.role}
-              </span>
+        <div className="relative p-4 m-3 rounded-2xl bg-white/5 border border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-300 font-bold flex items-center justify-center">
+              {firstName.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-white truncate">{user.full_name}</p>
+              <p className="text-[11px] text-emerald-400 font-semibold">{user.role === 'RECEPCION' ? 'Recepción' : 'Administrador'}</p>
             </div>
             <button
-              onClick={onLogout}
-              title={t('admin.logout')}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-rose-600 hover:text-white text-slate-300 transition-colors"
+              onClick={onLogout} title={t('admin.logout')} aria-label={t('admin.logout')}
+              className="p-2 rounded-xl bg-white/5 hover:bg-rose-600 hover:text-white text-slate-300 transition-colors"
             >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
           <button
             onClick={() => requestStaffNotificationPermission(user.username)}
-            title="Activar Notificaciones Push FCM"
-            className="w-full py-2 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs font-semibold flex items-center justify-center space-x-2 transition-colors border border-emerald-500/30"
+            className="mt-3 w-full py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
           >
             <Bell className="w-3.5 h-3.5" />
-            <span>Activar Push FCM</span>
+            <span>Avisarme de nuevas reservas</span>
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-6 lg:p-10 space-y-8">
-        
-        {/* Top Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-xs border border-slate-200">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">{t(currentSection.labelKey)}</h1>
-            <p className="text-xs text-slate-500 mt-1">Eco Glamping Chinauta • America/Bogota</p>
+      {/* Barra superior (celular) */}
+      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-3 px-4 py-3 bg-slate-950/95 backdrop-blur text-white">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-slate-950 text-xs font-black shrink-0">EGC</div>
+          <div className="min-w-0">
+            <p className="font-bold text-sm leading-tight truncate">{t(currentSection.labelKey)}</p>
+            <p className="text-[11px] text-emerald-400 truncate">{user.role === 'RECEPCION' ? 'Recepción' : 'Administrador'}</p>
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={reload} aria-label="Actualizar datos" className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center"><RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /></button>
+          <button onClick={() => requestStaffNotificationPermission(user.username)} aria-label="Avisarme de nuevas reservas" className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center"><Bell className="w-5 h-5 text-emerald-300" /></button>
+          <button onClick={onLogout} aria-label={t('admin.logout')} className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center"><LogOut className="w-5 h-5" /></button>
+        </div>
+      </header>
 
-          <div className="flex items-center space-x-3">
-            {activeMenu === 'charts' && (
-              <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                <button
-                  onClick={() => setChartPeriod('6m')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${chartPeriod === '6m' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
-                >
-                  Últimos 6 Meses
-                </button>
-                <button
-                  onClick={() => setChartPeriod('1y')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${chartPeriod === '1y' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
-                >
-                  Último año
-                </button>
-              </div>
-            )}
+      {/* Contenido */}
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 pb-28 md:pb-10 space-y-6">
+
+        {/* Encabezado */}
+        <div className={`flex-wrap items-center justify-between gap-3 ${activeMenu === 'domes' ? 'flex' : 'hidden md:flex'}`}>
+          <div>
+            <h1 className="hidden md:block text-2xl font-bold text-slate-900">{t(currentSection.labelKey)}</h1>
+            <p className="hidden md:block text-xs text-slate-500 mt-0.5">Eco Glamping Chinauta • Hora de Colombia</p>
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
             {activeMenu === 'domes' && (
               <button
                 onClick={() => setShowMaintenanceModal(true)}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors flex items-center space-x-2"
+                className="h-11 px-4 rounded-2xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors flex items-center gap-2 egc-press"
               >
                 <Plus className="w-4 h-4" />
                 <span>{t('admin.new_maint_btn')}</span>
               </button>
             )}
             <button
-              onClick={reload}
-              title="Actualizar datos"
-              className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:text-emerald-700 hover:bg-slate-50 transition-colors"
+              onClick={reload} title="Actualizar datos" aria-label="Actualizar datos"
+              className="hidden md:flex w-11 h-11 rounded-2xl border border-slate-200 bg-white text-slate-600 hover:text-emerald-700 hover:bg-slate-50 transition-colors flex items-center justify-center egc-press"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Pestañas de la sección (solo si tiene más de una vista) */}
+        {/* Pestañas de la sección */}
         {sectionViews.length > 1 && (
-          <div className="flex flex-wrap gap-2" role="tablist">
-            {sectionViews.map(v => (
-              <button
-                key={v.id}
-                role="tab"
-                aria-selected={activeMenu === v.id}
-                onClick={() => setActiveMenu(v.id)}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors border ${activeMenu === v.id ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-              >
-                {t(v.labelKey)}
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs<ViewId>
+            group="section" value={activeMenu} onChange={setActiveMenu}
+            tabs={sectionViews.map(v => ({ id: v.id, label: t(v.labelKey) }))}
+          />
         )}
 
-        {/* 1. DASHBOARD VIEW */}
-        {activeMenu === 'dashboard' && metrics && (
-          <div className="space-y-8">
-            {/* Metric Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="glass-card p-6 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-                <p className="text-xs font-bold text-slate-500 uppercase">{t('admin.metrics_active_reservations')}</p>
-                <div className="flex items-baseline justify-between">
-                  <h3 className="text-3xl font-bold text-slate-900">{metrics.reservationsToday}</h3>
-                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">{t('admin.status_confirmed')}</span>
-                </div>
-              </div>
+        <AnimatePresence mode="wait" initial={false}>
+        <PageFade key={activeMenu} className="space-y-8">
 
-              <div className="glass-card p-6 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-                <p className="text-xs font-bold text-slate-500 uppercase">{t('admin.dates')}</p>
-                <div className="flex items-baseline justify-between">
-                  <h3 className="text-3xl font-bold text-slate-900">{metrics.checkInsToday}</h3>
-                  <span className="text-xs font-semibold text-teal-600 bg-teal-50 px-2.5 py-1 rounded-full">{t('admin.status_pending')}</span>
-                </div>
-              </div>
-
-              <div className="glass-card p-6 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-                <p className="text-xs font-bold text-slate-500 uppercase">{t('admin.dome')} / {t('admin.metrics_occupancy')}</p>
-                <div className="flex items-baseline justify-between">
-                  <h3 className="text-3xl font-bold text-slate-900">{metrics.occupiedDomes} / {metrics.activeDomesList?.length || 6}</h3>
-                  <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
-                    {Math.round((metrics.occupiedDomes / 6) * 100)}% {t('admin.metrics_occupancy')}
-                  </span>
-                </div>
-              </div>
-
-              <div className="glass-card p-6 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-                <p className="text-xs font-bold text-slate-500 uppercase">{t('admin.metrics_total_income')}</p>
-                <div className="flex items-baseline justify-between">
-                  <h3 className="text-2xl font-bold text-emerald-700">
-                    ${finances?.monthRevenue?.toLocaleString('es-CO')}
-                  </h3>
-                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">COP</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Financial Chart */}
-            {finances && finances.dailyChart && (
-              <div className="glass-card p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-slate-900">Ingresos Recientes (Últimos 7 días)</h3>
-                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full flex items-center space-x-1">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    <span>Flujo Diario</span>
-                  </span>
-                </div>
-                <div className="h-72 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={finances.dailyChart}>
-                      <defs>
-                        <linearGradient id="colorDaily" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="date" stroke="#64748b" />
-                      <YAxis stroke="#64748b" tickFormatter={(val) => `$${(val / 1000000).toFixed(1)}M`} />
-                      <Tooltip formatter={(val: any) => [`$${Number(val).toLocaleString('es-CO')} COP`, 'Ingresos']} />
-                      <Area type="monotone" dataKey="total" stroke="#059669" strokeWidth={2.5} fillOpacity={1} fill="url(#colorDaily)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-          </div>
+        {activeMenu === 'dashboard' && (
+          <TodayView
+            firstName={firstName} reservations={reservations} domes={domes} finances={finances}
+            ready={isReady} onStatus={handleUpdateStatus} onCollect={openCollect}
+          />
         )}
+
 
         {/* 1.1 COMPREHENSIVE CHARTS & ANALYTICS VIEW */}
         {activeMenu === 'charts' && (
@@ -574,12 +488,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                 </div>
                 <div className="flex items-baseline justify-between">
                   <h3 className="text-3xl font-bold text-slate-900">{analyticsData?.summary?.avgOccupancy ?? 0}%</h3>
-                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center space-x-0.5">
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                    <span>+4.8%</span>
-                  </span>
                 </div>
-                <p className="text-xs text-slate-500">Promedio sostenido en los 6 domos</p>
+                <p className="text-xs text-slate-500">Promedio de todos los domos</p>
               </div>
 
               <div className="glass-card p-6 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
@@ -591,9 +501,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">{analyticsData?.summary?.topDome || 'Sin reservas aún'}</h3>
-                  <p className="text-xs font-bold text-teal-600 mt-1">93% de ocupación este mes</p>
                 </div>
-                <p className="text-xs text-slate-500">1 Cama King + 1 Cama Pequeña</p>
+                <p className="text-xs text-slate-500">El que más ingresos ha generado</p>
               </div>
 
               <div className="glass-card p-6 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
@@ -625,7 +534,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                   </h3>
                   <p className="text-xs font-bold text-amber-600 mt-1">COP por noche / domo</p>
                 </div>
-                <p className="text-xs text-slate-500">Incluye desayuno campesino</p>
+                <p className="text-xs text-slate-500">Promedio por reserva</p>
               </div>
             </div>
 
@@ -635,10 +544,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                 <div>
                   <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold mb-1">
                     <DollarSign className="w-3.5 h-3.5" />
-                    <span>Resumen de Ingresos (Firestore)</span>
+                    <span>Resumen de ingresos</span>
                   </div>
                   <h3 className="text-xl font-bold text-slate-900">Evolución y Ganancias Mensuales</h3>
-                  <p className="text-xs text-slate-500">Ingresos facturados y recaudados basados en registros de reservas de Firestore.</p>
+                  <p className="text-xs text-slate-500">Lo reservado frente a lo que ya se ha cobrado, mes a mes.</p>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="inline-flex rounded-xl bg-slate-100 p-1 text-xs font-bold">
@@ -935,228 +844,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
           </div>
         )}
 
-        {/* 2. RESERVATIONS VIEW */}
         {activeMenu === 'reservations' && (
-          <div className="space-y-6">
-            <div className="glass-card rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-xs">
-              <div className="p-6 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Listado General de Reservas ({filteredReservations.length} de {reservations.length})</h3>
-                  <p className="text-xs text-slate-500">Filtrado por estado, domo, rango de fechas u operador.</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Search input */}
-                  <div className="relative">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      placeholder="Buscar código o cliente..."
-                      value={resSearchQuery}
-                      onChange={e => setResSearchQuery(e.target.value)}
-                      className="pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white transition-colors w-48"
-                    />
-                  </div>
-
-                  {/* Status filter */}
-                  <select
-                    value={resStatusFilter}
-                    onChange={e => setResStatusFilter(e.target.value)}
-                    className="text-xs px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 font-medium"
-                  >
-                    <option value="ALL">Todos los Estados</option>
-                    <option value="Pendiente">Pendiente</option>
-                    <option value="Confirmada">Confirmada</option>
-                    <option value="Hospedado">Hospedado</option>
-                    <option value="Check-out">Check-out</option>
-                    <option value="Cancelada">Cancelada</option>
-                  </select>
-
-                  {/* Dome filter */}
-                  <select
-                    value={resDomeFilter}
-                    onChange={e => setResDomeFilter(e.target.value)}
-                    className="text-xs px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 font-medium"
-                  >
-                    <option value="ALL">Todos los Domos</option>
-                    {domes.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-
-                  {/* Date From */}
-                  <div className="flex items-center space-x-1 text-xs text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
-                    <span className="font-medium text-slate-500">Desde:</span>
-                    <input
-                      type="date"
-                      value={resDateFrom}
-                      onChange={e => setResDateFrom(e.target.value)}
-                      className="bg-transparent text-xs outline-none"
-                    />
-                  </div>
-
-                  {/* Date To */}
-                  <div className="flex items-center space-x-1 text-xs text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
-                    <span className="font-medium text-slate-500">Hasta:</span>
-                    <input
-                      type="date"
-                      value={resDateTo}
-                      onChange={e => setResDateTo(e.target.value)}
-                      className="bg-transparent text-xs outline-none"
-                    />
-                  </div>
-
-                  {(resStatusFilter !== 'ALL' || resDomeFilter !== 'ALL' || resDateFrom || resDateTo || resSearchQuery) && (
-                    <button
-                      onClick={() => {
-                        setResStatusFilter('ALL');
-                        setResDomeFilter('ALL');
-                        setResDateFrom('');
-                        setResDateTo('');
-                        setResSearchQuery('');
-                      }}
-                      className="text-xs text-rose-600 font-bold hover:underline px-2 py-1"
-                    >
-                      Limpiar Filtros
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                {filteredReservations.length === 0 ? (
-                  <div className="glass-card p-12 text-center text-slate-400 italic rounded-2xl border border-slate-200">
-                    No se encontraron reservas que coincidan con los filtros seleccionados.
-                  </div>
-                ) : (
-                  Object.entries(
-                    filteredReservations.reduce((acc, resv) => {
-                      const dateKey = resv.check_in || 'Sin fecha asignada';
-                      if (!acc[dateKey]) acc[dateKey] = [];
-                      acc[dateKey].push(resv);
-                      return acc;
-                    }, {} as Record<string, typeof reservations>)
-                  )
-                    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-                    .map(([checkInDate, resvsInGroup]) => (
-                      <div key={checkInDate} className="glass-card rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-xs">
-                        <div className="px-6 py-3 bg-emerald-50/80 border-b border-emerald-100 flex items-center justify-between">
-                          <span className="font-bold text-sm text-emerald-900 flex items-center space-x-2">
-                            <span>📅 Llegada (Check-in): {checkInDate}</span>
-                          </span>
-                          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-200/80 text-emerald-900">
-                            {resvsInGroup.length} {resvsInGroup.length === 1 ? 'Reserva' : 'Reservas'}
-                          </span>
-                        </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left border-collapse">
-                            <thead>
-                              <tr className="bg-slate-50 text-slate-600 text-xs font-bold uppercase border-b border-slate-200">
-                                <th className="p-4">{t('admin.code')}</th>
-                                <th className="p-4">{t('admin.customer')}</th>
-                                <th className="p-4">{t('admin.dome')}</th>
-                                <th className="p-4">{t('admin.dates')}</th>
-                                <th className="p-4">{t('admin.status')}</th>
-                                <th className="p-4">{t('admin.menu_payments')}</th>
-                                <th className="p-4">{t('admin.amount')}</th>
-                                <th className="p-4 text-right">{t('admin.actions')}</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-sm">
-                              {resvsInGroup.map(resv => (
-                                <tr key={resv.id} className="hover:bg-slate-50/80 transition-colors">
-                                  <td className="p-4 font-mono font-bold text-emerald-700">{resv.reservation_code}</td>
-                                  <td className="p-4 font-medium text-slate-900">
-                                    {resv.customer_name}
-                                    <div className="text-xs text-slate-500">{resv.customer_phone}</div>
-                                  </td>
-                                  <td className="p-4 font-medium text-slate-800">{resv.dome_name}</td>
-                                  <td className="p-4 text-xs text-slate-600">{resv.check_in} al {resv.check_out}</td>
-                                  <td className="p-4">
-                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                      resv.status === 'Confirmada' || resv.status === 'Hospedado' ? 'bg-emerald-100 text-emerald-800' :
-                                      resv.status === 'Pendiente' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
-                                    }`}>
-                                      {resv.status}
-                                    </span>
-                                  </td>
-                                  <td className="p-4">
-                                    <span className={`text-xs font-bold ${resv.payment_status === 'Pagado' ? 'text-emerald-700' : 'text-amber-600'}`}>
-                                      {resv.payment_status} (${resv.amount_pending?.toLocaleString('es-CO')} pend.)
-                                    </span>
-                                  </td>
-                                  <td className="p-4 font-bold text-slate-900">${resv.total_amount?.toLocaleString('es-CO')}</td>
-                                  <td className="p-4 text-right space-x-2">
-                                    <select
-                                      value={resv.status}
-                                      onChange={e => handleUpdateStatus(resv.id, e.target.value)}
-                                      className="text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-white font-medium"
-                                    >
-                                      <option value="Pendiente">Pendiente</option>
-                                      <option value="Confirmada">Confirmada</option>
-                                      <option value="Hospedado">Hospedado</option>
-                                      <option value="Check-out">Check-out</option>
-                                      <option value="Cancelada">Cancelada</option>
-                                    </select>
-                                    <button
-                                      onClick={() => {
-                                        setSelectedResIdForPayment(resv.id);
-                                        setPayAmount(resv.amount_pending || resv.total_amount);
-                                        setShowPaymentModal(true);
-                                      }}
-                                      className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700"
-                                    >
-                                      Abonar
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    ))
-                )}
-              </div>
-            </div>
-          </div>
+          <ReservationsView reservations={reservations} domes={domes} ready={isReady} onStatus={handleUpdateStatus} onCollect={openCollect} />
         )}
 
-        {/* 3. CALENDAR OPERATIVO */}
         {activeMenu === 'calendar' && (
-          <div className="glass-card p-6 rounded-2xl border border-slate-200 space-y-6">
-            <h3 className="text-lg font-bold text-slate-900">Calendario Operativo & Property Management</h3>
-            <p className="text-sm text-slate-600">Visualización de reservas actuales y distribución de ocupación por domo.</p>
-            
-            <div className="space-y-4 pt-4">
-              {domes.map(dome => {
-                const domeResvs = reservations.filter(r => r.dome_id === dome.id && r.status !== 'Cancelada');
-                return (
-                  <div key={dome.id} className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex items-center space-x-4">
-                      <img src={dome.image_url} alt={dome.name} className="w-14 h-14 rounded-xl object-cover" />
-                      <div>
-                        <h4 className="font-bold text-slate-900">{dome.name} ({dome.code})</h4>
-                        <p className="text-xs text-slate-500">Estado: <span className="font-semibold text-emerald-700">{dome.status}</span></p>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 flex flex-wrap gap-2">
-                      {domeResvs.length === 0 ? (
-                        <span className="text-xs text-slate-400 italic">Sin reservas programadas recientemente</span>
-                      ) : (
-                        domeResvs.map(r => (
-                          <div key={r.id} className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900">
-                            <strong>{r.reservation_code}</strong>: {r.check_in} al {r.check_out} ({r.status})
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <CalendarView reservations={reservations} domes={domes} maintenance={maintenance} ready={isReady} />
         )}
 
         {/* 4. DOMES VIEW */}
@@ -1207,89 +900,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
           </div>
         )}
 
-        {/* 5. CUSTOMERS CRM */}
-        {activeMenu === 'customers' && (
-          <div className="glass-card rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-xs">
-            <div className="p-6 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900">Base de Datos de Clientes ({customers.length})</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 text-slate-600 text-xs font-bold uppercase border-b border-slate-200">
-                    <th className="p-4">{t('admin.customer')}</th>
-                    <th className="p-4">WhatsApp / Tel</th>
-                    <th className="p-4">Email</th>
-                    <th className="p-4">{t('admin.menu_reservations')}</th>
-                    <th className="p-4">{t('admin.amount')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-sm">
-                  {customers.map(c => (
-                    <tr key={c.id} className="hover:bg-slate-50">
-                      <td className="p-4 font-bold text-slate-900">{c.name}</td>
-                      <td className="p-4 text-slate-600">{c.whatsapp || c.phone}</td>
-                      <td className="p-4 text-slate-600">{c.email}</td>
-                      <td className="p-4 font-semibold text-slate-800">{c.total_reservations}</td>
-                      <td className="p-4 font-bold text-emerald-700">${c.total_spent?.toLocaleString('es-CO')} COP</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        {activeMenu === 'customers' && <GuestsView customers={customers} ready={isReady} />}
 
-        {/* 6. FINANCES */}
-        {activeMenu === 'finances' && finances && (
+        {/* Finanzas */}
+        {activeMenu === 'finances' && (
+          !isReady ? <LoadingBlocks /> : (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div className="glass-card p-6 rounded-2xl border border-slate-200">
-                <p className="text-xs font-bold text-slate-500 uppercase">{t('admin.metrics_total_income')}</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-1">${finances.totalBooked?.toLocaleString('es-CO')}</h3>
-              </div>
-              <div className="glass-card p-6 rounded-2xl border border-slate-200">
-                <p className="text-xs font-bold text-slate-500 uppercase">{t('admin.menu_payments')}</p>
-                <h3 className="text-2xl font-bold text-emerald-700 mt-1">${finances.totalCollected?.toLocaleString('es-CO')}</h3>
-              </div>
-              <div className="glass-card p-6 rounded-2xl border border-slate-200">
-                <p className="text-xs font-bold text-slate-500 uppercase">{t('admin.metrics_pending_income')}</p>
-                <h3 className="text-2xl font-bold text-amber-600 mt-1">${finances.totalPending?.toLocaleString('es-CO')}</h3>
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+              {[
+                { label: 'Total reservado', value: finances?.totalBooked, cls: 'text-slate-900', span: 'col-span-2 sm:col-span-1' },
+                { label: 'Ya cobrado', value: finances?.totalCollected, cls: 'text-emerald-700', span: '' },
+                { label: 'Por cobrar', value: finances?.totalPending, cls: 'text-amber-600', span: '' },
+              ].map(c => (
+                <Card key={c.label} className={`p-5 ${c.span}`}>
+                  <p className="text-sm font-semibold text-slate-500">{c.label}</p>
+                  <p className={`text-2xl sm:text-3xl font-bold mt-1 ${c.cls}`}><CountUp value={Number(c.value) || 0} format={fmtCOP} /></p>
+                </Card>
+              ))}
             </div>
 
-            <div className="glass-card rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-xs">
-              <div className="p-6 border-b border-slate-200">
-                <h3 className="text-lg font-bold text-slate-900">Historial de Pagos Recibidos</h3>
+            <Card className="overflow-hidden">
+              <div className="px-5 sm:px-6 py-4 border-b border-slate-100">
+                <h3 className="font-bold text-slate-900">Pagos recibidos</h3>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-600 text-xs font-bold uppercase border-b border-slate-200">
-                      <th className="p-4">Reserva</th>
-                      <th className="p-4">Cliente</th>
-                      <th className="p-4">Monto</th>
-                      <th className="p-4">Método</th>
-                      <th className="p-4">Registrado por</th>
-                      <th className="p-4">Fecha</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-sm">
-                    {payments.map(p => (
-                      <tr key={p.id} className="hover:bg-slate-50">
-                        <td className="p-4 font-mono font-bold text-emerald-700">{p.reservation_code}</td>
-                        <td className="p-4 font-medium text-slate-900">{p.customer_name}</td>
-                        <td className="p-4 font-bold text-slate-900">${p.amount?.toLocaleString('es-CO')} COP</td>
-                        <td className="p-4 text-slate-600">{p.method}</td>
-                        <td className="p-4 text-xs text-slate-500">{p.recorded_by}</td>
-                        <td className="p-4 text-xs text-slate-500">{p.created_at}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+              {payments.length === 0 ? (
+                <EmptyState icon={<Wallet className="w-7 h-7" />} title="Aún no hay pagos registrados" hint="Cuando cobres una reserva, el pago aparecerá aquí." />
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {payments.map(p => (
+                    <li key={p.id} className="px-5 sm:px-6 py-3.5 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0"><Wallet className="w-5 h-5" /></div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900 truncate">{p.customer_name} <span className="font-mono text-xs text-slate-400">{p.reservation_code}</span></p>
+                        <p className="text-xs text-slate-500">{p.method} · {String(p.created_at).slice(0, 16)} · {p.recorded_by}</p>
+                      </div>
+                      <p className="font-bold text-emerald-700 shrink-0">{fmtCOP(p.amount)}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
           </div>
+          )
         )}
 
         {/* 7. AUDIT */}
@@ -1556,7 +1208,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(settings)
                   });
-                  alert(t('admin.save'));
+                  notify(t('admin.save'));
                 }}
                 className="px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700"
               >
@@ -1566,124 +1218,133 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
           </div>
         )}
 
+        </PageFade>
+        </AnimatePresence>
+
       </main>
 
-      {/* Maintenance Modal */}
-      {showMaintenanceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70">
-          <div className="glass-card w-full max-w-md rounded-3xl p-6 bg-white space-y-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-900">{t('admin.new_maint_btn')}</h3>
+      {/* Navegación inferior (celular) */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur border-t border-white/10 pb-[env(safe-area-inset-bottom)]" aria-label="Menú del panel">
+        <div className="flex items-stretch justify-around px-1">
+          {visibleSections.map(section => {
+            const Icon = section.icon;
+            const isActive = section.id === currentSection.id;
+            return (
+              <button
+                key={section.id}
+                onClick={() => handleMenuSelect(section.views[0].id)}
+                aria-current={isActive ? 'page' : undefined}
+                className={`relative flex-1 min-w-0 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold transition-colors ${isActive ? 'text-emerald-300' : 'text-slate-400'}`}
+              >
+                {isActive && <motion.span layoutId="admin-bottom-pill" className="absolute top-0 h-0.5 w-8 rounded-full bg-emerald-400" transition={{ type: 'spring', stiffness: 450, damping: 38 }} />}
+                <span className="relative">
+                  <Icon className="w-6 h-6" />
+                  {section.id === 'reservations' && pendingCount > 0 && <span className="absolute -top-1 -right-2 min-w-4 h-4 px-1 rounded-full bg-amber-400 text-slate-950 text-[10px] font-bold flex items-center justify-center">{pendingCount}</span>}
+                </span>
+                <span className="truncate max-w-full px-0.5">{t(section.shortKey || section.labelKey)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Avisos */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            role="status" aria-live="polite"
+            initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: 0.3 }}
+            className={`fixed z-[60] left-1/2 -translate-x-1/2 bottom-24 md:bottom-8 max-w-[90vw] px-5 py-3 rounded-2xl text-sm font-semibold shadow-xl text-white ${toast.kind === 'error' ? 'bg-rose-600' : 'bg-slate-900'}`}
+          >
+            {toast.kind === 'error' ? '⚠️ ' : '✓ '}{toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bloquear fechas por mantenimiento */}
+      <AnimatePresence>
+        {showMaintenanceModal && (
+          <Modal title="Bloquear fechas de un domo" subtitle="Nadie podrá reservar ese domo en esos días." onClose={() => setShowMaintenanceModal(false)}>
             <form onSubmit={handleCreateMaintenance} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">{t('admin.dome')}</label>
-                <select
-                  value={maintDomeId}
-                  onChange={e => setMaintDomeId(Number(e.target.value))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-white"
-                >
-                  {domes.map(d => (
-                    <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
-                  ))}
+                <label className={labelClass} htmlFor="maint-dome">Domo</label>
+                <select id="maint-dome" value={maintDomeId} onChange={e => setMaintDomeId(Number(e.target.value))} className={fieldClass}>
+                  {domes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">{t('admin.dates')} (Check-in)</label>
-                <input
-                  type="date"
-                  value={maintStart}
-                  onChange={e => setMaintStart(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm"
-                  required
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelClass} htmlFor="maint-from">Desde</label>
+                  <input id="maint-from" type="date" value={maintStart} onChange={e => setMaintStart(e.target.value)} className={fieldClass} required />
+                </div>
+                <div>
+                  <label className={labelClass} htmlFor="maint-to">Hasta</label>
+                  <input id="maint-to" type="date" value={maintEnd} min={maintStart} onChange={e => setMaintEnd(e.target.value)} className={fieldClass} required />
+                </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">{t('admin.dates')} (Check-out)</label>
-                <input
-                  type="date"
-                  value={maintEnd}
-                  onChange={e => setMaintEnd(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm"
-                  required
-                />
+                <label className={labelClass} htmlFor="maint-reason">Motivo</label>
+                <input id="maint-reason" type="text" value={maintReason} onChange={e => setMaintReason(e.target.value)} className={fieldClass} required />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">{t('admin.actions')}</label>
-                <input
-                  type="text"
-                  value={maintReason}
-                  onChange={e => setMaintReason(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm"
-                  required
-                />
-              </div>
-              <div className="flex justify-end space-x-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowMaintenanceModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium"
-                >
-                  {t('admin.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
-                >
-                  {t('admin.new_maint_btn')}
-                </button>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setShowMaintenanceModal(false)} className="flex-1 h-12 rounded-2xl border border-slate-200 font-semibold text-slate-700 hover:bg-slate-50">Cancelar</button>
+                <button type="submit" className="flex-1 h-12 rounded-2xl bg-slate-900 text-white font-semibold hover:bg-slate-800 egc-press">Bloquear fechas</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </Modal>
+        )}
+      </AnimatePresence>
 
-      {/* Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70">
-          <div className="glass-card w-full max-w-md rounded-3xl p-6 bg-white space-y-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-900">{t('admin.menu_payments')}</h3>
+      {/* Registrar un pago */}
+      <AnimatePresence>
+        {showPaymentModal && (
+          <Modal
+            title="Registrar pago"
+            subtitle={payingRes ? `${payingRes.customer_name} · ${payingRes.dome_name} · ${payingRes.reservation_code}` : undefined}
+            onClose={() => setShowPaymentModal(false)}
+          >
             <form onSubmit={handleRecordPayment} className="space-y-4">
+              {payingRes && (
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  {[['Total', payingRes.total_amount, 'text-slate-900'], ['Pagado', payingRes.amount_paid, 'text-emerald-700'], ['Falta', payingRes.amount_pending, 'text-amber-700']].map(([l, v, c]) => (
+                    <div key={l as string} className="rounded-2xl bg-slate-50 py-2.5">
+                      <p className="text-[11px] font-semibold text-slate-500 uppercase">{l as string}</p>
+                      <p className={`font-bold ${c}`}>{fmtCOP(v as number)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">{t('admin.amount')} (COP)</label>
-                <input
-                  type="number"
-                  value={payAmount}
-                  onChange={e => setPayAmount(Number(e.target.value))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold"
-                  required
-                />
+                <label className={labelClass} htmlFor="pay-amount">¿Cuánto pagó? (COP)</label>
+                <input id="pay-amount" type="number" inputMode="numeric" min={1} value={payAmount || ''} onChange={e => setPayAmount(Number(e.target.value))} className={`${fieldClass} font-bold`} required autoFocus />
+                {payingRes && payingRes.amount_pending > 0 && payAmount !== payingRes.amount_pending && (
+                  <button type="button" onClick={() => setPayAmount(payingRes.amount_pending)} className="mt-2 text-sm font-semibold text-emerald-700 hover:underline">
+                    Poner el saldo completo ({fmtCOP(payingRes.amount_pending)})
+                  </button>
+                )}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">{t('admin.menu_payments')}</label>
-                <select
-                  value={payMethod}
-                  onChange={e => setPayMethod(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-white"
-                >
-                  <option value="Transferencia Bancaria">Transferencia Bancaria</option>
-                  <option value="Wompi">Wompi</option>
-                  <option value="Efectivo">Efectivo</option>
-                  <option value="Datáfono">Datáfono</option>
-                </select>
+                <span className={labelClass}>Método de pago</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Transferencia Bancaria', 'Efectivo', 'Wompi', 'Datáfono'].map(m => (
+                    <button
+                      key={m} type="button" onClick={() => setPayMethod(m)} aria-pressed={payMethod === m}
+                      className={`h-11 rounded-2xl border text-sm font-semibold transition-colors ${payMethod === m ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    >
+                      {m === 'Transferencia Bancaria' ? 'Transferencia' : m}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex justify-end space-x-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium"
-                >
-                  {t('admin.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
-                >
-                  {t('admin.menu_payments')}
-                </button>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setShowPaymentModal(false)} className="flex-1 h-12 rounded-2xl border border-slate-200 font-semibold text-slate-700 hover:bg-slate-50">Cancelar</button>
+                <button type="submit" className="flex-[1.4] h-12 rounded-2xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 egc-press">Registrar {payAmount ? fmtCOP(payAmount) : 'pago'}</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </Modal>
+        )}
+      </AnimatePresence>
 
     </div>
   );
