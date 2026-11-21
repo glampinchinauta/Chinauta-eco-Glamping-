@@ -16,6 +16,73 @@ import {
 } from 'recharts';
 import { useLanguage } from '../context/LanguageContext';
 
+type ViewId = 'dashboard' | 'charts' | 'finances' | 'reservations' | 'calendar' | 'customers'
+  | 'domes' | 'images' | 'restaurant' | 'users' | 'audit' | 'settings';
+type DataKey = 'metrics' | 'domes' | 'reservations' | 'customers' | 'payments' | 'maintenance'
+  | 'audit' | 'finances' | 'settings' | 'users' | 'analytics';
+
+const DATA_URLS: Record<DataKey, string> = {
+  metrics: '/api/dashboard/metrics',
+  domes: '/api/domes',
+  reservations: '/api/reservations',
+  customers: '/api/customers',
+  payments: '/api/payments',
+  maintenance: '/api/maintenance',
+  audit: '/api/audit',
+  finances: '/api/finances/summary',
+  settings: '/api/settings',
+  users: '/api/users',
+  analytics: '/api/analytics/charts',
+};
+
+// Qué datos necesita cada vista.
+const VIEW_DATA: Record<ViewId, DataKey[]> = {
+  dashboard: ['metrics', 'finances'],
+  charts: ['analytics', 'reservations'],
+  finances: ['finances', 'payments'],
+  reservations: ['reservations', 'domes'],
+  calendar: ['reservations', 'domes'],
+  customers: ['customers'],
+  domes: ['domes', 'maintenance'],
+  images: ['domes'],
+  restaurant: [],
+  users: ['users'],
+  audit: ['audit'],
+  settings: ['settings'],
+};
+
+// Menú lateral: 6 secciones; las que tienen varias vistas las muestran como pestañas.
+const SECTIONS: {
+  id: string; labelKey: string; icon: React.ComponentType<{ className?: string }>;
+  superOnly?: boolean; views: { id: ViewId; labelKey: string }[];
+}[] = [
+  { id: 'summary', labelKey: 'admin.section_summary', icon: LayoutDashboard, views: [
+    { id: 'dashboard', labelKey: 'admin.tab_today' },
+    { id: 'charts', labelKey: 'admin.menu_charts' },
+    { id: 'finances', labelKey: 'admin.menu_finances' },
+  ] },
+  { id: 'reservations', labelKey: 'admin.menu_reservations', icon: FileText, views: [
+    { id: 'reservations', labelKey: 'admin.menu_reservations' },
+    { id: 'calendar', labelKey: 'admin.menu_calendar' },
+    { id: 'customers', labelKey: 'admin.menu_customers' },
+  ] },
+  { id: 'domes', labelKey: 'admin.menu_domes', icon: BedDouble, views: [
+    { id: 'domes', labelKey: 'admin.tab_domes' },
+    { id: 'images', labelKey: 'admin.tab_photos' },
+  ] },
+  { id: 'restaurant', labelKey: 'admin.menu_restaurant', icon: Utensils, views: [
+    { id: 'restaurant', labelKey: 'admin.menu_restaurant' },
+  ] },
+  // Recepción no puede leer usuarios, auditoría ni configuración (lo bloquea el servidor), así que no los ve.
+  { id: 'team', labelKey: 'admin.section_team', icon: Shield, superOnly: true, views: [
+    { id: 'users', labelKey: 'admin.menu_users' },
+    { id: 'audit', labelKey: 'admin.menu_audit' },
+  ] },
+  { id: 'settings', labelKey: 'admin.menu_settings', icon: Settings, superOnly: true, views: [
+    { id: 'settings', labelKey: 'admin.menu_settings' },
+  ] },
+];
+
 interface AdminDashboardProps {
   user: AdminUser;
   onLogout: () => void;
@@ -23,7 +90,8 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
   const { t } = useLanguage();
-  const [activeMenu, setActiveMenu] = useState('dashboard');
+  // Recepción abre directo en Reservas; el administrador, en el resumen.
+  const [activeMenu, setActiveMenu] = useState<ViewId>(user.role === 'RECEPCION' ? 'reservations' : 'dashboard');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [metrics, setMetrics] = useState<any>(null);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
@@ -36,7 +104,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
   const [resDateTo, setResDateTo] = useState('');
   const [resSearchQuery, setResSearchQuery] = useState('');
 
-  const handleMenuSelect = (menu: string) => {
+  const handleMenuSelect = (menu: ViewId) => {
     setActiveMenu(menu);
     setMobileNavOpen(false);
   };
@@ -77,44 +145,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
   const [payAmount, setPayAmount] = useState(0);
   const [payMethod, setPayMethod] = useState('Transferencia Bancaria');
 
-  useEffect(() => {
-    loadAllData();
-  }, [activeMenu]);
-
-  const loadAllData = async () => {
+  // Cada vista pide solo los datos que usa (antes cada clic descargaba 11 endpoints).
+  const loadData = async (keys: DataKey[]) => {
+    if (keys.length === 0) return;
     setLoading(true);
     try {
-      const [mRes, dRes, rRes, cRes, pRes, mnRes, aRes, fRes, sRes, uRes, anRes] = await Promise.all([
-        fetch('/api/dashboard/metrics').then(r => r.json()).catch(() => null),
-        fetch('/api/domes').then(r => r.json()).catch(() => []),
-        fetch('/api/reservations').then(r => r.json()).catch(() => []),
-        fetch('/api/customers').then(r => r.json()).catch(() => []),
-        fetch('/api/payments').then(r => r.json()).catch(() => []),
-        fetch('/api/maintenance').then(r => r.json()).catch(() => []),
-        fetch('/api/audit').then(r => r.json()).catch(() => []),
-        fetch('/api/finances/summary').then(r => r.json()).catch(() => null),
-        fetch('/api/settings').then(r => r.json()).catch(() => ({})),
-        fetch('/api/users').then(r => r.json()).catch(() => []),
-        fetch('/api/analytics/charts').then(r => r.json()).catch(() => null)
-      ]);
-
-      if (mRes) setMetrics(mRes);
-      if (Array.isArray(dRes)) setDomes(dRes);
-      if (Array.isArray(rRes)) setReservations(rRes);
-      if (Array.isArray(cRes)) setCustomers(cRes);
-      if (Array.isArray(pRes)) setPayments(pRes);
-      if (Array.isArray(mnRes)) setMaintenance(mnRes);
-      if (Array.isArray(aRes)) setAuditLogs(aRes);
-      if (fRes) setFinances(fRes);
-      if (sRes) setSettings(sRes);
-      if (Array.isArray(uRes)) setUsersList(uRes);
-      if (anRes) setAnalyticsData(anRes);
+      const get = (url: string) => fetch(url).then(r => r.json()).catch(() => null);
+      await Promise.all(keys.map(async key => {
+        const data = await get(DATA_URLS[key]);
+        if (data === null || data === undefined) return;
+        const isList = Array.isArray(data);
+        const isObject = !isList && typeof data === 'object' && !(data as any).error;
+        switch (key) {
+          case 'metrics': if (isObject) setMetrics(data); break;
+          case 'domes': if (isList) setDomes(data); break;
+          case 'reservations': if (isList) setReservations(data); break;
+          case 'customers': if (isList) setCustomers(data); break;
+          case 'payments': if (isList) setPayments(data); break;
+          case 'maintenance': if (isList) setMaintenance(data); break;
+          case 'audit': if (isList) setAuditLogs(data); break;
+          case 'finances': if (isObject) setFinances(data); break;
+          case 'settings': if (isObject) setSettings(data); break;
+          case 'users': if (isList) setUsersList(data); break;
+          case 'analytics': if (isObject) setAnalyticsData(data); break;
+        }
+      }));
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
+
+  const reload = () => loadData(VIEW_DATA[activeMenu] || []);
+
+  useEffect(() => {
+    loadData(VIEW_DATA[activeMenu] || []);
+  }, [activeMenu]);
 
   const handleUpdateStatus = async (id: number, status: string) => {
     try {
@@ -123,7 +190,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, user_name: user.full_name })
       });
-      loadAllData();
+      reload();
     } catch (err) {
       alert(t('admin.alert_status_error'));
     }
@@ -147,7 +214,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
       if (!res.ok) throw new Error(data.error);
 
       setShowMaintenanceModal(false);
-      loadAllData();
+      reload();
       alert(t('admin.alert_maint_success'));
     } catch (err: any) {
       alert(err.message);
@@ -172,7 +239,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
 
       setShowPaymentModal(false);
       setSelectedResIdForPayment(null);
-      loadAllData();
+      reload();
       alert(t('admin.alert_payment_success'));
     } catch (err: any) {
       alert(err.message);
@@ -193,7 +260,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
         })
       });
       if (!res.ok) throw new Error("Error al actualizar la imagen");
-      loadAllData();
+      reload();
       alert(t('admin.alert_img_success'));
     } catch (err: any) {
       alert(err.message);
@@ -215,7 +282,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
         })
       });
       if (!res.ok) throw new Error("Error al actualizar las fotos");
-      loadAllData();
+      reload();
       alert(t('admin.alert_gallery_success'));
     } catch (err: any) {
       alert(err.message);
@@ -277,6 +344,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
     return true;
   });
 
+  const visibleSections = SECTIONS.filter(sec => !sec.superOnly || user.role === 'SUPERADMIN');
+  const currentSection = visibleSections.find(sec => sec.views.some(v => v.id === activeMenu)) || visibleSections[0];
+  const sectionViews = currentSection.views;
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
       
@@ -306,103 +377,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
           </div>
 
           <nav className={`p-4 space-y-1.5 text-sm font-medium ${mobileNavOpen ? 'block' : 'hidden md:block'}`}>
-            <button
-              onClick={() => handleMenuSelect('dashboard')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeMenu === 'dashboard' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
-            >
-              <LayoutDashboard className="w-5 h-5" />
-              <span>{t('admin.menu_dashboard')}</span>
-            </button>
-
-            <button
-              onClick={() => handleMenuSelect('charts')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeMenu === 'charts' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
-            >
-              <BarChart3 className="w-5 h-5 text-emerald-400" />
-              <span>{t('admin.menu_charts')}</span>
-            </button>
-
-            <button
-              onClick={() => handleMenuSelect('reservations')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeMenu === 'reservations' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
-            >
-              <FileText className="w-5 h-5" />
-              <span>{t('admin.menu_reservations')}</span>
-            </button>
-
-            <button
-              onClick={() => handleMenuSelect('calendar')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeMenu === 'calendar' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
-            >
-              <CalendarDays className="w-5 h-5" />
-              <span>{t('admin.menu_calendar')}</span>
-            </button>
-
-            <button
-              onClick={() => handleMenuSelect('domes')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeMenu === 'domes' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
-            >
-              <BedDouble className="w-5 h-5" />
-              <span>{t('admin.menu_domes')}</span>
-            </button>
-
-            <button
-              onClick={() => handleMenuSelect('customers')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeMenu === 'customers' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
-            >
-              <Users className="w-5 h-5" />
-              <span>{t('admin.menu_customers')}</span>
-            </button>
-
-            <button
-              onClick={() => handleMenuSelect('finances')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeMenu === 'finances' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
-            >
-              <DollarSign className="w-5 h-5" />
-              <span>{t('admin.menu_finances')}</span>
-            </button>
-
-            <button
-              onClick={() => handleMenuSelect('audit')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeMenu === 'audit' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
-            >
-              <Shield className="w-5 h-5" />
-              <span>{t('admin.menu_audit')}</span>
-            </button>
-
-            {user.role === 'SUPERADMIN' && (
-              <button
-                onClick={() => handleMenuSelect('users')}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeMenu === 'users' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
-              >
-                <Users className="w-5 h-5" />
-                <span>{t('admin.menu_users')}</span>
-              </button>
-            )}
-
-            <button
-              onClick={() => handleMenuSelect('images')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeMenu === 'images' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
-            >
-              <Camera className="w-5 h-5" />
-              <span>{t('admin.menu_images')}</span>
-            </button>
-
-            <button
-              onClick={() => handleMenuSelect('restaurant')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeMenu === 'restaurant' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
-            >
-              <Utensils className="w-5 h-5 text-emerald-400" />
-              <span>{t('admin.menu_restaurant')}</span>
-            </button>
-
-            <button
-              onClick={() => handleMenuSelect('settings')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${activeMenu === 'settings' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
-            >
-              <Settings className="w-5 h-5" />
-              <span>{t('admin.menu_settings')}</span>
-            </button>
+            {visibleSections.map(section => {
+              const Icon = section.icon;
+              const isActive = section.id === currentSection.id;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => handleMenuSelect(section.views[0].id)}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${isActive ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800'}`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{t(section.labelKey)}</span>
+                </button>
+              );
+            })}
           </nav>
         </div>
 
@@ -440,23 +428,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-xs border border-slate-200">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 capitalize">
-              {activeMenu === 'dashboard' ? t('admin.menu_dashboard') :
-               activeMenu === 'charts' ? t('admin.menu_charts') :
-               activeMenu === 'reservations' ? t('admin.menu_reservations') :
-               activeMenu === 'calendar' ? t('admin.menu_calendar') :
-               activeMenu === 'domes' ? t('admin.menu_domes') :
-               activeMenu === 'customers' ? t('admin.menu_customers') :
-               activeMenu === 'finances' ? t('admin.menu_finances') :
-               activeMenu === 'audit' ? t('admin.menu_audit') :
-               activeMenu === 'users' ? t('admin.menu_users') : t('admin.menu_settings')}
-            </h1>
+            <h1 className="text-2xl font-bold text-slate-900">{t(currentSection.labelKey)}</h1>
             <p className="text-xs text-slate-500 mt-1">Eco Glamping Chinauta • America/Bogota</p>
           </div>
 
           <div className="flex items-center space-x-3">
-            {activeMenu === 'charts' ? (
-              <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+            {activeMenu === 'charts' && (
+              <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
                 <button
                   onClick={() => setChartPeriod('6m')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${chartPeriod === '6m' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
@@ -467,17 +445,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                   onClick={() => setChartPeriod('1y')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${chartPeriod === '1y' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
                 >
-                  Año 2026
-                </button>
-                <button
-                  onClick={loadAllData}
-                  title="Actualizar datos"
-                  className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-white transition-all"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                  Último año
                 </button>
               </div>
-            ) : (
+            )}
+            {activeMenu === 'domes' && (
               <button
                 onClick={() => setShowMaintenanceModal(true)}
                 className="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors flex items-center space-x-2"
@@ -486,8 +458,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                 <span>{t('admin.new_maint_btn')}</span>
               </button>
             )}
+            <button
+              onClick={reload}
+              title="Actualizar datos"
+              className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:text-emerald-700 hover:bg-slate-50 transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </div>
+
+        {/* Pestañas de la sección (solo si tiene más de una vista) */}
+        {sectionViews.length > 1 && (
+          <div className="flex flex-wrap gap-2" role="tablist">
+            {sectionViews.map(v => (
+              <button
+                key={v.id}
+                role="tab"
+                aria-selected={activeMenu === v.id}
+                onClick={() => setActiveMenu(v.id)}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors border ${activeMenu === v.id ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+              >
+                {t(v.labelKey)}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* 1. DASHBOARD VIEW */}
         {activeMenu === 'dashboard' && metrics && (
@@ -529,26 +525,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                   <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">COP</span>
                 </div>
               </div>
-            </div>
-
-            {/* Quick Link Banner to Charts */}
-            <div className="bg-gradient-to-r from-emerald-900 to-slate-900 rounded-2xl p-6 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
-              <div className="space-y-1 text-center sm:text-left">
-                <div className="flex items-center justify-center sm:justify-start space-x-2">
-                  <BarChart3 className="w-5 h-5 text-emerald-400" />
-                  <h4 className="font-bold text-lg">Métricas & Gráficas Interactivas con Recharts</h4>
-                </div>
-                <p className="text-sm text-slate-300">
-                  Visualiza las tendencias de reservas, tasas de ocupación de los 6 domos ancestrales e ingresos mensuales.
-                </p>
-              </div>
-              <button
-                onClick={() => setActiveMenu('charts')}
-                className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-sm transition-transform active:scale-95 flex items-center space-x-2 shrink-0"
-              >
-                <span>Ver Todas las Gráficas</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
             </div>
 
             {/* Financial Chart */}
