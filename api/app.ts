@@ -109,7 +109,7 @@ export function createApp(deps: AppDeps) {
   const SUBADMIN_EMAILS: string[] = (env.SUBADMIN_EMAILS || "")
     .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
   const SUBADMIN_WRITES = ["/api/reservations", "/api/payments", "/api/customers", "/api/maintenance"];
-  const SUBADMIN_BLOCKED_READS = ["/api/users", "/api/audit", "/api/settings"];
+  const SUBADMIN_BLOCKED_READS = ["/api/users", "/api/audit", "/api/settings", "/api/staff"];
 
   let certCache: { certs: Record<string, string>; expires: number } | null = null;
   const googleCert = async (kid: string): Promise<string | undefined> => {
@@ -151,7 +151,11 @@ export function createApp(deps: AppDeps) {
       if (!payload.email || payload.email_verified !== true) throw new Error("Correo no verificado.");
       const email = normalizeEmail(payload.email);
       const isSuper = ADMIN_EMAILS.includes(email);
-      if (!isSuper && !SUBADMIN_EMAILS.includes(email)) throw new Error("Sin permisos de administrador.");
+      // Recepción: por la variable SUBADMIN_EMAILS o por la lista que el administrador mantiene en el panel (Equipo).
+      if (!isSuper && !SUBADMIN_EMAILS.includes(email)) {
+        const member = await store.get("staff", email);
+        if (!member || member.status === "Inactivo") throw new Error("Sin permisos de administrador.");
+      }
       (req as any).adminEmail = payload.email;
       (req as any).adminRole = isSuper ? "SUPERADMIN" : "RECEPCION";
       (req as any).adminName = payload.name || "";
@@ -1224,6 +1228,42 @@ export function createApp(deps: AppDeps) {
       if (!row) return res.status(400).json({ error: "Ese usuario ya existe." });
       await audit(user_name || "SuperAdmin", "CREAR_USUARIO", "Usuario", String(row.id), `Creación de administrador ${username} (${role})`);
       res.json({ success: true, id: row.id });
+    } catch (err: any) { res.status(400).json({ error: err.message }); }
+  });
+
+  // Equipo: quién puede entrar al panel. Solo el administrador (recepción no puede leer ni cambiar esto).
+  // Las cuentas de recepción se guardan en la base de datos: se agregan o quitan sin tocar Vercel.
+  app.get("/api/staff", async (_req, res, next) => {
+    try {
+      const saved = (await store.list("staff")).map((m) => ({
+        email: String(m.email), name: String(m.name || ""), role: "RECEPCION", fixed: false, created_at: m.created_at, created_by: m.created_by,
+      }));
+      const fixed = [
+        ...ADMIN_EMAILS.map((email) => ({ email, name: "", role: "SUPERADMIN", fixed: true })),
+        ...SUBADMIN_EMAILS.filter((e) => !saved.some((m) => m.email === e)).map((email) => ({ email, name: "", role: "RECEPCION", fixed: true })),
+      ];
+      res.json([...fixed, ...saved.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))]);
+    } catch (e) { next(e); }
+  });
+
+  app.post("/api/staff", async (req, res) => {
+    try {
+      const email = normalizeEmail(String(req.body?.email || ""));
+      const name = String(req.body?.name || "").trim().slice(0, 80);
+      if (!/^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(email)) return res.status(400).json({ error: "Escribe un correo válido." });
+      if (ADMIN_EMAILS.includes(email)) return res.status(400).json({ error: "Ese correo ya es de administrador." });
+      await store.set("staff", email, { id: email, email, name, role: "RECEPCION", status: "Activo", created_at: sqlTime(now()), created_by: (req as any).adminEmail });
+      await audit((req as any).adminEmail, "AGREGAR_RECEPCION", "Equipo", email, `Se dio acceso de recepción a ${email}`);
+      res.json({ success: true });
+    } catch (err: any) { res.status(400).json({ error: err.message }); }
+  });
+
+  app.delete("/api/staff/:email", async (req, res) => {
+    try {
+      const email = normalizeEmail(decodeURIComponent(req.params.email));
+      await store.remove("staff", email);
+      await audit((req as any).adminEmail, "QUITAR_RECEPCION", "Equipo", email, `Se quitó el acceso de recepción a ${email}`);
+      res.json({ success: true });
     } catch (err: any) { res.status(400).json({ error: err.message }); }
   });
 

@@ -7,6 +7,8 @@ import { TodayView } from './admin/TodayView';
 import { ReservationsView } from './admin/ReservationsView';
 import { CalendarView } from './admin/CalendarView';
 import { GuestsView } from './admin/GuestsView';
+import { TeamView, type StaffMember } from './admin/TeamView';
+import { NewReservationModal } from './admin/NewReservationModal';
 import { CHINAUTA_MENU_ITEMS } from './FoodMenuSection';
 import { ImageCarousel } from './ImageCarousel';
 import { getDomeImages } from '../utils/domeImages';
@@ -20,7 +22,7 @@ import { useLanguage } from '../context/LanguageContext';
 type ViewId = 'dashboard' | 'charts' | 'finances' | 'reservations' | 'calendar' | 'customers'
   | 'domes' | 'images' | 'restaurant' | 'users' | 'audit' | 'settings';
 type DataKey = 'metrics' | 'domes' | 'reservations' | 'customers' | 'payments' | 'maintenance'
-  | 'audit' | 'finances' | 'settings' | 'users' | 'analytics';
+  | 'audit' | 'finances' | 'settings' | 'staff' | 'analytics';
 
 const DATA_URLS: Record<DataKey, string> = {
   metrics: '/api/dashboard/metrics',
@@ -32,7 +34,7 @@ const DATA_URLS: Record<DataKey, string> = {
   audit: '/api/audit',
   finances: '/api/finances/summary',
   settings: '/api/settings',
-  users: '/api/users',
+  staff: '/api/staff',
   analytics: '/api/analytics/charts',
 };
 
@@ -47,7 +49,7 @@ const VIEW_DATA: Record<ViewId, DataKey[]> = {
   domes: ['domes', 'maintenance'],
   images: ['domes'],
   restaurant: [],
-  users: ['users'],
+  users: ['staff'],
   audit: ['audit'],
   settings: ['settings'],
 };
@@ -108,7 +110,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [finances, setFinances] = useState<any>(null);
   const [settings, setSettings] = useState<any>({});
-  const [usersList, setUsersList] = useState<AdminUser[]>([]);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [showNewReservation, setShowNewReservation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState<Set<DataKey>>(new Set());
   const [toast, setToast] = useState<{ msg: string; kind: 'ok' | 'error' } | null>(null);
@@ -154,7 +157,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
             case 'audit': if (isList) setAuditLogs(data); break;
             case 'finances': if (isObject) setFinances(data); break;
             case 'settings': if (isObject) setSettings(data); break;
-            case 'users': if (isList) setUsersList(data); break;
+            case 'staff': if (isList) setStaff(data); break;
             case 'analytics': if (isObject) setAnalyticsData(data); break;
           }
         }
@@ -188,6 +191,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
     } catch (err) {
       notify(t('admin.alert_status_error'), 'error');
       reload();
+    }
+  };
+
+  const handleAddStaff = async (email: string, name: string): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'No se pudo dar el acceso.');
+      notify('Acceso de recepción creado');
+      loadData(['staff']);
+      return true;
+    } catch (err: any) {
+      notify(err.message, 'error');
+      return false;
+    }
+  };
+
+  const handleRemoveStaff = async (email: string) => {
+    try {
+      const res = await fetch(`/api/staff/${encodeURIComponent(email)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('No se pudo quitar el acceso.');
+      notify('Acceso quitado');
+      loadData(['staff']);
+    } catch (err: any) {
+      notify(err.message, 'error');
     }
   };
 
@@ -845,7 +877,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
         )}
 
         {activeMenu === 'reservations' && (
-          <ReservationsView reservations={reservations} domes={domes} ready={isReady} onStatus={handleUpdateStatus} onCollect={openCollect} />
+          <ReservationsView reservations={reservations} domes={domes} ready={isReady} onStatus={handleUpdateStatus} onCollect={openCollect} onNew={() => setShowNewReservation(true)} />
         )}
 
         {activeMenu === 'calendar' && (
@@ -977,37 +1009,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
           </div>
         )}
 
-        {/* 8. USERS */}
+        {/* Accesos: quién puede entrar al panel */}
         {activeMenu === 'users' && user.role === 'SUPERADMIN' && (
-          <div className="glass-card rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-xs">
-            <div className="p-6 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900">Gestión de Administradores ({usersList.length})</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 text-slate-600 text-xs font-bold uppercase border-b border-slate-200">
-                    <th className="p-4">Usuario</th>
-                    <th className="p-4">Nombre Completo</th>
-                    <th className="p-4">Correo</th>
-                    <th className="p-4">Rol</th>
-                    <th className="p-4">Estado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-sm">
-                  {usersList.map(u => (
-                    <tr key={u.id} className="hover:bg-slate-50">
-                      <td className="p-4 font-mono font-bold text-slate-800">{u.username}</td>
-                      <td className="p-4 font-bold text-slate-900">{u.full_name}</td>
-                      <td className="p-4 text-slate-600">{u.email}</td>
-                      <td className="p-4"><span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">{u.role}</span></td>
-                      <td className="p-4 text-xs font-semibold text-emerald-600">{u.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <TeamView staff={staff} ready={isReady} onAdd={handleAddStaff} onRemove={handleRemoveStaff} />
         )}
 
         {/* 9. IMAGES MANAGEMENT */}
@@ -1253,12 +1257,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
         {toast && (
           <motion.div
             role="status" aria-live="polite"
-            initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: -16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3 }}
-            className={`fixed z-[60] left-1/2 -translate-x-1/2 bottom-24 md:bottom-8 max-w-[90vw] px-5 py-3 rounded-2xl text-sm font-semibold shadow-xl text-white ${toast.kind === 'error' ? 'bg-rose-600' : 'bg-slate-900'}`}
+            className={`fixed z-[60] left-1/2 -translate-x-1/2 top-20 md:top-6 max-w-[90vw] px-5 py-3 rounded-2xl text-sm font-semibold shadow-xl text-white ${toast.kind === 'error' ? 'bg-rose-600' : 'bg-slate-900'}`}
           >
             {toast.kind === 'error' ? '⚠️ ' : '✓ '}{toast.msg}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Nueva reserva hecha por el equipo */}
+      <AnimatePresence>
+        {showNewReservation && (
+          <NewReservationModal
+            domes={domes} staffName={user.full_name}
+            onClose={() => setShowNewReservation(false)}
+            onCreated={code => { setShowNewReservation(false); notify(`Reserva ${code} creada`); loadData(['reservations', 'domes']); }}
+          />
         )}
       </AnimatePresence>
 

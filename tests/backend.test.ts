@@ -407,6 +407,40 @@ test("recepción ve reservas pero no usuarios, auditoría, ajustes ni precios", 
   assert.equal((await call("GET", "/api/auth/me", { auth: token("otro@test.invalid") })).status, 401);
 });
 
+test("el administrador da y quita acceso de recepción desde el panel (sin tocar variables)", async () => {
+  const nueva = "nueva.recepcion@test.invalid";
+  assert.equal((await call("GET", "/api/auth/me", { auth: token(nueva) })).status, 401); // todavía no tiene acceso
+  const add = await call("POST", "/api/staff", { auth: admin(), body: { email: "  Nueva.Recepcion@Test.Invalid ", name: "Ana" } });
+  assert.equal(add.status, 200);
+  const me = await call("GET", "/api/auth/me", { auth: token(nueva) });
+  assert.equal(me.status, 200);
+  assert.equal(me.data.role, "RECEPCION");
+  // con correo sin verificar no entra
+  assert.equal((await call("GET", "/api/auth/me", { auth: token(nueva, false) })).status, 401);
+  // tiene los mismos límites de recepción
+  assert.equal((await call("GET", "/api/reservations", { auth: token(nueva) })).status, 200);
+  assert.equal((await call("GET", "/api/audit", { auth: token(nueva) })).status, 403);
+  assert.equal((await call("GET", "/api/staff", { auth: token(nueva) })).status, 403);
+  assert.equal((await call("POST", "/api/staff", { auth: token(nueva), body: { email: "otro@test.invalid" } })).status, 403);
+  assert.equal((await call("DELETE", "/api/staff/" + encodeURIComponent(ADMIN), { auth: token(nueva) })).status, 403);
+  assert.equal((await call("PUT", "/api/domes/1", { auth: token(nueva), body: { price_per_night: 1 } })).status, 403);
+  // el administrador ve la lista, con la cuenta fija de administración y la nueva
+  const list = (await call("GET", "/api/staff", { auth: admin() })).data;
+  assert.ok(list.some((m: any) => m.email === ADMIN && m.role === "SUPERADMIN" && m.fixed));
+  assert.ok(list.some((m: any) => m.email === nueva && m.role === "RECEPCION" && m.name === "Ana" && !m.fixed));
+  // quedó registrado en la auditoría
+  const audit = (await call("GET", "/api/audit", { auth: admin() })).data;
+  assert.ok(audit.some((a: any) => a.action === "AGREGAR_RECEPCION" && String(a.details).includes(nueva)));
+  // al quitarlo, pierde el acceso
+  assert.equal((await call("DELETE", "/api/staff/" + encodeURIComponent(nueva), { auth: admin() })).status, 200);
+  assert.equal((await call("GET", "/api/auth/me", { auth: token(nueva) })).status, 401);
+});
+
+test("no se puede dar acceso con un correo inválido ni repetir a un administrador", async () => {
+  assert.equal((await call("POST", "/api/staff", { auth: admin(), body: { email: "no-es-correo" } })).status, 400);
+  assert.equal((await call("POST", "/api/staff", { auth: admin(), body: { email: ADMIN } })).status, 400);
+});
+
 test("las gráficas usan datos reales, no cifras de ejemplo", async () => {
   const r = await call("GET", "/api/analytics/charts", { auth: admin() });
   assert.equal(r.status, 200);

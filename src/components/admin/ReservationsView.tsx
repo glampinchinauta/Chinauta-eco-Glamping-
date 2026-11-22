@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, MessageCircle, MoreHorizontal, CalendarSearch, Users, Moon, X, CalendarX2 } from 'lucide-react';
+import { Plus, Search, MessageCircle, MoreHorizontal, CalendarSearch, Users, Moon, X, CalendarX2 } from 'lucide-react';
 import type { Reservation, Dome } from '../../types';
 import {
   Card, EmptyState, LoadingBlocks, SegmentedTabs, StatusBadge, toneFor,
@@ -13,6 +13,7 @@ interface Props {
   ready: boolean;
   onStatus: (id: number, status: string) => void;
   onCollect: (resv: Reservation) => void;
+  onNew: () => void;
 }
 
 type Tab = 'current' | 'toConfirm' | 'past' | 'cancelled';
@@ -20,7 +21,7 @@ const PENDING = ['Pendiente', 'Pendiente de pago'];
 const CANCELLED = ['Cancelada', 'No show'];
 const IN_HOUSE = ['Hospedado', 'Check-in'];
 
-export const ReservationsView: React.FC<Props> = ({ reservations, domes, ready, onStatus, onCollect }) => {
+export const ReservationsView: React.FC<Props> = ({ reservations, domes, ready, onStatus, onCollect, onNew }) => {
   const today = bogotaToday();
   const [tab, setTab] = useState<Tab>('current');
   const [query, setQuery] = useState('');
@@ -82,6 +83,7 @@ export const ReservationsView: React.FC<Props> = ({ reservations, domes, ready, 
     <div className="space-y-5">
       {/* Filtros */}
       <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
         <SegmentedTabs<Tab>
           group="res-status" value={tab} onChange={setTab}
           tabs={[
@@ -91,6 +93,10 @@ export const ReservationsView: React.FC<Props> = ({ reservations, domes, ready, 
             { id: 'cancelled', label: 'Canceladas' },
           ]}
         />
+        <button onClick={onNew} className="h-11 px-5 rounded-2xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 flex items-center gap-2 shadow-sm egc-press">
+          <Plus className="w-4 h-4" /> Nueva reserva
+        </button>
+        </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />

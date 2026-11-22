@@ -74,7 +74,9 @@ No hace falta crear índices.
 - **Límite de intentos de la consulta de privacidad:** cuenta por instancia del servidor, no es global.
 - **Gráficas del panel de administración** (`/api/analytics/charts`): se calculan con las reservas reales (por mes de llegada; ocupación de los últimos 30 días). Sin reservas muestran ceros.
 - **Mascotas:** se aceptan en todos los domos, bien comportadas, con $30.000 por mascota por estadía (texto de domos, formulario y SEO coinciden).
-- **Roles:** `ADMIN_EMAILS` = administrador total; `SUBADMIN_EMAILS` = recepción (ve todo; solo cambia reservas, pagos, clientes y bloqueos; no ve usuarios, auditoría ni ajustes). El servidor lo verifica en cada solicitud.
+- **Roles:** `ADMIN_EMAILS` = administrador total. Recepción (ve todo; solo cambia reservas, pagos, clientes y bloqueos; no ve accesos, auditoría ni ajustes) se maneja **desde el panel, en Equipo → Accesos**: el administrador escribe el correo de la persona y listo, sin tocar Vercel. Esa lista se guarda en Firestore (colección `staff`). `SUBADMIN_EMAILS` sigue funcionando como lista fija opcional. El servidor lo verifica en cada solicitud y exige correo verificado.
+- **Entrada al panel:** con Google o con correo y contraseña. La persona crea su propia contraseña en el modal («Crear mi contraseña (primera vez)») y confirma su correo; para entrar, su correo debe estar autorizado. Requiere el método «Correo electrónico/contraseña» activado en Firebase → Authentication → Método de acceso.
+- **Reservas manuales:** el botón «Nueva reserva» del panel usa la misma ruta que el sitio (el valor lo calcula el servidor) y exige confirmar que el huésped aceptó los términos y es mayor de edad.
 - **Avisos de reserva:** el cliente ve un botón "Confirmar por WhatsApp" al terminar. Si defines `RESEND_API_KEY`, también salen correos al administrador y al cliente.
-- **Inicio de sesión por usuario y contraseña** (`/api/auth/login`) se eliminó: el panel entra solo con Google.
+- **Inicio de sesión por usuario y contraseña propio** (`/api/auth/login`) se eliminó. Las contraseñas las maneja Firebase Authentication (nunca se guardan en este proyecto).
 - El archivo `glamping.db` (SQLite) ya no se usa y se quitó del repositorio.
