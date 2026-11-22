@@ -9,6 +9,7 @@ import { CalendarView } from './admin/CalendarView';
 import { GuestsView } from './admin/GuestsView';
 import { TeamView, type StaffMember } from './admin/TeamView';
 import { NewReservationModal } from './admin/NewReservationModal';
+import { PromosView, type PromoCode } from './admin/PromosView';
 import { CHINAUTA_MENU_ITEMS } from './FoodMenuSection';
 import { ImageCarousel } from './ImageCarousel';
 import { getDomeImages } from '../utils/domeImages';
@@ -20,9 +21,9 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 
 type ViewId = 'dashboard' | 'charts' | 'finances' | 'reservations' | 'calendar' | 'customers'
-  | 'domes' | 'images' | 'restaurant' | 'users' | 'audit' | 'settings';
+  | 'domes' | 'images' | 'restaurant' | 'users' | 'audit' | 'settings' | 'promos';
 type DataKey = 'metrics' | 'domes' | 'reservations' | 'customers' | 'payments' | 'maintenance'
-  | 'audit' | 'finances' | 'settings' | 'staff' | 'analytics';
+  | 'audit' | 'finances' | 'settings' | 'staff' | 'analytics' | 'promos';
 
 const DATA_URLS: Record<DataKey, string> = {
   metrics: '/api/dashboard/metrics',
@@ -35,6 +36,7 @@ const DATA_URLS: Record<DataKey, string> = {
   finances: '/api/finances/summary',
   settings: '/api/settings',
   staff: '/api/staff',
+  promos: '/api/promo-codes',
   analytics: '/api/analytics/charts',
 };
 
@@ -52,6 +54,7 @@ const VIEW_DATA: Record<ViewId, DataKey[]> = {
   users: ['staff'],
   audit: ['audit'],
   settings: ['settings'],
+  promos: ['promos'],
 };
 
 // Menú lateral: 6 secciones; las que tienen varias vistas las muestran como pestañas.
@@ -82,7 +85,8 @@ const SECTIONS: {
     { id: 'audit', labelKey: 'admin.menu_audit' },
   ] },
   { id: 'settings', labelKey: 'admin.menu_settings', shortKey: 'admin.nav_settings', icon: Settings, superOnly: true, views: [
-    { id: 'settings', labelKey: 'admin.menu_settings' },
+    { id: 'settings', labelKey: 'admin.tab_business' },
+    { id: 'promos', labelKey: 'admin.tab_promos' },
   ] },
 ];
 
@@ -111,6 +115,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
   const [finances, setFinances] = useState<any>(null);
   const [settings, setSettings] = useState<any>({});
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [promos, setPromos] = useState<PromoCode[]>([]);
   const [showNewReservation, setShowNewReservation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState<Set<DataKey>>(new Set());
@@ -158,6 +163,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
             case 'finances': if (isObject) setFinances(data); break;
             case 'settings': if (isObject) setSettings(data); break;
             case 'staff': if (isList) setStaff(data); break;
+            case 'promos': if (isList) setPromos(data); break;
             case 'analytics': if (isObject) setAnalyticsData(data); break;
           }
         }
@@ -220,6 +226,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
       loadData(['staff']);
     } catch (err: any) {
       notify(err.message, 'error');
+    }
+  };
+
+  const handleCreatePromo = async (code: string, percent: number): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/promo-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, percent, active: 1, user_name: user.full_name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'No se pudo crear el código.');
+      notify(`Código ${code.toUpperCase()} creado`);
+      loadData(['promos']);
+      return true;
+    } catch (err: any) {
+      notify(err.message, 'error');
+      return false;
+    }
+  };
+
+  const handleTogglePromo = async (promo: PromoCode) => {
+    const next = Number(promo.active) === 1 ? 0 : 1;
+    setPromos(prev => prev.map(p => (p.id === promo.id ? { ...p, active: next } : p)));
+    try {
+      const res = await fetch(`/api/promo-codes/${promo.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promo.code, percent: promo.percent, active: next, user_name: user.full_name }),
+      });
+      if (!res.ok) throw new Error('No se pudo cambiar el código.');
+      notify(next === 1 ? `Código ${promo.code} encendido` : `Código ${promo.code} apagado`);
+    } catch (err: any) {
+      notify(err.message, 'error');
+      loadData(['promos']);
     }
   };
 
@@ -1007,6 +1048,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
               </table>
             </div>
           </div>
+        )}
+
+        {activeMenu === 'promos' && (
+          <PromosView promos={promos} ready={isReady} onCreate={handleCreatePromo} onToggle={handleTogglePromo} />
         )}
 
         {/* Accesos: quién puede entrar al panel */}

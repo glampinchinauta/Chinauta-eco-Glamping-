@@ -18,14 +18,16 @@ interface Props {
 }
 
 const CAN = [
-  'Ver y crear reservas (también las manuales)',
-  'Confirmar, hacer check-in y check-out',
+  'Crear reservas manuales: escoger domo y fechas (el domo queda bloqueado)',
+  'Aplicar códigos de promoción en esas reservas',
+  'Ver, confirmar, hacer check-in y check-out',
   'Registrar pagos y ver los huéspedes',
   'Bloquear fechas por mantenimiento',
   'Ver el calendario y las finanzas (solo lectura)',
 ];
 const CANNOT = [
   'Cambiar precios, fotos o datos de los domos',
+  'Crear, cambiar o apagar códigos de promoción',
   'Cambiar el menú, la galería o la configuración',
   'Dar o quitar accesos a otras personas',
   'Ver el registro de auditoría',
