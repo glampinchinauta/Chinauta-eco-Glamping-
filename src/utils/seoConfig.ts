@@ -46,7 +46,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
         'name': 'Eco Glamping Chinauta',
         'description': 'Glamping exclusivo con domos geodésicos de lujo, jacuzzis privados y vistas panorámicas a las montañas.',
         'url': '/',
-        'telephone': '+573213109331',
+        'telephone': '+573242969426',
         'email': 'ecoglampingventas@gmail.com',
         'priceRange': '$$$',
         'address': {
@@ -188,7 +188,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
         'name': 'Eco Glamping Chinauta',
         'description': 'Exclusive eco glamping featuring luxury geodesic domes, private hydromassage jacuzzis, and sweeping mountain panoramas.',
         'url': '/',
-        'telephone': '+573213109331',
+        'telephone': '+573242969426',
         'email': 'ecoglampingventas@gmail.com',
         'priceRange': '$$$',
         'address': {

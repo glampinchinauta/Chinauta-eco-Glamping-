@@ -123,6 +123,19 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const [bbqOnly, setBbqOnly] = useState(false); // Guest brings food and cooks at the BBQ zone
   const setFoodChoice = (id: string, patch: { preparation?: string; meat?: string; side?: string; qty?: number }) =>
     setFoodChoices(prev => ({ ...prev, [id]: { ...(prev[id] ?? { preparation: '', meat: '', side: '', qty: 0 }), ...patch } }));
+  // Varias carnes o preparaciones dentro del mismo plato (ej. 2 cerdo gratinado + 1 res a la parrilla).
+  type FoodSplit = { meat: string; preparation: string; qty: number };
+  const [foodSplits, setFoodSplits] = useState<Record<string, FoodSplit[]>>({});
+  const splitActive = (id: string, qty: number) => foodSplits[id] !== undefined && qty > 1;
+  const splitRows = (id: string, c: { meat: string; preparation: string; qty: number }): FoodSplit[] =>
+    splitActive(id, c.qty) ? foodSplits[id] : [{ meat: c.meat, preparation: c.preparation, qty: c.qty }];
+  const updateSplits = (id: string, rows: FoodSplit[]) => setFoodSplits(prev => ({ ...prev, [id]: rows }));
+  // Si cambian las porciones, la última fila absorbe la diferencia.
+  const rebalanceSplits = (rows: FoodSplit[], total: number): FoodSplit[] => {
+    if (rows.length === 0) return rows;
+    const others = rows.slice(0, -1).reduce((s, r) => s + r.qty, 0);
+    return rows.map((r, i) => (i === rows.length - 1 ? { ...r, qty: Math.max(0, total - others) } : r));
+  };
   // Meat options are the meat-type entries of the dish; the rest are cooking styles.
   const isMeatOption = (p: string) => /^(carne de res|cerdo|pechuga)$/i.test(p.trim());
   // Meat types offered for any dish whose name mentions "carne", even if the saved menu lacks them.
@@ -278,15 +291,21 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
 
   const foodSummary = bbqOnly ? [] : menuItems
     .filter(i => (foodChoices[String(i.id)]?.qty || 0) > 0)
-    .map(i => {
+    .flatMap(i => {
       const c = foodChoices[String(i.id)];
-      return `${i.title}${c.meat ? ` - ${c.meat}` : ''}${c.preparation ? ` (${c.preparation})` : ''} x${c.qty}`;
+      return splitRows(String(i.id), c).map(r =>
+        `${i.title}${r.meat ? ` - ${r.meat}` : ''}${r.preparation ? ` (${r.preparation})` : ''} x${r.qty}`);
     });
   const foodMissingNames: string[] = bbqOnly ? [] : menuItems
     .filter(i => {
       const c = foodChoices[String(i.id)];
       if (!c || c.qty <= 0) return false;
       const g = getPrepGroups(i);
+      if (splitActive(String(i.id), c.qty)) {
+        const rows = foodSplits[String(i.id)];
+        const assigned = rows.reduce((s, r) => s + r.qty, 0);
+        return assigned !== c.qty || rows.some(r => (g.meats.length > 0 && !r.meat) || (g.styles.length > 0 && !r.preparation));
+      }
       return (g.meats.length > 0 && !c.meat) || (g.styles.length > 0 && !c.preparation);
     })
     .map(i => (language === 'en' ? (i.title_en || i.title) : i.title));
@@ -877,12 +896,16 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                             min={0}
                             max={20}
                             value={choice.qty}
-                            onChange={e => setFoodChoice(String(item.id), { qty: Math.max(0, Number(e.target.value) || 0) })}
+                            onChange={e => {
+                              const q = Math.max(0, Number(e.target.value) || 0);
+                              setFoodChoice(String(item.id), { qty: q });
+                              if (foodSplits[String(item.id)]) updateSplits(String(item.id), rebalanceSplits(foodSplits[String(item.id)], q));
+                            }}
                             className="w-20 px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium"
                           />
                         </div>
                       </div>
-                      {active && groups.meats.length > 0 && (
+                      {active && !splitActive(String(item.id), choice.qty) && groups.meats.length > 0 && (
                         <div className="space-y-1">
                           <label className="text-xs font-semibold text-slate-600">{language === 'en' ? 'Type of meat' : 'Tipo de carne'}</label>
                           <select
@@ -897,7 +920,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                           </select>
                         </div>
                       )}
-                      {active && groups.styles.length > 0 && (
+                      {active && !splitActive(String(item.id), choice.qty) && groups.styles.length > 0 && (
                         <div className="space-y-1">
                           <label className="text-xs font-semibold text-slate-600">{language === 'en' ? 'Preparation' : 'Preparación'}</label>
                           <select
@@ -912,6 +935,85 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                           </select>
                         </div>
                       )}
+                      {active && choice.qty > 1 && (() => {
+                        const id = String(item.id);
+                        const split = foodSplits[id] !== undefined;
+                        const rows = foodSplits[id] ?? [];
+                        const assigned = rows.reduce((s, r) => s + r.qty, 0);
+                        const ok = split && assigned === choice.qty;
+                        return (
+                          <div className="space-y-2 rounded-xl border border-emerald-200 bg-white p-3">
+                            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={split}
+                                onChange={e => {
+                                  if (e.target.checked) {
+                                    updateSplits(id, [{ meat: choice.meat, preparation: choice.preparation, qty: choice.qty }]);
+                                  } else {
+                                    setFoodSplits(prev => { const n = { ...prev }; delete n[id]; return n; });
+                                  }
+                                }}
+                              />
+                              {language === 'en' ? 'Different meats or preparations for these portions' : 'Varias carnes o preparaciones para estas porciones'}
+                            </label>
+                            {split && (
+                              <>
+                                {rows.map((r, idx) => (
+                                  <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                                    {groups.meats.length > 0 && (
+                                      <select
+                                        value={r.meat}
+                                        onChange={e => updateSplits(id, rows.map((x, i) => i === idx ? { ...x, meat: e.target.value } : x))}
+                                        className="col-span-5 px-2 py-2 rounded-xl border border-slate-200 text-xs font-medium bg-white"
+                                      >
+                                        <option value="">{language === 'en' ? 'Choose meat' : 'Carne'}</option>
+                                        {groups.meats.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                                      </select>
+                                    )}
+                                    {groups.styles.length > 0 && (
+                                      <select
+                                        value={r.preparation}
+                                        onChange={e => updateSplits(id, rows.map((x, i) => i === idx ? { ...x, preparation: e.target.value } : x))}
+                                        className="col-span-4 px-2 py-2 rounded-xl border border-slate-200 text-xs font-medium bg-white"
+                                      >
+                                        <option value="">{language === 'en' ? 'Choose preparation' : 'Preparación'}</option>
+                                        {groups.styles.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                                      </select>
+                                    )}
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      max={choice.qty}
+                                      value={r.qty}
+                                      onChange={e => updateSplits(id, rows.map((x, i) => i === idx ? { ...x, qty: Math.max(0, Number(e.target.value) || 0) } : x))}
+                                      className="col-span-2 px-2 py-2 rounded-xl border border-slate-200 text-xs font-medium"
+                                    />
+                                    <button
+                                      type="button"
+                                      disabled={rows.length === 1}
+                                      onClick={() => updateSplits(id, rows.filter((_, i) => i !== idx))}
+                                      className="col-span-1 text-xs text-red-600 disabled:opacity-30"
+                                      aria-label="Quitar"
+                                    >✕</button>
+                                  </div>
+                                ))}
+                                <div className="flex items-center justify-between gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateSplits(id, [...rows, { meat: '', preparation: '', qty: Math.max(1, choice.qty - assigned) }])}
+                                    disabled={assigned >= choice.qty}
+                                    className="text-xs font-bold text-emerald-700 disabled:opacity-30"
+                                  >+ {language === 'en' ? 'Add another meat or preparation' : 'Agregar otra carne o preparación'}</button>
+                                  <span className={`text-xs font-semibold ${ok ? 'text-emerald-700' : 'text-red-600'}`}>
+                                    {language === 'en' ? `${assigned} of ${choice.qty} portions assigned` : `${assigned} de ${choice.qty} porciones asignadas`}
+                                  </span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {(groups.sides.length > 0 || item.beverage) && (
                         <p className="text-xs font-semibold text-emerald-800">
                           {language === 'en' ? 'Included in the price: ' : 'Incluido en el precio: '}
@@ -1141,7 +1243,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                 </div>
               </div>
               <a
-                href={`https://wa.me/573213109331?text=${encodeURIComponent(`Hola, acabo de hacer la reserva ${confirmedCode} en Eco Glamping Chinauta (${selectedDome?.name || ''}, ${checkIn} al ${checkOut}). Quedo atento(a) a la confirmación.`)}`}
+                href={`https://wa.me/573242969426?text=${encodeURIComponent(`Hola, acabo de hacer la reserva ${confirmedCode} en Eco Glamping Chinauta (${selectedDome?.name || ''}, ${checkIn} al ${checkOut}). Quedo atento(a) a la confirmación.`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center w-full py-3.5 rounded-2xl bg-emerald-600 text-white font-semibold text-sm shadow-lg hover:bg-emerald-700 transition-colors"

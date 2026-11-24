@@ -25,7 +25,7 @@ const translations: Record<Language, Translations> = {
     'nav.admin': 'Portal Administrativo',
     'nav.whatsapp_direct': 'WhatsApp Directo',
     'nav.online_reception': 'Recepción en línea • Chinauta',
-    'nav.call_reception': 'Llamar a Recepción: +57 321 310 9331',
+    'nav.call_reception': 'Llamar a Recepción: +57 324 296 9426',
     'nav.dates': 'Fechas',
     'nav.menu_short': 'Menú',
     'nav.more': 'Más',
@@ -292,7 +292,7 @@ const translations: Record<Language, Translations> = {
     'chat.online': 'En línea',
     'chat.welcome_msg': '¡Hola! Soy el conserje virtual de Eco Glamping Chinauta. ¿En qué te puedo ayudar hoy sobre nuestros domos, reservas o la experiencia en Fusagasugá?',
     'chat.fallback_msg': 'Gracias por tu mensaje. Te invitamos a contactarnos por WhatsApp.',
-    'chat.error_msg': 'Lo siento, ocurrió un error de conexión. Escríbenos por WhatsApp al +57 321 310 9331.',
+    'chat.error_msg': 'Lo siento, ocurrió un error de conexión. Escríbenos por WhatsApp al +57 324 296 9426.',
     'chat.input_placeholder': 'Pregunta sobre domos, clima, reservas...',
 
     // AvailabilityChecker
@@ -442,7 +442,7 @@ const translations: Record<Language, Translations> = {
     'contact.title': 'Contacto & Ubicación',
     'contact.desc': 'Estamos ubicados en el clima ideal de Chinauta (Fusagasugá, Cundinamarca), a solo 1.5 horas de Bogotá.',
     'contact.address': 'Vía Principal Chinauta Km 4.5, Fusagasugá, Cundinamarca, Colombia',
-    'contact.whatsapp': 'WhatsApp: +57 321 310 9331 / +57 310 123 4567',
+    'contact.whatsapp': 'WhatsApp: +57 324 296 9426',
     'contact.email': 'ecoglampingventas@gmail.com',
     'contact.hours': 'Atención al Cliente: Todos los días 7:00 AM - 9:00 PM',
 
@@ -492,7 +492,7 @@ const translations: Record<Language, Translations> = {
     'nav.admin': 'Admin Portal',
     'nav.whatsapp_direct': 'Direct WhatsApp',
     'nav.online_reception': 'Front Desk Online • Chinauta',
-    'nav.call_reception': 'Call Front Desk: +57 321 310 9331',
+    'nav.call_reception': 'Call Front Desk: +57 324 296 9426',
     'nav.dates': 'Dates',
     'nav.menu_short': 'Menu',
     'nav.more': 'More',
@@ -759,7 +759,7 @@ const translations: Record<Language, Translations> = {
     'chat.online': 'Online',
     'chat.welcome_msg': 'Hello! I am the virtual concierge at Eco Glamping Chinauta. How can I help you today regarding our domes, bookings, or experience in Fusagasugá?',
     'chat.fallback_msg': 'Thank you for your message. Feel free to contact us directly on WhatsApp.',
-    'chat.error_msg': 'Sorry, a connection error occurred. Please message us on WhatsApp at +57 321 310 9331.',
+    'chat.error_msg': 'Sorry, a connection error occurred. Please message us on WhatsApp at +57 324 296 9426.',
     'chat.input_placeholder': 'Ask about domes, weather, bookings...',
 
     // AvailabilityChecker
@@ -909,7 +909,7 @@ const translations: Record<Language, Translations> = {
     'contact.title': 'Contact & Location',
     'contact.desc': 'We are located in the tropical warm microclimate of Chinauta (Fusagasugá, Cundinamarca), just 1.5 hours from Bogotá.',
     'contact.address': 'Main Highway Chinauta Km 4.5, Fusagasugá, Cundinamarca, Colombia',
-    'contact.whatsapp': 'WhatsApp: +57 321 310 9331 / +57 310 123 4567',
+    'contact.whatsapp': 'WhatsApp: +57 324 296 9426',
     'contact.email': 'ecoglampingventas@gmail.com',
     'contact.hours': 'Front Desk Support: Daily 7:00 AM - 9:00 PM',
 

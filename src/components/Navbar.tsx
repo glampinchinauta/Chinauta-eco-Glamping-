@@ -256,7 +256,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <div className="border-t border-slate-100 my-1" />
 
                       <a
-                        href="https://wa.me/573213109331?text=Hola,%20deseo%20informaci%C3%B3n%20sobre%20Eco%20Glamping%20Chinauta"
+                        href="https://wa.me/573242969426?text=Hola,%20deseo%20informaci%C3%B3n%20sobre%20Eco%20Glamping%20Chinauta"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-full text-left px-4 py-2.5 hover:bg-emerald-50 flex items-start space-x-3 transition-colors group"
@@ -269,7 +269,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <span>{t('nav.whatsapp_direct')}</span>
                             <ExternalLink className="w-3 h-3 text-slate-400" />
                           </p>
-                          <p className="text-xs text-slate-500">+57 321 310 9331</p>
+                          <p className="text-xs text-slate-500">+57 324 296 9426</p>
                         </div>
                       </a>
                     </motion.div>
@@ -562,7 +562,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {/* Direct Telephone Link */}
                 <div className="pt-2 border-t border-slate-200">
                   <a
-                    href="tel:+573213109331"
+                    href="tel:+573242969426"
                     className="flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors"
                   >
                     <Phone className="w-4 h-4 text-emerald-400" />

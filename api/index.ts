@@ -16,7 +16,7 @@ try {
   app = express();
   app.use((_req, res) => {
     res.status(503).json({
-      error: "El servicio de reservas no está disponible en este momento. Escríbenos por WhatsApp al +57 321 310 9331 y te atendemos.",
+      error: "El servicio de reservas no está disponible en este momento. Escríbenos por WhatsApp al +57 324 296 9426 y te atendemos.",
     });
   });
 }

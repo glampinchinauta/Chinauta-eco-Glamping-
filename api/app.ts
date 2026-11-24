@@ -1336,7 +1336,7 @@ export function createApp(deps: AppDeps) {
       res.json({ reply: response.text || "" });
     } catch (err: any) {
       console.error("AI Chat error:", err);
-      res.status(500).json({ reply: "Hola, soy el asistente virtual de Eco Glamping Chinauta. En este momento estoy experimentando alta concurrencia. Puedes escribirnos por WhatsApp al +57 321 310 9331 para atenderte de inmediato." });
+      res.status(500).json({ reply: "Hola, soy el asistente virtual de Eco Glamping Chinauta. En este momento estoy experimentando alta concurrencia. Puedes escribirnos por WhatsApp al +57 324 296 9426 para atenderte de inmediato." });
     }
   });
 

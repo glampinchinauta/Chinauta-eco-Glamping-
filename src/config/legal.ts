@@ -16,7 +16,7 @@ export const COMPANY = {
   rnt: 'PENDIENTE: número de Registro Nacional de Turismo (RNT)',
   address: 'Vía Principal Chinauta Km 4.5, Fusagasugá, Cundinamarca, Colombia',
   email: 'ecoglampingventas@gmail.com',
-  phone: '+57 321 310 9331',
+  phone: '+57 324 296 9426',
   // Responsable del tratamiento de datos personales y canal para ejercer derechos (Ley 1581 de 2012).
   dataControllerEmail: 'ecoglampingventas@gmail.com',
   // Canal para reclamos por derechos de autor (contenido del sitio: fotos, videos, textos).

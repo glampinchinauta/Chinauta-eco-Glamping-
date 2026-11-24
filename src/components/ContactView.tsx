@@ -139,9 +139,9 @@ export const ContactView: React.FC = () => {
             <Phone className="w-7 h-7" />
           </div>
           <h4 className="text-lg font-bold text-slate-900">{t('contact.phone_title')}</h4>
-          <p className="text-slate-600 text-sm">+57 321 310 9331</p>
+          <p className="text-slate-600 text-sm">+57 324 296 9426</p>
           <a
-            href="https://wa.me/573213109331"
+            href="https://wa.me/573242969426"
             target="_blank"
             rel="noreferrer"
             className="inline-block px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700 transition-colors"

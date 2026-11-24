@@ -118,7 +118,7 @@ export const FAQSection: React.FC = () => {
           <p className="text-slate-300 text-sm max-w-lg">{t('faq.more_help_desc')}</p>
         </div>
         <a
-          href="https://wa.me/573213109331?text=Hola,%20tengo%20una%20consulta%20sobre%20Eco%20Glamping%20Chinauta"
+          href="https://wa.me/573242969426?text=Hola,%20tengo%20una%20consulta%20sobre%20Eco%20Glamping%20Chinauta"
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center space-x-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-900/50 transition-all shrink-0"

@@ -40,7 +40,7 @@ export async function notifyReservation(env: NodeJS.ProcessEnv, n: ReservationNo
       `<p>Entró una reserva nueva (pendiente de confirmar).</p>${details}<p>Cliente: ${esc(n.customerName)} ${esc(n.customerPhone || "")} ${esc(n.customerEmail || "")}</p>`);
     if (n.customerEmail) {
       await send(env, [n.customerEmail], `Recibimos tu reserva ${n.code} - Eco Glamping Chinauta`,
-        `<p>Hola ${esc(n.customerName)}, recibimos tu solicitud de reserva. Te confirmaremos por WhatsApp (+57 321 310 9331).</p>${details}`);
+        `<p>Hola ${esc(n.customerName)}, recibimos tu solicitud de reserva. Te confirmaremos por WhatsApp (+57 324 296 9426).</p>${details}`);
     }
   } catch (err) {
     console.error("[notify] No se pudo enviar el aviso:", err);
