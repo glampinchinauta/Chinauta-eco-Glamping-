@@ -153,6 +153,25 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const [documentId, setDocumentId] = useState(savedCustomer.documentId || '');
   const [notes, setNotes] = useState('');
 
+  // Con sesión verificada, trae los datos guardados en la cuenta del cliente (solo rellena campos vacíos).
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!isOpen || !user || !user.emailVerified) return;
+    let cancelled = false;
+    user.getIdToken().then(token => fetch('/api/my/profile', { headers: { Authorization: `Bearer ${token}` } }))
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (cancelled || !data?.found) return;
+        setName(prev => prev || data.name || '');
+        setEmail(prev => prev || data.email || '');
+        setPhone(prev => prev || data.phone || '');
+        setWhatsapp(prev => prev || data.whatsapp || '');
+        setDocumentId(prev => prev || data.document_id || '');
+      })
+      .catch(() => { /* sin datos: el cliente los escribe */ });
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
   // Guarda los datos mientras se escriben para que la próxima reserva ya vengan llenos.
   useEffect(() => {
     try {

@@ -634,6 +634,24 @@ export function createApp(deps: AppDeps) {
   const customerFor = async (customerId: any) => (customerId === undefined ? null : store.get("customers", customerId));
 
   // Customer account: the logged-in guest's own reservations (matched by verified email).
+  // Datos del cliente con sesión para autorrellenar la reserva (solo su propio registro).
+  app.get("/api/my/profile", requireCustomer, async (req, res, next) => {
+    try {
+      const email = (req as any).customerEmail as string;
+      const customers = await store.list("customers", { where: { email_norm: email } });
+      const latest = customers.sort((a, b) => Number(b.id) - Number(a.id))[0];
+      if (!latest) return res.json({ found: false });
+      res.json({
+        found: true,
+        name: latest.name || "",
+        email: latest.email || email,
+        phone: latest.phone || "",
+        whatsapp: latest.whatsapp || "",
+        document_id: latest.document_id || "",
+      });
+    } catch (e) { next(e); }
+  });
+
   app.get("/api/my/reservations", requireCustomer, async (req, res, next) => {
     try {
       const email = (req as any).customerEmail as string;
