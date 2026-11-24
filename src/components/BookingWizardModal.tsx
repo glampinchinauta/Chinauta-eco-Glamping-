@@ -7,6 +7,12 @@ import { useLanguage } from '../context/LanguageContext';
 import { readJson } from '../utils/api';
 import { CHINAUTA_MENU_ITEMS } from './FoodMenuSection';
 import { isColombianHoliday } from '../utils/colombiaHolidays';
+import { auth } from '../lib/firebase';
+
+const SAVED_CUSTOMER_KEY = 'egc_datos_cliente';
+const readSavedCustomer = (): Record<string, string> => {
+  try { return JSON.parse(localStorage.getItem(SAVED_CUSTOMER_KEY) || '{}'); } catch { return {}; }
+};
 
 interface BookingWizardModalProps {
   isOpen: boolean;
@@ -138,12 +144,21 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   }, [isOpen]);
 
   // Customer form
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
-  const [email, setEmail] = useState('');
-  const [documentId, setDocumentId] = useState('');
+  // Autorrellenado: usa los datos de la última reserva de este dispositivo o de la cuenta con sesión.
+  const savedCustomer = readSavedCustomer();
+  const [name, setName] = useState(savedCustomer.name || auth.currentUser?.displayName || '');
+  const [phone, setPhone] = useState(savedCustomer.phone || '');
+  const [whatsapp, setWhatsapp] = useState(savedCustomer.whatsapp || '');
+  const [email, setEmail] = useState(savedCustomer.email || auth.currentUser?.email || '');
+  const [documentId, setDocumentId] = useState(savedCustomer.documentId || '');
   const [notes, setNotes] = useState('');
+
+  // Guarda los datos mientras se escriben para que la próxima reserva ya vengan llenos.
+  useEffect(() => {
+    try {
+      localStorage.setItem(SAVED_CUSTOMER_KEY, JSON.stringify({ name, phone, whatsapp, email, documentId }));
+    } catch { /* almacenamiento bloqueado: no pasa nada */ }
+  }, [name, phone, whatsapp, email, documentId]);
 
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState('Transferencia Bancaria');
