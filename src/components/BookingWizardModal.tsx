@@ -9,6 +9,36 @@ import { CHINAUTA_MENU_ITEMS } from './FoodMenuSection';
 import { isColombianHoliday } from '../utils/colombiaHolidays';
 import { auth } from '../lib/firebase';
 
+// Países para el número de WhatsApp (el código se guarda junto con el número).
+const PHONE_COUNTRIES = [
+  { code: 'CO', name: 'Colombia', dial: '+57', flag: '🇨🇴' },
+  { code: 'US', name: 'Estados Unidos', dial: '+1', flag: '🇺🇸' },
+  { code: 'CA', name: 'Canadá', dial: '+1', flag: '🇨🇦' },
+  { code: 'MX', name: 'México', dial: '+52', flag: '🇲🇽' },
+  { code: 'VE', name: 'Venezuela', dial: '+58', flag: '🇻🇪' },
+  { code: 'EC', name: 'Ecuador', dial: '+593', flag: '🇪🇨' },
+  { code: 'PE', name: 'Perú', dial: '+51', flag: '🇵🇪' },
+  { code: 'CL', name: 'Chile', dial: '+56', flag: '🇨🇱' },
+  { code: 'AR', name: 'Argentina', dial: '+54', flag: '🇦🇷' },
+  { code: 'BR', name: 'Brasil', dial: '+55', flag: '🇧🇷' },
+  { code: 'PA', name: 'Panamá', dial: '+507', flag: '🇵🇦' },
+  { code: 'ES', name: 'España', dial: '+34', flag: '🇪🇸' },
+  { code: 'FR', name: 'Francia', dial: '+33', flag: '🇫🇷' },
+  { code: 'DE', name: 'Alemania', dial: '+49', flag: '🇩🇪' },
+  { code: 'IT', name: 'Italia', dial: '+39', flag: '🇮🇹' },
+  { code: 'GB', name: 'Reino Unido', dial: '+44', flag: '🇬🇧' },
+];
+// Separa un número guardado ("+57 300…") en código de país y número.
+const splitPhone = (full: string): { dial: string; digits: string } => {
+  const clean = (full || '').trim();
+  if (clean.startsWith('+')) {
+    const match = [...PHONE_COUNTRIES].map(c => c.dial).sort((a, b) => b.length - a.length)
+      .find(dial => clean.replace(/\s/g, '').startsWith(dial));
+    if (match) return { dial: match, digits: clean.replace(/\D/g, '').slice(match.length - 1) };
+  }
+  return { dial: '+57', digits: clean.replace(/\D/g, '') };
+};
+
 const SAVED_CUSTOMER_KEY = 'egc_datos_cliente';
 const readSavedCustomer = (): Record<string, string> => {
   try { return JSON.parse(localStorage.getItem(SAVED_CUSTOMER_KEY) || '{}'); } catch { return {}; }
@@ -147,7 +177,9 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   // Autorrellenado: usa los datos de la última reserva de este dispositivo o de la cuenta con sesión.
   const savedCustomer = readSavedCustomer();
   const [name, setName] = useState(savedCustomer.name || auth.currentUser?.displayName || '');
-  const [phone, setPhone] = useState(savedCustomer.phone || '');
+  const savedPhone = splitPhone(savedCustomer.phone || '');
+  const [phoneCountry, setPhoneCountry] = useState(savedCustomer.phoneCountry || savedPhone.dial);
+  const [phone, setPhone] = useState(savedCustomer.phone ? savedPhone.digits : '');
   const [whatsapp, setWhatsapp] = useState(savedCustomer.whatsapp || '');
   const [email, setEmail] = useState(savedCustomer.email || auth.currentUser?.email || '');
   const [documentId, setDocumentId] = useState(savedCustomer.documentId || '');
@@ -164,7 +196,11 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
         if (cancelled || !data?.found) return;
         setName(prev => prev || data.name || '');
         setEmail(prev => prev || data.email || '');
-        setPhone(prev => prev || data.phone || '');
+        if (data.phone && !phone) {
+          const parts = splitPhone(data.phone);
+          setPhoneCountry(parts.dial);
+          setPhone(parts.digits);
+        }
         setWhatsapp(prev => prev || data.whatsapp || '');
         setDocumentId(prev => prev || data.document_id || '');
       })
@@ -175,9 +211,9 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   // Guarda los datos mientras se escriben para que la próxima reserva ya vengan llenos.
   useEffect(() => {
     try {
-      localStorage.setItem(SAVED_CUSTOMER_KEY, JSON.stringify({ name, phone, whatsapp, email, documentId }));
+      localStorage.setItem(SAVED_CUSTOMER_KEY, JSON.stringify({ name, phone: `${phoneCountry}${phone.replace(/\D/g, '')}`, phoneCountry, whatsapp, email, documentId }));
     } catch { /* almacenamiento bloqueado: no pasa nada */ }
-  }, [name, phone, whatsapp, email, documentId]);
+  }, [name, phone, phoneCountry, whatsapp, email, documentId]);
 
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState('Transferencia Bancaria');
@@ -322,6 +358,12 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
       setErrorMsg(t('wizard.required_fields_err'));
       return;
     }
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 6) {
+      setErrorMsg('Escribe un número de WhatsApp válido, sin el código de país.');
+      return;
+    }
+    const fullPhone = `${phoneCountry}${digits}`;
     if (!acceptTerms || !isAdult) {
       setErrorMsg(language === 'en'
         ? 'Please accept the terms and confirm you are over 18 to continue.'
@@ -359,8 +401,8 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           },
           customer: {
             name,
-            phone,
-            whatsapp: whatsapp || phone,
+            phone: fullPhone,
+            whatsapp: fullPhone,
             email,
             document_id: documentId,
             notes
@@ -925,14 +967,29 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">{t('wizard.phone')}</label>
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    placeholder={t('wizard.phone_ph')}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium"
-                    required
-                  />
+                  <div className="flex gap-2">
+                    <select
+                      aria-label="Código de país"
+                      value={phoneCountry}
+                      onChange={e => setPhoneCountry(e.target.value)}
+                      className="w-40 px-2 py-3 rounded-xl border border-slate-200 text-sm font-medium bg-white"
+                    >
+                      {PHONE_COUNTRIES.map(c => (
+                        <option key={c.code} value={c.dial}>{c.flag} {c.name} ({c.dial})</option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      autoComplete="tel-national"
+                      inputMode="tel"
+                      value={phone}
+                      onChange={e => setPhone(e.target.value.replace(/[^\d\s()-]/g, ''))}
+                      placeholder={t('wizard.phone_ph')}
+                      className="flex-1 min-w-0 px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium"
+                      required
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">Este número se usa para WhatsApp. Elige el país antes de escribir el número.</p>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">{t('wizard.doc_id')}</label>
