@@ -436,6 +436,35 @@ test("el administrador da y quita acceso de recepción desde el panel (sin tocar
   assert.equal((await call("GET", "/api/auth/me", { auth: token(nueva) })).status, 401);
 });
 
+test("recepción aplica un código en una reserva manual y la reserva bloquea el domo, pero no crea ni cambia códigos", async () => {
+  const sub = token(SUBADMIN);
+  // el administrador crea el código; recepción no puede crearlo ni apagarlo
+  const created = await call("POST", "/api/promo-codes", { auth: admin(), body: { code: "equipo15", percent: 15 } });
+  assert.equal(created.status, 200);
+  assert.equal((await call("POST", "/api/promo-codes", { auth: sub, body: { code: "PROPIO", percent: 20 } })).status, 403);
+  assert.equal((await call("PUT", "/api/promo-codes/" + created.data.id, { auth: sub, body: { code: "EQUIPO15", percent: 20, active: 1 } })).status, 403);
+  assert.equal((await call("GET", "/api/promo-codes/validate?code=equipo15")).data.percent, 15);
+  // reserva manual (sábado, sin descuento de entre semana) con el código: 15% sobre la habitación
+  const sat = nextDay(6, 60, 3);
+  const made = await call("POST", "/api/reservations", { auth: sub, body: {
+    dome_id: 1, check_in: sat, check_out: plus(sat, 1), guests: 2, consent, customer: guest(777), promo_code: "EQUIPO15", user_name: "Ana",
+  } });
+  assert.equal(made.status, 200);
+  const dome = (await call("GET", "/api/domes")).data.find((d: any) => d.id === 1);
+  const row = (await call("GET", "/api/reservations", { auth: sub })).data.find((r: any) => r.reservation_code === made.data.reservation_code);
+  assert.equal(row.total_amount, dome.price_per_night - Math.round(dome.price_per_night * 0.15));
+  // recepción la deja confirmada
+  assert.equal((await call("PUT", `/api/reservations/${made.data.reservation_id}/status`, { auth: sub, body: { status: "Confirmada", user_name: "Ana" } })).status, 200);
+  // ese domo queda bloqueado para esas fechas: nadie más puede reservarlo
+  const again = await book(1, sat, plus(sat, 1));
+  assert.equal(again.status, 409);
+  const avail = (await call("GET", `/api/availability?checkIn=${sat}&checkOut=${plus(sat, 1)}`)).data;
+  const d1 = avail.find((d: any) => d.id === 1);
+  assert.equal(d1.isAvailable, false);
+  assert.equal(d1.reason, "Reservado");
+  assert.equal(avail.find((d: any) => d.id === 2).isAvailable, true); // los demás domos siguen libres
+});
+
 test("no se puede dar acceso con un correo inválido ni repetir a un administrador", async () => {
   assert.equal((await call("POST", "/api/staff", { auth: admin(), body: { email: "no-es-correo" } })).status, 400);
   assert.equal((await call("POST", "/api/staff", { auth: admin(), body: { email: ADMIN } })).status, 400);
