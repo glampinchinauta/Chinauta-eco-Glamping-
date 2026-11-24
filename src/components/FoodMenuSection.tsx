@@ -51,13 +51,10 @@ export const FoodMenuSection: React.FC<FoodMenuSectionProps> = ({ onOpenBooking 
     };
   });
 
+  // El menú que ven los clientes es siempre el aprobado (src/data/defaultMenu.ts, con sus fotos propias).
+  // Ya no se carga desde la base de datos, para que los platos viejos no vuelvan a aparecer.
   useEffect(() => {
-    fetch('/api/menu')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) setMenuItems(normalizeMenu(data));
-      })
-      .catch(() => {});
+    setMenuItems(DEFAULT_MENU_ITEMS);
   }, []);
 
   // Solo administrador: vuelve a dejar el menú aprobado (reemplaza los platos guardados).
