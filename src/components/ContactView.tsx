@@ -117,10 +117,10 @@ export const ContactView: React.FC = () => {
       <div className="max-w-4xl mx-auto rounded-3xl overflow-hidden shadow-xl border border-slate-200">
         <ImageCarousel
           images={[
-            'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=1200&q=80',
-            'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
-            'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1200&q=80',
-            'https://images.unsplash.com/photo-1587061949409-02df41d5e562?auto=format&fit=crop&w=1200&q=80'
+            '/assets/images/dome_1_1791403584294.jpg',
+            '/assets/images/dome_2_1791404802997.jpg',
+            '/assets/images/dome_4_1791404217055.jpg',
+            '/assets/images/dome_5_1791404596425.jpg'
           ]}
           alt={t('contact.carousel_alt')}
           className="h-72 sm:h-96"
