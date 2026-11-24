@@ -898,8 +898,19 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                             value={choice.qty}
                             onChange={e => {
                               const q = Math.max(0, Number(e.target.value) || 0);
-                              setFoodChoice(String(item.id), { qty: q });
-                              if (foodSplits[String(item.id)]) updateSplits(String(item.id), rebalanceSplits(foodSplits[String(item.id)], q));
+                              const id = String(item.id);
+                              const current = foodSplits[id];
+                              if (q > 1) {
+                                // Con varias porciones, cada una puede tener su propia carne y preparación.
+                                const rows = current ?? [{ meat: choice.meat, preparation: choice.preparation, qty: choice.qty || q }];
+                                setFoodChoice(id, { qty: q });
+                                updateSplits(id, rebalanceSplits(rows, q));
+                              } else {
+                                // Una sola porción: vuelve a la selección única con la primera opción elegida.
+                                const first = current?.[0];
+                                setFoodChoice(id, { qty: q, meat: first?.meat ?? choice.meat, preparation: first?.preparation ?? choice.preparation });
+                                if (current) setFoodSplits(prev => { const n = { ...prev }; delete n[id]; return n; });
+                              }
                             }}
                             className="w-20 px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium"
                           />
@@ -937,26 +948,15 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                       )}
                       {active && choice.qty > 1 && (() => {
                         const id = String(item.id);
-                        const split = foodSplits[id] !== undefined;
-                        const rows = foodSplits[id] ?? [];
+                        const split = true;
+                        const rows = foodSplits[id] ?? [{ meat: choice.meat, preparation: choice.preparation, qty: choice.qty }];
                         const assigned = rows.reduce((s, r) => s + r.qty, 0);
-                        const ok = split && assigned === choice.qty;
+                        const ok = assigned === choice.qty;
                         return (
                           <div className="space-y-2 rounded-xl border border-emerald-200 bg-white p-3">
-                            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={split}
-                                onChange={e => {
-                                  if (e.target.checked) {
-                                    updateSplits(id, [{ meat: choice.meat, preparation: choice.preparation, qty: choice.qty }]);
-                                  } else {
-                                    setFoodSplits(prev => { const n = { ...prev }; delete n[id]; return n; });
-                                  }
-                                }}
-                              />
-                              {language === 'en' ? 'Different meats or preparations for these portions' : 'Varias carnes o preparaciones para estas porciones'}
-                            </label>
+                            <p className="text-xs font-semibold text-slate-700">
+                              {language === 'en' ? 'Each portion can have its own meat and preparation' : 'Cada porción puede tener su propia carne y preparación'}
+                            </p>
                             {split && (
                               <>
                                 {rows.map((r, idx) => (
