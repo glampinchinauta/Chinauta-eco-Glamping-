@@ -106,7 +106,7 @@ test("las rutas de administración exigen un administrador", async () => {
 });
 test("los ajustes iniciales usan el WhatsApp real", async () => {
   const r = await call("GET", "/api/settings", { auth: admin() });
-  assert.equal(r.data.whatsapp, "+57 321 310 9331");
+  assert.equal(r.data.whatsapp, "+57 324 296 9426");
 });
 
 // ---------------------------------------------------------------- reservas y precios
