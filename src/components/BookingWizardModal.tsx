@@ -296,6 +296,17 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
       return splitRows(String(i.id), c).map(r =>
         `${i.title}${r.meat ? ` - ${r.meat}` : ''}${r.preparation ? ` (${r.preparation})` : ''} x${r.qty}`);
     });
+  // Resumen corto para la pantalla: solo carne/plato y preparación (ej. "Carne de res gratinada, Pechuga asada a la parrilla").
+  const foodShortLabels: string[] = bbqOnly ? [] : menuItems
+    .filter(i => (foodChoices[String(i.id)]?.qty || 0) > 0)
+    .flatMap(i => {
+      const c = foodChoices[String(i.id)];
+      return splitRows(String(i.id), c).map(r => {
+        const prep = (r.preparation || '').toLowerCase();
+        const base = r.meat || (prep ? i.title.split(' ')[0] : i.title);
+        return [base, prep].filter(Boolean).join(' ');
+      });
+    });
   const foodMissingNames: string[] = bbqOnly ? [] : menuItems
     .filter(i => {
       const c = foodChoices[String(i.id)];
@@ -1030,7 +1041,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
 
               <p className="text-xs text-slate-500">
                 {language === 'en' ? 'Selected dishes: ' : 'Platos seleccionados: '}
-                {foodSummary.length > 0 ? foodSummary.join(', ') : (language === 'en' ? 'none' : 'ninguno')}
+                {foodShortLabels.length > 0 ? foodShortLabels.join(', ') : (language === 'en' ? 'none' : 'ninguno')}
               </p>
               <p className="text-sm font-bold text-slate-900">
                 {language === 'en' ? 'Meals (included in the total): ' : 'Comida (incluida en el total): '}
