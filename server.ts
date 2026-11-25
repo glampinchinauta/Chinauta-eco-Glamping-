@@ -472,6 +472,14 @@ if (domeCount.count === 0) {
   console.log("Database seeded successfully.");
 }
 
+// Full booking detail (food, extras, prices) stored as JSON next to each reservation.
+runOnce("reservations_details_v1", () => {
+  const cols = db.prepare(`PRAGMA table_info(reservations)`).all() as any[];
+  if (!cols.some((c) => c.name === "details")) {
+    db.exec(`ALTER TABLE reservations ADD COLUMN details TEXT;`);
+  }
+});
+
 // Databases created earlier still carry the published default password "admin123". Replace it once.
 runOnce("rotate_default_passwords_v1", () => {
   const rows = db.prepare(`SELECT id, password_hash FROM users`).all() as any[];
@@ -856,6 +864,90 @@ try {
   }
 } catch (e) {
   console.warn("Menu seed notice:", e);
+}
+
+// ---------- Booking summary (single source for WhatsApp and the admin panel) ----------
+function clipText(value: unknown, max: number): string {
+  return String(value ?? "").trim().slice(0, max);
+}
+
+function formatCOP(n: unknown): string {
+  return "$" + Math.round(Number(n) || 0).toLocaleString("es-CO");
+}
+
+// Database timestamps are UTC ("2026-11-25 21:02:00"). Show them in Colombia time.
+function formatBogota(sqlUtc: unknown): string {
+  const d = new Date(String(sqlUtc || "").replace(" ", "T") + "Z");
+  if (isNaN(d.getTime())) return String(sqlUtc || "-");
+  return d.toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "medium", timeStyle: "short" });
+}
+
+function bookingSummary(reservationId: number): string {
+  const r = db.prepare(`
+    SELECT r.*, c.name AS customer_name, c.phone AS customer_phone, c.whatsapp AS customer_whatsapp,
+           c.email AS customer_email, c.document_id AS customer_document, d.name AS dome_name, d.capacity AS dome_capacity
+    FROM reservations r
+    JOIN customers c ON r.customer_id = c.id
+    JOIN domes d ON r.dome_id = d.id
+    WHERE r.id = ?
+  `).get(reservationId) as any;
+  if (!r) return "";
+
+  let det: any = null;
+  try { det = r.details ? JSON.parse(r.details) : null; } catch { det = null; }
+
+  const lines: string[] = [];
+  lines.push(`RESERVA ${r.reservation_code}`);
+  lines.push(`Hora de la reserva: ${formatBogota(r.created_at)} (hora Colombia)`);
+  lines.push(`Estado: ${r.status} · Pago: ${r.payment_status}`);
+  lines.push("");
+  lines.push("HUÉSPED");
+  lines.push(`Nombre: ${det?.customer?.name || r.customer_name || "-"}`);
+  lines.push(`Documento: ${det?.customer?.document_id || r.customer_document || "-"}`);
+  lines.push(`Teléfono: ${det?.customer?.phone || r.customer_phone || "-"}`);
+  lines.push(`WhatsApp: ${det?.customer?.whatsapp || r.customer_whatsapp || "-"}`);
+  lines.push(`Correo: ${det?.customer?.email || r.customer_email || "-"}`);
+  lines.push("");
+  lines.push("ESTADÍA");
+  lines.push(`Tipo: ${det?.booking_type || "Hospedaje"}`);
+  lines.push(`Domo: ${r.dome_name}`);
+  lines.push(`Entrada: ${r.check_in}   Salida: ${r.check_out}${det?.nights ? `   Noches: ${det.nights}` : ""}`);
+  lines.push(`Huéspedes: ${r.guests} (capacidad del domo: ${r.dome_capacity})`);
+  lines.push(`Mascotas: ${det?.pets ?? 0}`);
+  lines.push("");
+  lines.push("EXTRAS");
+  const addonList: any[] = det?.addons || [];
+  if (addonList.length === 0) lines.push("- Ninguno");
+  for (const a of addonList) lines.push(`- ${a.name}: ${formatCOP(a.price)}`);
+  if (det?.decor_message) lines.push(`Mensaje para la decoración: "${det.decor_message}"`);
+  lines.push("");
+  lines.push("COMIDA Y ZONA BBQ");
+  if (det?.bbq_zone) lines.push(`- Zona BBQ con comida propia: ${formatCOP(det.bbq_fee)}`);
+  const foodList: any[] = det?.food || [];
+  if (foodList.length === 0 && !det?.bbq_zone) lines.push("- Ninguna");
+  for (const f of foodList) {
+    const choices = [f.meat, f.preparation, f.side ? `acompañamiento: ${f.side}` : ""].filter(Boolean).join(" · ");
+    lines.push(`- ${f.qty} x ${f.name}${choices ? ` (${choices})` : ""}: ${formatCOP(f.subtotal)}`);
+  }
+  lines.push("");
+  lines.push("VALORES");
+  if (det) {
+    lines.push(`Hospedaje: ${formatCOP(det.base_price)}`);
+    if (det.extra_guests_fee) lines.push(`Huéspedes adicionales: ${formatCOP(det.extra_guests_fee)}`);
+    if (det.pets_fee) lines.push(`Mascotas: ${formatCOP(det.pets_fee)}`);
+    if (det.addons_fee) lines.push(`Extras: ${formatCOP(det.addons_fee)}`);
+    if (det.food_fee) lines.push(`Comida: ${formatCOP(det.food_fee)}`);
+    if (det.bbq_fee) lines.push(`Zona BBQ: ${formatCOP(det.bbq_fee)}`);
+    if (det.discount_amount > 0) {
+      lines.push(`Descuento ${det.discount_percent}%${det.promo_code ? ` (código ${det.promo_code})` : ""}: -${formatCOP(det.discount_amount)}`);
+    }
+  }
+  lines.push(`TOTAL: ${formatCOP(r.total_amount)}`);
+  lines.push(`Pagado: ${formatCOP(r.amount_paid)} · Saldo pendiente: ${formatCOP(r.amount_pending)}`);
+  lines.push("");
+  lines.push(`NOTAS DEL HUÉSPED: ${det ? (det.customer_notes || "-") : (r.notes || "-")}`);
+  if (!det) lines.push("(Reserva anterior: sin detalle estructurado. Notas originales arriba.)");
+  return lines.join("\n");
 }
 
 // Helper for logging audit
@@ -1365,7 +1457,7 @@ app.get("/api/reservations", (req, res) => {
 });
 
 app.post("/api/reservations", (req, res) => {
-  const { customer, dome_id, check_in, guests, notes, user_name, promo_code, bbq_zone, booking_type, pets, addons, food_items } = req.body;
+  const { customer, dome_id, check_in, guests, notes, user_name, promo_code, bbq_zone, booking_type, pets, addons, food_items, decor_message } = req.body;
   const isDayPass = booking_type === 'pasadia';
   let check_out: string = req.body.check_out;
   if (isDayPass && check_in) {
@@ -1432,20 +1524,73 @@ app.post("/api/reservations", (req, res) => {
     const discount = computeDiscount(check_in, serverTotal, promo_code);
     // Food from the menu: priced from the database, not discounted
     let foodFee = 0;
+    const foodDetails: any[] = [];
     if (!bbq_zone && Array.isArray(food_items)) {
       for (const item of food_items) {
         const qty = Math.max(0, Math.min(50, Number(item?.qty) || 0));
         if (!qty) continue;
-        const row = db.prepare(`SELECT price FROM menu_items WHERE id = ?`).get(Number(item?.id)) as any;
-        if (row) foodFee += Number(row.price || 0) * qty;
+        const row = db.prepare(`SELECT title, price FROM menu_items WHERE id = ?`).get(Number(item?.id)) as any;
+        if (row) {
+          const subtotal = Number(row.price || 0) * qty;
+          foodFee += subtotal;
+          // Choices come from the guest; the name and price come from the database.
+          foodDetails.push({
+            name: String(row.title),
+            qty,
+            unit_price: Number(row.price || 0),
+            subtotal,
+            meat: clipText(item?.meat, 60),
+            preparation: clipText(item?.preparation, 60),
+            side: clipText(item?.side, 60),
+          });
+        }
       }
     }
+    const addonList: { name: string; price: number }[] = [
+      ...(addons?.bonoTime ? [{ name: "Bono de tiempo", price: 50000 }] : []),
+      ...(addons?.decorVip ? [{ name: "Decoración VIP", price: 150000 }] : (addons?.decorBasic ? [{ name: "Decoración básica", price: 75000 }] : [])),
+      ...(addons?.coupleMassage ? [{ name: "Masaje en pareja", price: 250000 }] : []),
+    ];
     // Zona BBQ fee ($20.000) when the guest brings their own food; not discounted
     const bbqFee = bbq_zone ? 20000 : 0;
     const finalTotal = serverTotal - discount.amount + foodFee + bbqFee;
     const discountNote = discount.amount > 0
       ? `Descuento ${discount.percent}% (-$${discount.amount})${promo_code ? ` código ${String(promo_code).trim().toUpperCase()}` : ""}. `
       : "";
+
+    // Full booking detail, stored with the reservation so the admin panel and WhatsApp show exactly what was ordered.
+    const bookingDetails = {
+      booking_type: isDayPass ? "Pasadía (1 día)" : "Hospedaje",
+      dome_name: dome.name,
+      dome_capacity: dome.capacity,
+      check_in,
+      check_out,
+      nights,
+      guests: numGuests,
+      base_price: basePrice,
+      extra_guests_fee: extraPersonsFee,
+      pets: petCount,
+      pets_fee: petsFee,
+      addons: addonList,
+      addons_fee: addonsFee,
+      decor_message: addons?.decorVip || addons?.decorBasic ? clipText(decor_message, 300) : "",
+      bbq_zone: !!bbq_zone,
+      bbq_fee: bbqFee,
+      food: foodDetails,
+      food_fee: foodFee,
+      promo_code: promo_code ? String(promo_code).trim().toUpperCase() : "",
+      discount_percent: discount.percent,
+      discount_amount: discount.amount,
+      total: finalTotal,
+      customer_notes: clipText(notes, 1000),
+      customer: {
+        name: clipText(customer.name, 120),
+        document_id: clipText(customer.document_id, 40),
+        phone: clipText(customer.phone, 40),
+        whatsapp: clipText(customer.whatsapp, 40),
+        email: clipText(customer.email, 120),
+      },
+    };
 
     // 2. Check for overlapping reservations: check_in < existingCheckOut AND check_out > existingCheckIn
     const overlap = db.prepare(`
@@ -1517,8 +1662,8 @@ app.post("/api/reservations", (req, res) => {
     const resStmt = db.prepare(`
       INSERT INTO reservations (
         reservation_code, customer_id, dome_id, check_in, check_out, guests, 
-        status, payment_status, total_amount, amount_paid, amount_pending, notes, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, 'Pendiente', 'Pendiente', ?, 0, ?, ?, ?)
+        status, payment_status, total_amount, amount_paid, amount_pending, notes, created_by, details
+      ) VALUES (?, ?, ?, ?, ?, ?, 'Pendiente', 'Pendiente', ?, 0, ?, ?, ?, ?)
     `);
 
     const resInfo = resStmt.run(
@@ -1531,7 +1676,8 @@ app.post("/api/reservations", (req, res) => {
       finalTotal,
       finalTotal,
       discountNote + (notes || ''),
-      user_name || customer.name || 'Portal Web'
+      user_name || customer.name || 'Portal Web',
+      JSON.stringify(bookingDetails)
     );
 
     db.exec("COMMIT;");
@@ -1541,7 +1687,8 @@ app.post("/api/reservations", (req, res) => {
     res.json({
       success: true,
       reservation_code: randomCode,
-      reservation_id: resInfo.lastInsertRowid
+      reservation_id: resInfo.lastInsertRowid,
+      summary: bookingSummary(Number(resInfo.lastInsertRowid)),
     });
 
   } catch (err: any) {
@@ -1549,6 +1696,13 @@ app.post("/api/reservations", (req, res) => {
     console.error("Reservation transaction error:", err);
     res.status(500).json({ error: "Error interno procesando la reserva: " + err.message });
   }
+});
+
+// Admin: the full booking as text (same text the WhatsApp message uses).
+app.get("/api/reservations/:id/summary", (req, res) => {
+  const text = bookingSummary(Number(req.params.id));
+  if (!text) return res.status(404).json({ error: "Reserva no encontrada." });
+  res.type("text/plain; charset=utf-8").send(text);
 });
 
 app.put("/api/reservations/:id/status", (req, res) => {
