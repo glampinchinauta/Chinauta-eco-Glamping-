@@ -971,12 +971,12 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                             {split && (
                               <>
                                 {rows.map((r, idx) => (
-                                  <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                                  <div key={idx} className="flex flex-col sm:grid sm:grid-cols-12 gap-2 items-stretch sm:items-center">
                                     {groups.meats.length > 0 && (
                                       <select
                                         value={r.meat}
                                         onChange={e => updateSplits(id, rows.map((x, i) => i === idx ? { ...x, meat: e.target.value } : x))}
-                                        className="col-span-5 px-2 py-2 rounded-xl border border-slate-200 text-xs font-medium bg-white"
+                                        className="w-full sm:col-span-5 min-h-11 px-3 py-3 sm:py-2 rounded-xl border border-slate-200 text-sm sm:text-xs font-medium bg-white"
                                       >
                                         <option value="">{language === 'en' ? 'Choose meat' : 'Carne'}</option>
                                         {groups.meats.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -986,7 +986,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                                       <select
                                         value={r.preparation}
                                         onChange={e => updateSplits(id, rows.map((x, i) => i === idx ? { ...x, preparation: e.target.value } : x))}
-                                        className="col-span-4 px-2 py-2 rounded-xl border border-slate-200 text-xs font-medium bg-white"
+                                        className="w-full sm:col-span-4 min-h-11 px-3 py-3 sm:py-2 rounded-xl border border-slate-200 text-sm sm:text-xs font-medium bg-white"
                                       >
                                         <option value="">{language === 'en' ? 'Choose preparation' : 'Preparación'}</option>
                                         {groups.styles.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -998,13 +998,13 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                                       max={choice.qty}
                                       value={r.qty}
                                       onChange={e => updateSplits(id, rows.map((x, i) => i === idx ? { ...x, qty: Math.max(0, Number(e.target.value) || 0) } : x))}
-                                      className="col-span-2 px-2 py-2 rounded-xl border border-slate-200 text-xs font-medium"
+                                      className="w-full sm:col-span-2 min-h-11 px-3 py-3 sm:py-2 rounded-xl border border-slate-200 text-sm sm:text-xs font-medium"
                                     />
                                     <button
                                       type="button"
                                       disabled={rows.length === 1}
                                       onClick={() => updateSplits(id, rows.filter((_, i) => i !== idx))}
-                                      className="col-span-1 text-xs text-red-600 disabled:opacity-30"
+                                      className="min-h-11 sm:col-span-1 text-sm text-red-600 disabled:opacity-30"
                                       aria-label="Quitar"
                                     >✕</button>
                                   </div>
