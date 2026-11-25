@@ -6,6 +6,7 @@ import {
   Card, EmptyState, LoadingBlocks, SegmentedTabs, StatusBadge, toneFor,
   addDays, bogotaToday, fmtCOP, nightsBetween, shortDate, whatsappLink, EASE,
 } from './ui';
+import { ReservationDetailModal, formatBogota } from './ReservationDetailModal';
 
 interface Props {
   reservations: Reservation[];
@@ -23,6 +24,7 @@ const IN_HOUSE = ['Hospedado', 'Check-in'];
 
 export const ReservationsView: React.FC<Props> = ({ reservations, domes, ready, onStatus, onCollect, onNew }) => {
   const today = bogotaToday();
+  const [detailResv, setDetailResv] = useState<Reservation | null>(null);
   const [tab, setTab] = useState<Tab>('current');
   const [query, setQuery] = useState('');
   const [domeId, setDomeId] = useState('ALL');
@@ -81,6 +83,13 @@ export const ReservationsView: React.FC<Props> = ({ reservations, domes, ready, 
 
   return (
     <div className="space-y-5">
+      <ReservationDetailModal
+        reservationId={detailResv ? detailResv.id : null}
+        code={detailResv?.reservation_code}
+        customerWhatsapp={detailResv?.customer_whatsapp}
+        customerPhone={detailResv?.customer_phone}
+        onClose={() => setDetailResv(null)}
+      />
       {/* Filtros */}
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -183,6 +192,7 @@ export const ReservationsView: React.FC<Props> = ({ reservations, domes, ready, 
                               <span className="inline-flex items-center gap-1"><Moon className="w-3.5 h-3.5" />{nightsBetween(r.check_in, r.check_out)} {nightsBetween(r.check_in, r.check_out) === 1 ? 'noche' : 'noches'}</span>
                               <span className="inline-flex items-center gap-1"><Users className="w-3.5 h-3.5" />{r.guests} {r.guests === 1 ? 'persona' : 'personas'}</span>
                               <span className="font-mono">{r.reservation_code}</span>
+                              <span>Reservada: {formatBogota(r.created_at)}</span>
                             </p>
                           </div>
 
@@ -208,6 +218,7 @@ export const ReservationsView: React.FC<Props> = ({ reservations, domes, ready, 
                             {owes && (
                               <button onClick={() => onCollect(r)} className="h-10 px-4 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 egc-press">Cobrar</button>
                             )}
+                            <button onClick={() => setDetailResv(r)} className="h-10 px-3 rounded-xl border border-slate-200 text-sm font-semibold text-emerald-800 hover:bg-emerald-50 egc-press">Ver detalle</button>
                             {wa && (
                               <a href={wa} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp a ${r.customer_name}`} className="w-10 h-10 rounded-xl border border-slate-200 text-emerald-600 hover:bg-emerald-50 flex items-center justify-center egc-press">
                                 <MessageCircle className="w-5 h-5" />

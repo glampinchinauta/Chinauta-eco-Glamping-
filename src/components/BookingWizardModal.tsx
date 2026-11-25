@@ -8,6 +8,7 @@ import { readJson } from '../utils/api';
 import { CHINAUTA_MENU_ITEMS } from './FoodMenuSection';
 import { isColombianHoliday } from '../utils/colombiaHolidays';
 import { auth } from '../lib/firebase';
+import { whatsappLink } from '../config/business';
 
 // Países para el número de WhatsApp (el código se guarda junto con el número).
 const PHONE_COUNTRIES = [
@@ -233,6 +234,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmedCode, setConfirmedCode] = useState('');
+  const [confirmedSummary, setConfirmedSummary] = useState('');
 
   // Consent boxes. Always unchecked when the wizard opens: the guest must choose each of them.
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -244,6 +246,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
     if (isOpen) {
       setStep(1);
       setConfirmedCode('');
+      setConfirmedSummary('');
       setErrorMsg('');
       setAcceptTerms(false);
       setIsAdult(false);
@@ -417,12 +420,16 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           total_amount: totalAmount,
           promo_code: appliedPromo?.code || null,
           bbq_zone: bbqOnly,
+          decor_message: (selectedAddons.decorVip || selectedAddons.decorBasic) ? customMessage : '',
           booking_type: bookingType,
           pets: hasPet ? petCount : 0,
           addons: selectedAddons,
-          food_items: (Object.entries(foodChoices) as [string, { qty: number }][])
+          // One entry per meat/preparation group: a dish split between several choices sends each part with its own choices.
+          food_items: (Object.entries(foodChoices) as [string, { qty: number; meat: string; preparation: string; side: string }][])
             .filter(([, c]) => (c?.qty || 0) > 0)
-            .map(([id, c]) => ({ id: Number(id), qty: c.qty })),
+            .flatMap(([id, c]) => splitRows(id, c)
+              .filter(r => r.qty > 0)
+              .map(r => ({ id: Number(id), qty: r.qty, meat: r.meat || '', preparation: r.preparation || '', side: c.side || '' }))),
           notes:`[${bookingType.toUpperCase()}] Mascotas: ${hasPet ? petCount : 0}. Addons: ${Object.entries(selectedAddons).filter(([_,v]) => v).map(([k]) => k).join(', ')}. Mensaje decorativo: ${customMessage}. Comida: ${bbqOnly ? 'No (usará zona BBQ con comida propia)' : (foodSummary.join('; ') || 'No seleccionada')}. Notas: ${notes}`,
           consent: {
             terms: acceptTerms,
@@ -446,6 +453,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
       }
 
       setConfirmedCode(data.reservation_code);
+      setConfirmedSummary(data.summary || '');
       setStep(9);
       onSuccess(data.reservation_code);
     } catch (err: any) {
@@ -1254,7 +1262,9 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                 </div>
               </div>
               <a
-                href={`https://wa.me/573242969426?text=${encodeURIComponent(`Hola, acabo de hacer la reserva ${confirmedCode} en Eco Glamping Chinauta (${selectedDome?.name || ''}, ${checkIn} al ${checkOut}). Quedo atento(a) a la confirmación.`)}`}
+                href={whatsappLink(confirmedSummary
+                  ? `${language === 'en' ? 'Hi, I just made a booking. Here are the details:' : 'Hola, acabo de hacer una reserva. Este es el detalle:'}\n\n${confirmedSummary}`
+                  : `Hola, acabo de hacer la reserva ${confirmedCode} en Eco Glamping Chinauta (${selectedDome?.name || ''}, ${checkIn} al ${checkOut}). Quedo atento(a) a la confirmación.`)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center w-full py-3.5 rounded-2xl bg-emerald-600 text-white font-semibold text-sm shadow-lg hover:bg-emerald-700 transition-colors"
