@@ -15,6 +15,7 @@ import {
   BarChart, Bar, Legend, PieChart, Pie, Cell, LineChart, Line 
 } from 'recharts';
 import { useLanguage } from '../context/LanguageContext';
+import { ReservationDetailModal, formatBogota } from './ReservationDetailModal';
 
 interface AdminDashboardProps {
   user: AdminUser;
@@ -24,6 +25,7 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
   const { t } = useLanguage();
   const [activeMenu, setActiveMenu] = useState('dashboard');
+  const [detailResv, setDetailResv] = useState<any>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [metrics, setMetrics] = useState<any>(null);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
@@ -281,7 +283,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
-      
+      <ReservationDetailModal
+        reservationId={detailResv ? detailResv.id : null}
+        code={detailResv?.reservation_code}
+        customerWhatsapp={detailResv?.customer_whatsapp}
+        customerPhone={detailResv?.customer_phone}
+        onClose={() => setDetailResv(null)}
+      />
+
       {/* Sidebar */}
       <aside className="w-full md:w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0">
         <div>
@@ -1091,7 +1100,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                             <tbody className="divide-y divide-slate-100 text-sm">
                               {resvsInGroup.map(resv => (
                                 <tr key={resv.id} className="hover:bg-slate-50/80 transition-colors">
-                                  <td className="p-4 font-mono font-bold text-emerald-700">{resv.reservation_code}</td>
+                                  <td className="p-4 font-mono font-bold text-emerald-700">
+                                    {resv.reservation_code}
+                                    <div className="font-sans font-normal text-[11px] text-slate-500">Reservada: {formatBogota(resv.created_at)}</div>
+                                  </td>
                                   <td className="p-4 font-medium text-slate-900">
                                     {resv.customer_name}
                                     <div className="text-xs text-slate-500">{resv.customer_phone}</div>
@@ -1113,6 +1125,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                                   </td>
                                   <td className="p-4 font-bold text-slate-900">${resv.total_amount?.toLocaleString('es-CO')}</td>
                                   <td className="p-4 text-right space-x-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setDetailResv(resv)}
+                                      className="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200 hover:bg-emerald-100"
+                                    >
+                                      Ver detalle
+                                    </button>
                                     <select
                                       value={resv.status}
                                       onChange={e => handleUpdateStatus(resv.id, e.target.value)}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Search, Phone } from 'lucide-react';
 import { Reservation } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { whatsappLink } from '../config/business';
 
 interface MyReservationsModalProps {
   isOpen: boolean;
@@ -130,7 +131,7 @@ export const MyReservationsModal: React.FC<MyReservationsModalProps> = ({ isOpen
                     <div className="flex items-center justify-between pt-2">
                       <span className="text-xs font-medium text-slate-600">{t('my_reservations.payment_status')} <strong>{resv.payment_status}</strong></span>
                       <a
-                        href={`https://wa.me/573101234567?text=Hola,%20quisiera%20consultar%20sobre%20mi%20reserva%20${resv.reservation_code}`}
+                        href={whatsappLink(`Hola, quisiera consultar sobre mi reserva ${resv.reservation_code}`)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"

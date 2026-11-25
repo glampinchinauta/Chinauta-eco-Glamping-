@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, Compass, CheckCircle2, ArrowRight, ArrowLeft, ShieldCheck, CreditCard, Sparkles, Heart, Sun, Clock, Dog, Wine } from 'lucide-react';
 import { Dome } from '../types';
 import { readJson } from '../lib/api';
+import { BUSINESS_WHATSAPP, whatsappLink } from '../config/business';
 import { ImageCarousel } from './ImageCarousel';
 import { getDomeImages, DEFAULT_DOMES } from '../utils/domeImages';
 import { useLanguage } from '../context/LanguageContext';
@@ -153,6 +154,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmedCode, setConfirmedCode] = useState('');
+  const [confirmedSummary, setConfirmedSummary] = useState('');
 
   // Reset the wizard only when it opens. (Before, this also ran on every date change and sent the guest back to step 1.)
   useEffect(() => {
@@ -300,12 +302,13 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           total_amount: totalAmount,
           promo_code: appliedPromo?.code || null,
           bbq_zone: bbqOnly,
+          decor_message: (selectedAddons.decorVip || selectedAddons.decorBasic) ? customMessage : '',
           booking_type: bookingType,
           pets: hasPet ? petCount : 0,
           addons: selectedAddons,
-          food_items: (Object.entries(foodChoices) as [string, { qty: number }][])
+          food_items: (Object.entries(foodChoices) as [string, { qty: number; meat: string; preparation: string; side: string }][])
             .filter(([, c]) => (c?.qty || 0) > 0)
-            .map(([id, c]) => ({ id: Number(id), qty: c.qty })),
+            .map(([id, c]) => ({ id: Number(id), qty: c.qty, meat: c.meat || '', preparation: c.preparation || '', side: c.side || '' })),
           notes:`[${bookingType.toUpperCase()}] Mascotas: ${hasPet ? petCount : 0}. Addons: ${Object.entries(selectedAddons).filter(([_,v]) => v).map(([k]) => k).join(', ')}. Mensaje decorativo: ${customMessage}. Comida: ${bbqOnly ? 'No (usará zona BBQ con comida propia)' : (foodSummary.join('; ') || 'No seleccionada')}. Notas: ${notes}`,
           customer: {
             name,
@@ -324,6 +327,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
       }
 
       setConfirmedCode(data.reservation_code);
+      setConfirmedSummary(data.summary || '');
       setStep(9);
       onSuccess(data.reservation_code);
     } catch (err: any) {
@@ -973,6 +977,17 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                   {t('wizard.step8_code_label')} <strong className="text-emerald-700 font-mono text-base">{confirmedCode}</strong>.
                 </p>
               </div>
+
+              {confirmedSummary && (
+                <a
+                  href={whatsappLink(`${language === 'en' ? 'Hi, I just made a booking. Here are the details:' : 'Hola, acabo de hacer una reserva. Este es el detalle:'}\n\n${confirmedSummary}`, BUSINESS_WHATSAPP)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm"
+                >
+                  {language === 'en' ? 'Send booking details by WhatsApp' : 'Enviar detalle de la reserva por WhatsApp'}
+                </a>
+              )}
 
               <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-2.5 text-xs">
                 <div className="flex justify-between"><span className="text-slate-500">{t('wizard.summary_type')}</span><span className="font-bold uppercase text-slate-900">{bookingType}</span></div>
