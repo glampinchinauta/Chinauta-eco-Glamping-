@@ -12,6 +12,7 @@ import { sqlTime, type Row, type Store } from "./store.js";
 import type { Uploader } from "./uploads.js";
 import { SEED } from "./seed-data.js";
 import { notifyReservation } from "./notify.js";
+import { buildBookingSummary, clipText, parseDetails, type BookingDetails } from "./summary.js";
 
 export interface AppDeps {
   store: Store;
@@ -770,7 +771,14 @@ export function createApp(deps: AppDeps) {
               notes: "", marketing_consent: 0, marketing_consent_at: null, anonymized_at: stamp,
             });
           }
-          for (const { r } of rows) tx.update("reservations", r.id, { notes: "" });
+          for (const { r } of rows) {
+            // The saved booking detail repeats the guest's name, phone and email: clear it too (amounts and dates stay).
+            const det = parseDetails(r.details);
+            tx.update("reservations", r.id, {
+              notes: "",
+              ...(det ? { details: JSON.stringify({ ...det, customer: {}, customer_notes: "" }) } : {}),
+            });
+          }
         });
       } catch (err) {
         console.error("Privacy delete error:", err);
@@ -799,7 +807,7 @@ export function createApp(deps: AppDeps) {
   });
 
   app.post("/api/reservations", async (req, res) => {
-    const { customer, dome_id, check_in, guests, notes, user_name, promo_code, bbq_zone, booking_type, pets, addons, food_items } = req.body || {};
+    const { customer, dome_id, check_in, guests, notes, user_name, promo_code, bbq_zone, booking_type, pets, addons, food_items, decor_message } = req.body || {};
     const isDayPass = booking_type === "pasadia";
     let check_out: string = req.body?.check_out;
     if (isDayPass && check_in) {
@@ -832,6 +840,9 @@ export function createApp(deps: AppDeps) {
     const diffMs = outDate.getTime() - inDate.getTime();
     const nights = isDayPass ? 1 : Math.round(diffMs / (1000 * 60 * 60 * 24));
     if (nights <= 0) return res.status(400).json({ error: "El rango de fechas debe tener al menos una noche." });
+    // No bookings in the past (Colombia time).
+    const todayBogota = now().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+    if (check_in < todayBogota) return res.status(400).json({ error: "La fecha de entrada no puede ser anterior a hoy." });
 
     try {
       // One transaction: availability check, price, customer and reservation are saved together or not at all.
@@ -859,12 +870,26 @@ export function createApp(deps: AppDeps) {
         const discount = await computeDiscount(tx, check_in, serverTotal, promo_code);
         // Food from the menu: priced from the database, not discounted
         let foodFee = 0;
+        const foodDetails: { name: string; qty: number; unit_price: number; subtotal: number; meat: string; preparation: string; side: string }[] = [];
         if (!bbq_zone && Array.isArray(food_items)) {
           for (const item of food_items) {
             const qty = Math.max(0, Math.min(50, Number(item?.qty) || 0));
             if (!qty) continue;
             const row = await tx.get("menu_items", Number(item?.id));
-            if (row) foodFee += Number(row.price || 0) * qty;
+            if (row) {
+              const subtotal = Number(row.price || 0) * qty;
+              foodFee += subtotal;
+              // Choices come from the guest; the name and price come from the database.
+              foodDetails.push({
+                name: String(row.title),
+                qty,
+                unit_price: Number(row.price || 0),
+                subtotal,
+                meat: clipText(item?.meat, 60),
+                preparation: clipText(item?.preparation, 60),
+                side: clipText(item?.side, 60),
+              });
+            }
           }
         }
         // Zona BBQ fee ($20.000) when the guest brings their own food; not discounted
@@ -873,6 +898,44 @@ export function createApp(deps: AppDeps) {
         const discountNote = discount.amount > 0
           ? `Descuento ${discount.percent}% (-$${discount.amount})${promo_code ? ` código ${String(promo_code).trim().toUpperCase()}` : ""}. `
           : "";
+        const addonList: { name: string; price: number }[] = [
+          ...(addons?.bonoTime ? [{ name: "Bono de tiempo", price: 50000 }] : []),
+          ...(addons?.decorVip ? [{ name: "Decoración VIP", price: 150000 }] : (addons?.decorBasic ? [{ name: "Decoración básica", price: 75000 }] : [])),
+          ...(addons?.coupleMassage ? [{ name: "Masaje en pareja", price: 250000 }] : []),
+        ];
+        // Full booking detail, stored with the reservation so the admin panel and WhatsApp show exactly what was ordered.
+        const bookingDetails: BookingDetails & Record<string, unknown> = {
+          booking_type: isDayPass ? "Pasadía (1 día)" : "Hospedaje",
+          dome_name: dome.name,
+          dome_capacity: dome.capacity,
+          check_in,
+          check_out,
+          nights,
+          guests: numGuests,
+          base_price: basePrice,
+          extra_guests_fee: extraPersonsFee,
+          pets: petCount,
+          pets_fee: petsFee,
+          addons: addonList,
+          addons_fee: addonsFee,
+          decor_message: decorFee > 0 ? clipText(decor_message, 300) : "",
+          bbq_zone: !!bbq_zone,
+          bbq_fee: bbqFee,
+          food: foodDetails,
+          food_fee: foodFee,
+          promo_code: promo_code ? String(promo_code).trim().toUpperCase() : "",
+          discount_percent: discount.percent,
+          discount_amount: discount.amount,
+          total: finalTotal,
+          customer_notes: clipText(notes, 1000),
+          customer: {
+            name: clipText(customer.name, 120),
+            document_id: clipText(customer.document_id, 40),
+            phone: clipText(customer.phone, 40),
+            whatsapp: clipText(customer.whatsapp, 40),
+            email: clipText(customer.email, 120),
+          },
+        };
 
         // 2. Check for overlapping reservations: check_in < existingCheckOut AND check_out > existingCheckIn
         const domeKey = Number(dome.id);
@@ -959,12 +1022,13 @@ export function createApp(deps: AppDeps) {
           terms_accepted_at: nowIso,
           terms_version: LEGAL_TERMS_VERSION,
           age_confirmed_at: nowIso,
+          details: JSON.stringify(bookingDetails),
         });
-        return { ok: true as const, code, id: reservation.id, finalTotal };
+        return { ok: true as const, code, id: reservation.id, finalTotal, customerId, domeKey };
       });
 
       if (!("ok" in outcome)) return res.status(outcome.status).json({ error: outcome.error });
-      const done = outcome as { ok: true; code: string; id: number | string; finalTotal: number };
+      const done = outcome as { ok: true; code: string; id: number | string; finalTotal: number; customerId: number; domeKey: number };
 
       await audit(user_name || customer.name || "Cliente", "CREAR_RESERVA", "Reserva", done.code,
         `Reserva creada para Domo ID ${dome_id} (${check_in} al ${check_out}) por $${done.finalTotal}`);
@@ -976,11 +1040,39 @@ export function createApp(deps: AppDeps) {
           customerEmail: customer.email, customerPhone: customer.phone,
         });
       } catch (err) { console.error("[notify]", err); }
-      res.json({ success: true, reservation_code: done.code, reservation_id: done.id });
+      // The guest gets the same text the admin panel shows (for the WhatsApp button). A failure here never undoes the booking.
+      let summary = "";
+      try {
+        const saved = await store.get("reservations", done.id);
+        if (saved) {
+          summary = buildBookingSummary({
+            reservation: saved,
+            details: parseDetails(saved.details),
+            customer: await store.get("customers", done.customerId),
+            dome: await store.get("domes", done.domeKey),
+          });
+        }
+      } catch (err) { console.error("[summary]", err); }
+      res.json({ success: true, reservation_code: done.code, reservation_id: done.id, summary });
     } catch (err: any) {
       console.error("Reservation transaction error:", err);
       res.status(500).json({ error: "Error interno procesando la reserva: " + err.message });
     }
+  });
+
+  // Admin only (every /api route that is not public requires an admin): the full booking as text.
+  app.get("/api/reservations/:id/summary", async (req, res, next) => {
+    try {
+      const reservation = await store.get("reservations", req.params.id);
+      if (!reservation) return res.status(404).json({ error: "Reserva no encontrada." });
+      const [customer, dome] = await Promise.all([
+        store.get("customers", reservation.customer_id),
+        store.get("domes", reservation.dome_id),
+      ]);
+      res.type("text/plain; charset=utf-8").send(buildBookingSummary({
+        reservation, details: parseDetails(reservation.details), customer, dome,
+      }));
+    } catch (err) { next(err); }
   });
 
   app.put("/api/reservations/:id/status", async (req, res) => {

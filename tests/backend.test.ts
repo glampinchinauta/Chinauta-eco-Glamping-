@@ -180,6 +180,45 @@ test("el pasadía cuesta $250.000 y bloquea ese día", async () => {
   assert.equal(row.check_out, plus(thu, 1));
   assert.equal(row.total_amount, 225000); // $250.000 con 10% de jueves
 });
+test("no se puede reservar una fecha de entrada anterior a hoy", async () => {
+  const ayer = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+  const r = await book(2, ayer, plus(ayer, 1));
+  assert.equal(r.status, 400);
+  assert.match(r.data.error, /anterior a hoy/);
+});
+test("el resumen de la reserva se guarda con comida, carne, extras y mensaje, y solo el administrador lo lee", async () => {
+  const sat = nextDay(6, 420);
+  const r = await book(4, sat, plus(sat, 1), {
+    food_items: [{ id: 1, qty: 2, meat: "Res", preparation: "A la parrilla", side: "Papas" }],
+    addons: { decorVip: true },
+    decor_message: "Feliz aniversario",
+  });
+  assert.equal(r.status, 200, r.text);
+  assert.match(r.data.summary, new RegExp(`RESERVA ${r.data.reservation_code}`));
+  assert.match(r.data.summary, /2 x .* \(Res · A la parrilla · acompañamiento: Papas\)/);
+  assert.match(r.data.summary, /Decoración VIP: \$150\.000/);
+  assert.match(r.data.summary, /Mensaje para la decoración: "Feliz aniversario"/);
+
+  const sinSesion = await call("GET", `/api/reservations/${r.data.reservation_id}/summary`);
+  assert.equal(sinSesion.status, 401);
+  const panel = await call("GET", `/api/reservations/${r.data.reservation_id}/summary`, { auth: admin() });
+  assert.equal(panel.status, 200);
+  assert.match(panel.text, /Feliz aniversario/);
+  assert.match(panel.text, new RegExp(r.data.reservation_code));
+});
+test("al borrar sus datos, el resumen de la reserva ya no muestra al huésped pero conserva código y montos", async () => {
+  const sat = nextDay(6, 440);
+  const email = "privacidad.resumen@test.invalid";
+  const r = await book(5, sat, plus(sat, 1), { customer: { name: "Laura Privacidad Prueba", email, phone: "3009998877" } });
+  assert.equal(r.status, 200, r.text);
+  const del = await call("POST", "/api/privacy/delete", { body: { code: r.data.reservation_code, contact: email, confirm: true } });
+  assert.equal(del.status, 200, del.text);
+  const panel = await call("GET", `/api/reservations/${r.data.reservation_id}/summary`, { auth: admin() });
+  assert.equal(panel.status, 200);
+  assert.doesNotMatch(panel.text, /Privacidad Prueba|privacidad\.resumen|3009998877/);
+  assert.match(panel.text, new RegExp(`RESERVA ${r.data.reservation_code}`));
+  assert.match(panel.text, /TOTAL: \$/);
+});
 test("no se puede reservar dos veces el mismo domo: de 5 solicitudes simultáneas gana una", async () => {
   const sat = nextDay(6, 340);
   const results = await Promise.all([1, 2, 3, 4, 5].map((n) => book(4, sat, plus(sat, 1), {}, 1000 + n)));
