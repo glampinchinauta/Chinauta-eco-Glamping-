@@ -1261,6 +1261,12 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                   <span className="text-emerald-700">${totalAmount.toLocaleString('es-CO')} COP</span>
                 </div>
               </div>
+              {confirmedSummary && (
+                <div className="p-5 rounded-2xl bg-white border border-slate-200 text-left space-y-2">
+                  <p className="text-xs font-bold text-slate-900">{language === 'en' ? 'Booking detail (what you ordered and the price of each item)' : 'Detalle de tu reserva (lo que pediste y el valor de cada cosa)'}</p>
+                  <pre className="whitespace-pre-wrap break-words text-[11px] leading-relaxed font-mono text-slate-700">{confirmedSummary}</pre>
+                </div>
+              )}
               <a
                 href={whatsappLink(confirmedSummary
                   ? `${language === 'en' ? 'Hi, I just made a booking. Here are the details:' : 'Hola, acabo de hacer una reserva. Este es el detalle:'}\n\n${confirmedSummary}`
