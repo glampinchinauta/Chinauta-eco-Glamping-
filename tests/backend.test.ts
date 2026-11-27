@@ -299,13 +299,15 @@ test("el resumen de la reserva incluye los extras y la comida elegidos", async (
   assert.equal(r.status, 200);
   assert.match(String(r.data.summary || ""), /[Mm]asaje/, "el masaje aparece en el resumen que ve administración");
 });
-test("masaje: tipo y masajista quedan en el resumen y el precio lo pone el servidor", async () => {
+test("masaje: solo en pareja; la masajista queda en el resumen y el precio lo pone el servidor", async () => {
   const sat = nextDay(6, 640);
+  const par = await book(2, sat, plus(sat, 1), { addons: { massage: { type: "pareja", therapist: "hombre" } } });
+  assert.equal(par.status, 200);
+  assert.match(String(par.data.summary), /Masaje en pareja \(2 personas\) · masajista hombre: \$280\.000/);
+  // El masaje individual ya no existe: se ignora y no se cobra.
   const ind = await book(3, sat, plus(sat, 1), { addons: { massage: { type: "individual", therapist: "mujer" } } });
   assert.equal(ind.status, 200);
-  assert.match(String(ind.data.summary), /Masaje individual \(1 persona\) · masajista mujer: \$150\.000/);
-  const par = await book(2, sat, plus(sat, 1), { addons: { massage: { type: "pareja", therapist: "hombre" } } });
-  assert.match(String(par.data.summary), /Masaje en pareja \(2 personas\) · masajista hombre: \$280\.000/);
+  assert.doesNotMatch(String(ind.data.summary), /Masaje/);
   // Valores inventados por el cliente se ignoran.
   const raro = await book(1, sat, plus(sat, 1), { addons: { massage: { type: "gratis", therapist: "x" } } });
   assert.equal(raro.status, 200);

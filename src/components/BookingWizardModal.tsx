@@ -9,7 +9,7 @@ import { CHINAUTA_MENU_ITEMS } from './FoodMenuSection';
 import { isColombianHoliday } from '../utils/colombiaHolidays';
 import { auth } from '../lib/firebase';
 import {
-  whatsappLink, MASSAGE_PRICES, MASSAGE_TYPE_LABELS, MASSAGE_THERAPIST_LABELS,
+  whatsappLink, MASSAGE_PRICES, MASSAGE_TYPE_LABELS, MASSAGE_THERAPIST_LABELS, MASSAGE_PHOTOS,
   type MassageType, type MassageTherapist,
 } from '../config/business';
 
@@ -830,17 +830,30 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                 <h4 className="text-xl font-bold text-slate-900">{language === 'en' ? 'Massages' : 'Masajes'}</h4>
                 <p className="text-sm text-slate-600 mt-1">
                   {language === 'en'
-                    ? 'Professional relaxation massage (60 min) in your dome. Choose who it is for and your therapist preference.'
-                    : 'Masaje profesional de relajación (60 min) en tu domo. Elige para quién es y qué masajista prefieres.'}
+                    ? 'Professional couples relaxation massage (60 min) in your dome. Choose your therapist preference.'
+                    : 'Masaje profesional de relajación en pareja (60 min) en tu domo. Elige qué masajista prefieres.'}
                 </p>
               </div>
 
+              {MASSAGE_PHOTOS.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {MASSAGE_PHOTOS.map((src, i) => (
+                    <img
+                      key={src}
+                      src={src}
+                      alt={language === 'en' ? `Couples massage at Eco Glamping Chinauta, photo ${i + 1}` : `Masaje en pareja en Eco Glamping Chinauta, foto ${i + 1}`}
+                      loading="lazy"
+                      className="w-full aspect-[4/3] object-cover rounded-xl border border-slate-200"
+                    />
+                  ))}
+                </div>
+              )}
+
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-slate-700 uppercase">{language === 'en' ? 'Massage type' : 'Tipo de masaje'}</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-label={language === 'en' ? 'Massage type' : 'Tipo de masaje'}>
+                <p className="text-xs font-semibold text-slate-700 uppercase">{language === 'en' ? 'Do you want a massage?' : '¿Quieres masaje?'}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label={language === 'en' ? 'Massage' : 'Masaje'}>
                   {([
                     { value: '' as const, title: language === 'en' ? 'No massage' : 'Sin masaje', price: 0 },
-                    { value: 'individual' as const, title: MASSAGE_TYPE_LABELS.individual[language === 'en' ? 'en' : 'es'], price: MASSAGE_PRICES.individual },
                     { value: 'pareja' as const, title: MASSAGE_TYPE_LABELS.pareja[language === 'en' ? 'en' : 'es'], price: MASSAGE_PRICES.pareja },
                   ]).map(opt => {
                     const active = massage.type === opt.value;

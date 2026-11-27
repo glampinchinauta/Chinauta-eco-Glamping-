@@ -2,14 +2,16 @@
 // Provisional: same number used across the site (+57 324 296 9426). Confirm before publishing.
 export const BUSINESS_WHATSAPP = '573242969426';
 
-// Masajes (60 min). El servidor tiene los mismos valores en api/app.ts (MASSAGE_PRICES): cambiar ambos juntos.
-export const MASSAGE_PRICES = { individual: 150000, pareja: 280000 } as const;
+// Masajes (60 min). Solo en pareja. El servidor tiene el mismo valor en api/app.ts (MASSAGE_PRICES): cambiar ambos juntos.
+export const MASSAGE_PRICES = { pareja: 280000 } as const;
 export type MassageType = keyof typeof MASSAGE_PRICES;
 export type MassageTherapist = 'indiferente' | 'mujer' | 'hombre';
 export const MASSAGE_TYPE_LABELS: Record<MassageType, { es: string; en: string }> = {
-  individual: { es: 'Masaje individual (1 persona)', en: 'Individual massage (1 person)' },
   pareja: { es: 'Masaje en pareja (2 personas)', en: 'Couples massage (2 people)' },
 };
+// Fotos del paso de masajes (rutas dentro de /public, por ejemplo '/assets/images/masaje-1.webp').
+// Si la lista está vacía, el paso se muestra sin fotos.
+export const MASSAGE_PHOTOS: string[] = [];
 export const MASSAGE_THERAPIST_LABELS: Record<MassageTherapist, { es: string; en: string }> = {
   indiferente: { es: 'Sin preferencia', en: 'No preference' },
   mujer: { es: 'Masajista mujer', en: 'Female therapist' },

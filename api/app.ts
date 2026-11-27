@@ -14,8 +14,8 @@ import { SEED } from "./seed-data.js";
 import { notifyReservation } from "./notify.js";
 import { buildBookingSummary, clipText, parseDetails, type BookingDetails } from "./summary.js";
 
-// Masajes (60 min). Mismos valores que src/config/business.ts (MASSAGE_PRICES): cambiar ambos juntos.
-export const MASSAGE_PRICES = { individual: 150000, pareja: 280000 } as const;
+// Masajes (60 min), solo en pareja. Mismo valor que src/config/business.ts (MASSAGE_PRICES): cambiar ambos juntos.
+export const MASSAGE_PRICES = { pareja: 280000 } as const;
 
 export interface AppDeps {
   store: Store;
@@ -872,10 +872,8 @@ export function createApp(deps: AppDeps) {
         const petsFee = petCount * 30000;
         const addonPrices: Record<string, number> = { bonoTime: 50000 };
         const decorFee = addons?.decorVip ? 150000 : (addons?.decorBasic ? 75000 : 0);
-        // Masaje: tipo (individual o pareja) y preferencia de masajista. "coupleMassage" se acepta por compatibilidad.
-        const massageType: "individual" | "pareja" | null =
-          addons?.massage?.type === "individual" || addons?.massage?.type === "pareja" ? addons.massage.type
-          : addons?.coupleMassage ? "pareja" : null;
+        // Masaje: solo en pareja, con preferencia de masajista. "coupleMassage" se acepta por compatibilidad.
+        const massageType: "pareja" | null = addons?.massage?.type === "pareja" || addons?.coupleMassage ? "pareja" : null;
         const therapist = ["mujer", "hombre"].includes(addons?.massage?.therapist) ? addons.massage.therapist as "mujer" | "hombre" : "indiferente";
         const massageFee = massageType ? MASSAGE_PRICES[massageType] : 0;
         const addonsFee = (addons?.bonoTime ? addonPrices.bonoTime : 0) + decorFee + massageFee;
@@ -916,7 +914,7 @@ export function createApp(deps: AppDeps) {
           ...(addons?.bonoTime ? [{ name: "Bono de tiempo", price: 50000 }] : []),
           ...(addons?.decorVip ? [{ name: "Decoración VIP", price: 150000 }] : (addons?.decorBasic ? [{ name: "Decoración básica", price: 75000 }] : [])),
           ...(massageType ? [{
-            name: `${massageType === "pareja" ? "Masaje en pareja (2 personas)" : "Masaje individual (1 persona)"} · ${
+            name: `Masaje en pareja (2 personas) · ${
               therapist === "mujer" ? "masajista mujer" : therapist === "hombre" ? "masajista hombre" : "masajista sin preferencia"}`,
             price: massageFee,
           }] : []),
