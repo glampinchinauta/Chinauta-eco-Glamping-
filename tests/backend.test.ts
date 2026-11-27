@@ -254,6 +254,16 @@ test("el huésped consulta por código con su correo o teléfono, y en su cuenta
   assert.equal((await call("GET", "/api/my/reservations")).status, 401);
   assert.equal((await call("GET", "/api/my/reservations", { auth: token("huesped4242@test.invalid", false) })).status, 401);
 });
+test("los servicios elegidos por el huésped quedan en la reserva para administración", async () => {
+  const sat = nextDay(6, 480);
+  const r = await book(4, sat, plus(sat, 1), { services: ["Masaje en pareja", "Comida: Carne x2", "<b>x</b>"] });
+  assert.equal(r.status, 200);
+  const list = await call("GET", "/api/reservations", { auth: admin() });
+  const row = (list.data as any[]).find((x) => x.reservation_code === r.data.reservation_code);
+  assert.ok(row, "la reserva aparece en el listado del administrador");
+  assert.match(row.notes, /Servicios reservados: Masaje en pareja; Comida: Carne x2; <b>x<\/b>\. /);
+});
+
 test("el huésped descarga y borra sus datos (se conservan montos y fechas)", async () => {
   const sat = nextDay(6, 480);
   const r = await book(5, sat, plus(sat, 1), { notes: "Alergia a los frutos secos", customer: { name: "Ana Prueba", email: "ana.priv@test.invalid", phone: "3011234567", document_id: "123456" } });

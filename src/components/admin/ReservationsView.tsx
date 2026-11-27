@@ -184,6 +184,14 @@ export const ReservationsView: React.FC<Props> = ({ reservations, domes, ready, 
                               <span className="inline-flex items-center gap-1"><Users className="w-3.5 h-3.5" />{r.guests} {r.guests === 1 ? 'persona' : 'personas'}</span>
                               <span className="font-mono">{r.reservation_code}</span>
                             </p>
+                            {(() => {
+                              const m = /Servicios reservados: (.*?)\. /.exec(r.notes || '');
+                              return m ? (
+                                <p className="mt-1.5 text-xs text-slate-700 bg-emerald-50/70 border border-emerald-100 rounded-lg px-2.5 py-1.5">
+                                  <span className="font-semibold text-emerald-800">Servicios:</span> {m[1].split('; ').join(' · ')}
+                                </p>
+                              ) : null;
+                            })()}
                           </div>
 
                           {/* Pago */}

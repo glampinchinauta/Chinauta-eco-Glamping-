@@ -12,6 +12,8 @@ export interface ReservationNotice {
   customerName: string;
   customerEmail?: string;
   customerPhone?: string;
+  /** Servicios elegidos por el huésped (masajes, extras, comida, mascotas...). */
+  services?: string[];
 }
 
 const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO") + " COP";
@@ -35,9 +37,12 @@ export async function notifyReservation(env: NodeJS.ProcessEnv, n: ReservationNo
       <li><b>Código:</b> ${esc(n.code)}</li><li><b>Domo:</b> ${esc(n.domeName)}</li>
       <li><b>Llegada:</b> ${esc(n.checkIn)} · <b>Salida:</b> ${esc(n.checkOut)}</li>
       <li><b>Huéspedes:</b> ${n.guests}</li><li><b>Total:</b> ${money(n.total)}</li></ul>`;
+    const servicesHtml = n.services && n.services.length
+      ? `<p><b>Servicios reservados:</b></p><ul>${n.services.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`
+      : "";
     const admins = (env.NOTIFY_EMAILS || env.ADMIN_EMAILS || "").split(",").map((s) => s.trim()).filter(Boolean);
     await send(env, admins, `Nueva reserva ${n.code} - ${n.customerName}`,
-      `<p>Entró una reserva nueva (pendiente de confirmar).</p>${details}<p>Cliente: ${esc(n.customerName)} ${esc(n.customerPhone || "")} ${esc(n.customerEmail || "")}</p>`);
+      `<p>Entró una reserva nueva (pendiente de confirmar).</p>${details}${servicesHtml}<p>Cliente: ${esc(n.customerName)} ${esc(n.customerPhone || "")} ${esc(n.customerEmail || "")}</p>`);
     if (n.customerEmail) {
       await send(env, [n.customerEmail], `Recibimos tu reserva ${n.code} - Eco Glamping Chinauta`,
         `<p>Hola ${esc(n.customerName)}, recibimos tu solicitud de reserva. Te confirmaremos por WhatsApp (+57 324 296 9426).</p>${details}`);

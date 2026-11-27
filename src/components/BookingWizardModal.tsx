@@ -347,6 +347,18 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const massageFee = selectedAddons.coupleMassage ? 250000 : 0;
   const addonsTotal = bonoTimeFee + decorFee + massageFee;
 
+  // Todo lo que el huésped eligió, en texto, para administración y para el WhatsApp de confirmación.
+  const servicesList: string[] = [
+    ...(selectedAddons.bonoTime ? ['Bono de tiempo'] : []),
+    ...(selectedAddons.decorVip ? ['Decoración VIP'] : []),
+    ...(selectedAddons.decorBasic ? ['Decoración básica'] : []),
+    ...(selectedAddons.coupleMassage ? ['Masaje en pareja'] : []),
+    ...(hasPet && petCount > 0 ? [`Mascotas: ${petCount}`] : []),
+    ...(extraPersons > 0 ? [`Personas extra: ${extraPersons}`] : []),
+    ...(bbqOnly ? ['Zona BBQ con comida propia'] : []),
+    ...foodSummary.map(f => `Comida: ${f}`),
+  ];
+
   const subtotal = baseTotal + extraPersonsFee + petsFee + addonsTotal;
 
   // Weekday check
@@ -420,6 +432,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           booking_type: bookingType,
           pets: hasPet ? petCount : 0,
           addons: selectedAddons,
+          services: servicesList,
           food_items: (Object.entries(foodChoices) as [string, { qty: number }][])
             .filter(([, c]) => (c?.qty || 0) > 0)
             .map(([id, c]) => ({ id: Number(id), qty: c.qty })),
@@ -1254,7 +1267,16 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                 </div>
               </div>
               <a
-                href={`https://wa.me/573242969426?text=${encodeURIComponent(`Hola, acabo de hacer la reserva ${confirmedCode} en Eco Glamping Chinauta (${selectedDome?.name || ''}, ${checkIn} al ${checkOut}). Quedo atento(a) a la confirmación.`)}`}
+                href={`https://wa.me/573242969426?text=${encodeURIComponent([
+                  `Hola, acabo de hacer la reserva ${confirmedCode} en Eco Glamping Chinauta.`,
+                  `Nombre: ${name}`,
+                  `Domo: ${selectedDome?.name || ''}`,
+                  `Fechas: ${checkIn}${bookingType === 'estadia' ? ` al ${checkOut}` : ' (pasadía 8am - 4pm)'}`,
+                  `Personas: ${guests}`,
+                  `Servicios: ${servicesList.length ? servicesList.join('; ') : 'Solo alojamiento'}`,
+                  `Total: $${totalAmount.toLocaleString('es-CO')} COP`,
+                  `Quedo atento(a) a la confirmación.`,
+                ].join('\n'))}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center w-full py-3.5 rounded-2xl bg-emerald-600 text-white font-semibold text-sm shadow-lg hover:bg-emerald-700 transition-colors"
