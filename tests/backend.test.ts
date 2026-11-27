@@ -299,6 +299,18 @@ test("el resumen de la reserva incluye los extras y la comida elegidos", async (
   assert.equal(r.status, 200);
   assert.match(String(r.data.summary || ""), /[Mm]asaje/, "el masaje aparece en el resumen que ve administración");
 });
+test("masaje: tipo y masajista quedan en el resumen y el precio lo pone el servidor", async () => {
+  const sat = nextDay(6, 640);
+  const ind = await book(3, sat, plus(sat, 1), { addons: { massage: { type: "individual", therapist: "mujer" } } });
+  assert.equal(ind.status, 200);
+  assert.match(String(ind.data.summary), /Masaje individual \(1 persona\) · masajista mujer: \$150\.000/);
+  const par = await book(2, sat, plus(sat, 1), { addons: { massage: { type: "pareja", therapist: "hombre" } } });
+  assert.match(String(par.data.summary), /Masaje en pareja \(2 personas\) · masajista hombre: \$250\.000/);
+  // Valores inventados por el cliente se ignoran.
+  const raro = await book(1, sat, plus(sat, 1), { addons: { massage: { type: "gratis", therapist: "x" } } });
+  assert.equal(raro.status, 200);
+  assert.doesNotMatch(String(raro.data.summary), /Masaje/);
+});
 test("el huésped descarga y borra sus datos (se conservan montos y fechas)", async () => {
   const sat = nextDay(6, 480);
   const r = await book(5, sat, plus(sat, 1), { notes: "Alergia a los frutos secos", customer: { name: "Ana Prueba", email: "ana.priv@test.invalid", phone: "3011234567", document_id: "123456" } });

@@ -14,6 +14,9 @@ import { SEED } from "./seed-data.js";
 import { notifyReservation } from "./notify.js";
 import { buildBookingSummary, clipText, parseDetails, type BookingDetails } from "./summary.js";
 
+// Masajes (60 min). Mismos valores que src/config/business.ts (MASSAGE_PRICES): cambiar ambos juntos.
+export const MASSAGE_PRICES = { individual: 150000, pareja: 250000 } as const;
+
 export interface AppDeps {
   store: Store;
   uploader: Uploader;
@@ -867,9 +870,15 @@ export function createApp(deps: AppDeps) {
         const extraPersonsFee = Math.max(0, numGuests - Number(dome.capacity || 2)) * 70000 * (isDayPass ? 1 : nights);
         const petCount = pets ? Math.max(0, Math.min(10, Number(pets) || 0)) : 0;
         const petsFee = petCount * 30000;
-        const addonPrices: Record<string, number> = { bonoTime: 50000, coupleMassage: 250000 };
+        const addonPrices: Record<string, number> = { bonoTime: 50000 };
         const decorFee = addons?.decorVip ? 150000 : (addons?.decorBasic ? 75000 : 0);
-        const addonsFee = (addons?.bonoTime ? addonPrices.bonoTime : 0) + decorFee + (addons?.coupleMassage ? addonPrices.coupleMassage : 0);
+        // Masaje: tipo (individual o pareja) y preferencia de masajista. "coupleMassage" se acepta por compatibilidad.
+        const massageType: "individual" | "pareja" | null =
+          addons?.massage?.type === "individual" || addons?.massage?.type === "pareja" ? addons.massage.type
+          : addons?.coupleMassage ? "pareja" : null;
+        const therapist = ["mujer", "hombre"].includes(addons?.massage?.therapist) ? addons.massage.therapist as "mujer" | "hombre" : "indiferente";
+        const massageFee = massageType ? MASSAGE_PRICES[massageType] : 0;
+        const addonsFee = (addons?.bonoTime ? addonPrices.bonoTime : 0) + decorFee + massageFee;
         // Only room, extra guests, pets and add-ons get the discount
         const serverTotal = basePrice + extraPersonsFee + petsFee + addonsFee;
         const discount = await computeDiscount(tx, check_in, serverTotal, promo_code);
@@ -906,7 +915,11 @@ export function createApp(deps: AppDeps) {
         const addonList: { name: string; price: number }[] = [
           ...(addons?.bonoTime ? [{ name: "Bono de tiempo", price: 50000 }] : []),
           ...(addons?.decorVip ? [{ name: "Decoración VIP", price: 150000 }] : (addons?.decorBasic ? [{ name: "Decoración básica", price: 75000 }] : [])),
-          ...(addons?.coupleMassage ? [{ name: "Masaje en pareja", price: 250000 }] : []),
+          ...(massageType ? [{
+            name: `${massageType === "pareja" ? "Masaje en pareja (2 personas)" : "Masaje individual (1 persona)"} · ${
+              therapist === "mujer" ? "masajista mujer" : therapist === "hombre" ? "masajista hombre" : "masajista sin preferencia"}`,
+            price: massageFee,
+          }] : []),
         ];
         // Full booking detail, stored with the reservation so the admin panel and WhatsApp show exactly what was ordered.
         const bookingDetails: BookingDetails & Record<string, unknown> = {

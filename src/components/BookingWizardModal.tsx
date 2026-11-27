@@ -8,7 +8,16 @@ import { readJson } from '../utils/api';
 import { CHINAUTA_MENU_ITEMS } from './FoodMenuSection';
 import { isColombianHoliday } from '../utils/colombiaHolidays';
 import { auth } from '../lib/firebase';
-import { whatsappLink } from '../config/business';
+import {
+  whatsappLink, MASSAGE_PRICES, MASSAGE_TYPE_LABELS, MASSAGE_THERAPIST_LABELS,
+  type MassageType, type MassageTherapist,
+} from '../config/business';
+
+// Pasos del asistente: 7 masajes, 8 comida, 9 datos y pago, 10 confirmación.
+const MASSAGE_STEP = 7;
+const FOOD_STEP = 8;
+const CONTACT_STEP = 9;
+const DONE_STEP = 10;
 
 // Países para el número de WhatsApp (el código se guarda junto con el número).
 const PHONE_COUNTRIES = [
@@ -83,13 +92,13 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
     bonoTime: boolean;
     decorVip: boolean;
     decorBasic: boolean;
-    coupleMassage: boolean;
   }>({
     bonoTime: false,
     decorVip: false,
     decorBasic: false,
-    coupleMassage: false
   });
+  // Masaje: paso propio. Sin tipo = sin masaje.
+  const [massage, setMassage] = useState<{ type: MassageType | ''; therapist: MassageTherapist }>({ type: '', therapist: 'indiferente' });
   const [customMessage, setCustomMessage] = useState('');
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; percent: number } | null>(null);
@@ -347,7 +356,10 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   // Addons fees
   const bonoTimeFee = selectedAddons.bonoTime ? 50000 : 0;
   const decorFee = selectedAddons.decorVip ? 150000 : (selectedAddons.decorBasic ? 75000 : 0);
-  const massageFee = selectedAddons.coupleMassage ? 250000 : 0;
+  const massageFee = massage.type ? MASSAGE_PRICES[massage.type] : 0;
+  const massageLabel = massage.type
+    ? `${MASSAGE_TYPE_LABELS[massage.type][language === 'en' ? 'en' : 'es']} · ${MASSAGE_THERAPIST_LABELS[massage.therapist][language === 'en' ? 'en' : 'es']}`
+    : '';
   const addonsTotal = bonoTimeFee + decorFee + massageFee;
 
   // Todo lo que el huésped eligió, en texto, para administración y para el WhatsApp de confirmación.
@@ -355,7 +367,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
     ...(selectedAddons.bonoTime ? ['Bono de tiempo'] : []),
     ...(selectedAddons.decorVip ? ['Decoración VIP'] : []),
     ...(selectedAddons.decorBasic ? ['Decoración básica'] : []),
-    ...(selectedAddons.coupleMassage ? ['Masaje en pareja'] : []),
+    ...(massageLabel ? [massageLabel] : []),
     ...(hasPet && petCount > 0 ? [`Mascotas: ${petCount}`] : []),
     ...(extraPersons > 0 ? [`Personas extra: ${extraPersons}`] : []),
     ...(bbqOnly ? ['Zona BBQ con comida propia'] : []),
@@ -435,7 +447,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           decor_message: (selectedAddons.decorVip || selectedAddons.decorBasic) ? customMessage : '',
           booking_type: bookingType,
           pets: hasPet ? petCount : 0,
-          addons: selectedAddons,
+          addons: { ...selectedAddons, massage: massage.type ? massage : null },
           services: servicesList,
           // One entry per meat/preparation group: a dish split between several choices sends each part with its own choices.
           food_items: (Object.entries(foodChoices) as [string, { qty: number; meat: string; preparation: string; side: string }][])
@@ -468,7 +480,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
 
       setConfirmedCode(data.reservation_code);
       setConfirmedSummary(data.summary || '');
-      setStep(9);
+      setStep(DONE_STEP);
       onSuccess(data.reservation_code);
     } catch (err: any) {
       setErrorMsg(err.message || t('wizard.booking_process_err'));
@@ -794,25 +806,6 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                   </div>
                   <span className="font-bold text-emerald-700 text-sm">+$75.000 COP</span>
                 </div>
-
-                {/* Masaje en Pareja */}
-                <div
-                  onClick={() => setSelectedAddons({...selectedAddons, coupleMassage: !selectedAddons.coupleMassage})}
-                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
-                    selectedAddons.coupleMassage ? 'border-emerald-600 bg-emerald-50/50' : 'border-slate-200 bg-white'
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
-                      <Heart className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h5 className="font-bold text-slate-900 text-sm">{t('wizard.massage_title')}</h5>
-                      <p className="text-xs text-slate-500">{t('wizard.massage_desc')}</p>
-                    </div>
-                  </div>
-                  <span className="font-bold text-emerald-700 text-sm">+$250.000 COP</span>
-                </div>
               </div>
 
               {(selectedAddons.decorVip || selectedAddons.decorBasic) && (
@@ -830,8 +823,81 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
             </div>
           )}
 
-          {/* STEP 7: Food Choices */}
-          {step === 7 && (
+          {/* STEP 7: Masajes (paso propio) */}
+          {step === MASSAGE_STEP && (
+            <div className="space-y-6">
+              <div>
+                <h4 className="text-xl font-bold text-slate-900">{language === 'en' ? 'Massages' : 'Masajes'}</h4>
+                <p className="text-sm text-slate-600 mt-1">
+                  {language === 'en'
+                    ? 'Professional relaxation massage (60 min) in your dome. Choose who it is for and your therapist preference.'
+                    : 'Masaje profesional de relajación (60 min) en tu domo. Elige para quién es y qué masajista prefieres.'}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-slate-700 uppercase">{language === 'en' ? 'Massage type' : 'Tipo de masaje'}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-label={language === 'en' ? 'Massage type' : 'Tipo de masaje'}>
+                  {([
+                    { value: '' as const, title: language === 'en' ? 'No massage' : 'Sin masaje', price: 0 },
+                    { value: 'individual' as const, title: MASSAGE_TYPE_LABELS.individual[language === 'en' ? 'en' : 'es'], price: MASSAGE_PRICES.individual },
+                    { value: 'pareja' as const, title: MASSAGE_TYPE_LABELS.pareja[language === 'en' ? 'en' : 'es'], price: MASSAGE_PRICES.pareja },
+                  ]).map(opt => {
+                    const active = massage.type === opt.value;
+                    return (
+                      <button
+                        key={opt.value || 'none'}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setMassage({ ...massage, type: opt.value })}
+                        className={`p-4 rounded-2xl border-2 text-left transition-all cursor-pointer ${active ? 'border-emerald-600 bg-emerald-50/50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Heart className={`w-4 h-4 ${opt.value ? 'text-purple-600' : 'text-slate-400'}`} />
+                          <span className="font-bold text-slate-900 text-sm">{opt.title}</span>
+                        </div>
+                        <p className="mt-1 text-sm font-bold text-emerald-700">
+                          {opt.price ? `+$${opt.price.toLocaleString('es-CO')} COP` : (language === 'en' ? 'No extra cost' : 'Sin costo')}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {massage.type && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-700 uppercase">{language === 'en' ? 'Therapist preference' : 'Preferencia de masajista'}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-label={language === 'en' ? 'Therapist preference' : 'Preferencia de masajista'}>
+                    {(['mujer', 'hombre', 'indiferente'] as MassageTherapist[]).map(value => {
+                      const active = massage.therapist === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => setMassage({ ...massage, therapist: value })}
+                          className={`px-4 py-3 rounded-xl border-2 text-sm font-semibold transition-all cursor-pointer ${active ? 'border-emerald-600 bg-emerald-50/50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
+                        >
+                          {MASSAGE_THERAPIST_LABELS[value][language === 'en' ? 'en' : 'es']}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {language === 'en'
+                      ? 'We will do our best to match your preference; we confirm it by WhatsApp.'
+                      : 'Haremos lo posible por respetar tu preferencia; te la confirmamos por WhatsApp.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STEP 8: Food Choices */}
+          {step === FOOD_STEP && (
             <div className="space-y-6">
               <h4 className="text-xl font-bold text-slate-900">{language === 'en' ? 'Choose your meals' : 'Elige tu comida'}</h4>
               <p className="text-sm text-slate-600">
@@ -1073,7 +1139,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           )}
 
           {/* STEP 8: Guest Details & Payment */}
-          {step === 8 && (
+          {step === CONTACT_STEP && (
             <div className="space-y-6">
               <h4 className="text-xl font-bold text-slate-900">{t('wizard.step7_title')}</h4>
               
@@ -1245,7 +1311,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           )}
 
           {/* STEP 8: Full Summary & Confirmation */}
-          {step === 9 && (
+          {step === DONE_STEP && (
             <div className="text-center py-6 space-y-6">
               <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-md">
                 <CheckCircle2 className="w-8 h-8" />
@@ -1297,14 +1363,14 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
         </div>
 
         {/* Food-step message sits right above the buttons so it is always visible */}
-        {errorMsg && step === 7 && (
+        {errorMsg && step === FOOD_STEP && (
           <div className="mx-4 sm:mx-6 mt-4 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-bold">
             {errorMsg}
           </div>
         )}
 
         {/* While choosing food, the price is always visible right above the buttons */}
-        {step === 7 && (
+        {step === FOOD_STEP && (
           <div
             className="mx-4 sm:mx-6 mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm space-y-0.5"
             aria-live="polite"
@@ -1326,7 +1392,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
 
         {/* Footer Actions */}
         <div className="p-4 sm:p-6 bg-slate-50 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {step > 1 && step < 9 ? (
+          {step > 1 && step < DONE_STEP ? (
             <button
               onClick={() => setStep(prev => prev - 1)}
               className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 font-medium text-slate-700 hover:bg-slate-100 flex items-center justify-center space-x-2 text-sm cursor-pointer"
@@ -1337,11 +1403,11 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           ) : <div />}
 
           <div className="w-full sm:w-auto flex justify-end">
-            {step < 8 && (
+            {step < CONTACT_STEP && (
               <button
                 onClick={() => {
                   if (step === 2 && !validateStep2()) return;
-                  if (step === 7 && !bbqOnly) {
+                  if (step === FOOD_STEP && !bbqOnly) {
                     if (foodSummary.length === 0) {
                       setErrorMsg(language === 'en'
                         ? 'Please choose at least one dish, or select the BBQ zone option.'
@@ -1369,7 +1435,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
               </button>
             )}
 
-            {step === 8 && (
+            {step === CONTACT_STEP && (
               <button
                 onClick={handleConfirmBooking}
                 disabled={submitting || !acceptTerms || !isAdult}
@@ -1380,7 +1446,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
               </button>
             )}
 
-            {step === 9 && (
+            {step === DONE_STEP && (
               <button
                 onClick={onClose}
                 className="w-full sm:w-auto px-8 py-3 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 text-sm cursor-pointer"

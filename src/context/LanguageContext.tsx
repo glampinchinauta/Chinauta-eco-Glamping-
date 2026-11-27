@@ -102,7 +102,7 @@ const translations: Record<Language, Translations> = {
 
     // BookingWizardModal
     'wizard.title': 'Reserva • Eco Glamping Chinauta',
-    'wizard.step_counter': 'Paso {step} de 8',
+    'wizard.step_counter': 'Paso {step} de 9',
     'wizard.step1_title': '¿Qué tipo de experiencia deseas vivir?',
     'wizard.step1_desc': 'Selecciona la modalidad de tu visita en Eco Glamping Chinauta.',
     'wizard.stay_title': 'Estadía en Domo',
@@ -569,7 +569,7 @@ const translations: Record<Language, Translations> = {
 
     // BookingWizardModal
     'wizard.title': 'Booking • Eco Glamping Chinauta',
-    'wizard.step_counter': 'Step {step} of 8',
+    'wizard.step_counter': 'Step {step} of 9',
     'wizard.step1_title': 'What kind of experience do you want to enjoy?',
     'wizard.step1_desc': 'Select your preferred visit modality at Eco Glamping Chinauta.',
     'wizard.stay_title': 'Overnight Dome Stay',
