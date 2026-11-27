@@ -146,7 +146,7 @@ export const TodayView: React.FC<TodayViewProps> = ({ firstName, reservations, d
       </Card>
 
       {/* Llegadas y salidas de hoy ("Voy en camino" muestra cuánto le falta a cada huésped) */}
-      {arrivals.length > 0 && <GlampingLocationCard notify={notify} />}
+      <GlampingLocationCard notify={notify} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <MovementCard
           title="Llegan hoy" icon={<LogIn className="w-5 h-5 text-emerald-600" />} empty="Nadie llega hoy"
