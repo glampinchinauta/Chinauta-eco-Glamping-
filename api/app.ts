@@ -15,7 +15,7 @@ import { notifyReservation } from "./notify.js";
 import { buildBookingSummary, clipText, parseDetails, type BookingDetails } from "./summary.js";
 
 // Masajes (60 min). Mismos valores que src/config/business.ts (MASSAGE_PRICES): cambiar ambos juntos.
-export const MASSAGE_PRICES = { individual: 150000, pareja: 250000 } as const;
+export const MASSAGE_PRICES = { individual: 150000, pareja: 280000 } as const;
 
 export interface AppDeps {
   store: Store;

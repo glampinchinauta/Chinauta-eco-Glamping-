@@ -3,7 +3,7 @@
 export const BUSINESS_WHATSAPP = '573242969426';
 
 // Masajes (60 min). El servidor tiene los mismos valores en api/app.ts (MASSAGE_PRICES): cambiar ambos juntos.
-export const MASSAGE_PRICES = { individual: 150000, pareja: 250000 } as const;
+export const MASSAGE_PRICES = { individual: 150000, pareja: 280000 } as const;
 export type MassageType = keyof typeof MASSAGE_PRICES;
 export type MassageTherapist = 'indiferente' | 'mujer' | 'hombre';
 export const MASSAGE_TYPE_LABELS: Record<MassageType, { es: string; en: string }> = {
