@@ -23,6 +23,7 @@ const DecorationsSection = lazyNamed(() => import('./components/DecorationsSecti
 const LegalView = lazyNamed(() => import('./components/LegalView'), 'LegalView');
 const BookingWizardModal = lazyNamed(() => import('./components/BookingWizardModal'), 'BookingWizardModal');
 const MyReservationsModal = lazyNamed(() => import('./components/MyReservationsModal'), 'MyReservationsModal');
+const OnTheWayModal = lazyNamed(() => import('./components/OnTheWayModal'), 'OnTheWayModal');
 const AdminLoginModal = lazyNamed(() => import('./components/AdminLoginModal'), 'AdminLoginModal');
 const AdminDashboard = lazyNamed(() => import('./components/AdminDashboard'), 'AdminDashboard');
 const AiConciergeChat = lazyNamed(() => import('./components/AiConciergeChat'), 'AiConciergeChat');
@@ -58,6 +59,11 @@ function AppContent() {
   const [bookingCheckOut, setBookingCheckOut] = useState<string | undefined>(undefined);
 
   const [isMyReservationsOpen, setIsMyReservationsOpen] = useState(false);
+  // "Voy en camino": se abre con el enlace /?en-camino=CODIGO (lo envía el equipo por WhatsApp) o desde Mis reservas.
+  const [onTheWay, setOnTheWay] = useState<{ open: boolean; code: string; contact: string }>(() => {
+    const code = new URLSearchParams(window.location.search).get('en-camino') || '';
+    return { open: !!code, code: code.toUpperCase(), contact: '' };
+  });
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
 
   const openLegal = (section: LegalSection) => {
@@ -82,6 +88,7 @@ function AppContent() {
 
   const bookingMounted = useEverTrue(isBookingOpen);
   const reservationsMounted = useEverTrue(isMyReservationsOpen);
+  const onTheWayMounted = useEverTrue(onTheWay.open);
   const loginMounted = useEverTrue(isAdminLoginOpen);
   const [chatReady, setChatReady] = useState(false);
   useEffect(() => {
@@ -254,6 +261,15 @@ function AppContent() {
       {reservationsMounted && <MyReservationsModal
         isOpen={isMyReservationsOpen}
         onClose={() => setIsMyReservationsOpen(false)}
+        onOnTheWay={(code: string, contact: string) => { setIsMyReservationsOpen(false); setOnTheWay({ open: true, code, contact }); }}
+      />}
+
+      {/* Voy en camino */}
+      {onTheWayMounted && <OnTheWayModal
+        isOpen={onTheWay.open}
+        initialCode={onTheWay.code}
+        initialContact={onTheWay.contact}
+        onClose={() => setOnTheWay(prev => ({ ...prev, open: false }))}
       />}
 
       {/* Admin Login Modal */}

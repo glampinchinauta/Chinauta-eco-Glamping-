@@ -13,6 +13,10 @@ import type { Uploader } from "./uploads.js";
 import { SEED } from "./seed-data.js";
 import { notifyReservation } from "./notify.js";
 import { buildBookingSummary, clipText, parseDetails, type BookingDetails } from "./summary.js";
+import {
+  ARRIVAL_KM, CLEARED_TRIP_LOCATION, GOOGLE_MIN_INTERVAL_MS, TRIP_EXPIRE_MS,
+  estimateEta, googleEta, haversineKm, validLatLng, type Eta, type LatLng,
+} from "./trips.js";
 
 // Masajes (60 min), solo en pareja. Mismo valor que src/config/business.ts (MASSAGE_PRICES): cambiar ambos juntos.
 export const MASSAGE_PRICES = { pareja: 280000 } as const;
@@ -112,6 +116,8 @@ export function createApp(deps: AppDeps) {
   app.post("/api/ai/chat", rateLimit("ai", 30, 15 * 60 * 1000));
   app.get("/api/promo-codes/validate", rateLimit("promo", 30, 15 * 60 * 1000));
   app.get("/api/reservations/lookup", rateLimit("lookup", 30, 15 * 60 * 1000));
+  // "Voy en camino" envía la ubicación cada pocos minutos: margen amplio, pero con tope.
+  app.post("/api/trip", rateLimit("trip", 200, 15 * 60 * 1000));
 
   // ---------- Admin authentication (Firebase Google sign-in, verified on the server) ----------
   const FIREBASE_PROJECT_ID: string = env.FIREBASE_PROJECT_ID || (() => {
@@ -190,7 +196,7 @@ export function createApp(deps: AppDeps) {
 
   // Public writes: only a guest booking, the AI concierge question and the privacy deletion request.
   // Every other change (domes, menu, gallery, testimonials, promo codes, uploads, payments...) needs an admin.
-  const PUBLIC_WRITES = new Set(["/api/reservations", "/api/privacy/delete", "/api/ai/chat"]);
+  const PUBLIC_WRITES = new Set(["/api/reservations", "/api/privacy/delete", "/api/ai/chat", "/api/trip"]);
   // Public reads: only what the website shows to visitors. Any other GET under /api needs an admin (default deny).
   const PUBLIC_READS = new Set([
     "/api/domes", "/api/gallery", "/api/menu", "/api/testimonials", "/api/location-photos",
@@ -737,6 +743,113 @@ export function createApp(deps: AppDeps) {
     } catch (e) { next(e); }
   });
 
+  // =============================================================================================
+  // "Voy en camino": el huésped comparte su ubicación el día de llegada (con su permiso expreso)
+  // y el equipo ve cuánto le falta. Se guarda solo la última ubicación; se borra al llegar.
+  // =============================================================================================
+  const TRIP_ENDED = ["Cancelada", "No show", "Completada", "Check-out", "Hospedado", "Check-in"];
+
+  async function glampingLocation(): Promise<LatLng | null> {
+    const rows = await store.list("settings");
+    const get = (k: string) => rows.find((r) => String(r.key) === k)?.value;
+    return validLatLng(get("glamping_lat"), get("glamping_lng"));
+  }
+
+  app.post("/api/trip", async (req, res, next) => {
+    try {
+      const code = String(req.body?.code || "").trim().toUpperCase();
+      const contact = String(req.body?.contact || "").trim();
+      const action = String(req.body?.action || "update");
+      if (!code || !contact) return res.status(400).json({ error: "Escribe el código de reserva y tu correo o teléfono." });
+      if (!["start", "update", "stop"].includes(action)) return res.status(400).json({ error: "Acción no válida." });
+
+      const match = (await findGuestRows(code, contact)).find(({ r }) => !["Cancelada", "No show"].includes(r.status));
+      if (!match) return res.status(404).json({ error: "No encontramos una reserva activa con ese código y ese correo o teléfono." });
+      const r = match.r;
+
+      if (action === "stop") {
+        await store.update("reservations", r.id, { ...CLEARED_TRIP_LOCATION, trip_status: "detenido", trip_updated_at: now().toISOString() });
+        return res.json({ status: "detenido" });
+      }
+
+      // Solo el día de llegada (o la noche anterior) y mientras el huésped no haya llegado.
+      const today = now().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+      const dayBefore = new Date(`${r.check_in}T00:00:00Z`);
+      dayBefore.setUTCDate(dayBefore.getUTCDate() - 1);
+      if (today < dayBefore.toISOString().slice(0, 10) || today > r.check_in) {
+        return res.status(400).json({ error: `"Voy en camino" se activa el día de tu llegada (${r.check_in}).` });
+      }
+      if (TRIP_ENDED.includes(r.status)) {
+        return res.status(400).json({ error: "Esta reserva ya registró la llegada. ¡Bienvenido!" });
+      }
+      if (action === "start" && req.body?.consent !== true) {
+        return res.status(400).json({ error: "Para compartir tu ubicación necesitamos tu autorización." });
+      }
+      if (action === "update" && !r.trip_consent_at) {
+        return res.status(400).json({ error: "Primero toca \"Voy en camino\" y autoriza compartir tu ubicación." });
+      }
+      const pos = validLatLng(req.body?.lat, req.body?.lng);
+      if (!pos) return res.status(400).json({ error: "No recibimos una ubicación válida." });
+      const accuracy = Math.max(0, Math.min(100000, Math.round(Number(req.body?.accuracy) || 0)));
+
+      // Tiempo de llegada: Google (si hay llave y no se consultó hace menos de 2 min) o estimación por distancia.
+      const dest = await glampingLocation();
+      let eta: Eta = { minutes: null, distance_km: null, source: "sin_destino" };
+      let arrived = false;
+      if (dest) {
+        arrived = haversineKm(pos, dest) <= ARRIVAL_KM;
+        const lastGoogle = r.trip_google_at ? Date.parse(r.trip_google_at) : 0;
+        const key = env.GOOGLE_MAPS_API_KEY;
+        const fromGoogle = key && !arrived && now().getTime() - lastGoogle >= GOOGLE_MIN_INTERVAL_MS
+          ? await googleEta(pos, dest, key)
+          : null;
+        eta = arrived ? { minutes: 0, distance_km: 0, source: "estimado" } : (fromGoogle || estimateEta(pos, dest));
+      }
+
+      const stamp = now().toISOString();
+      const patch: Record<string, any> = {
+        trip_status: arrived ? "llego" : "en_camino",
+        trip_updated_at: stamp,
+        trip_eta_min: eta.minutes,
+        trip_distance_km: eta.distance_km,
+        trip_eta_source: eta.source,
+        ...(arrived ? CLEARED_TRIP_LOCATION : { trip_lat: pos.lat, trip_lng: pos.lng, trip_accuracy: accuracy }),
+      };
+      if (eta.source === "google") patch.trip_google_at = stamp;
+      if (action === "start") {
+        patch.trip_consent_at = stamp;
+        if (!r.trip_started_at || r.trip_status !== "en_camino") patch.trip_started_at = stamp;
+      }
+      await store.update("reservations", r.id, patch);
+      if (action === "start") {
+        await audit(String(match.c.name || "Huésped"), "VOY_EN_CAMINO", "Reserva", String(r.reservation_code), "El huésped activó \"Voy en camino\"");
+      }
+      res.json({
+        status: patch.trip_status,
+        eta_min: eta.minutes,
+        distance_km: eta.distance_km,
+        eta_source: eta.source,
+        dome_name: match.dome?.name,
+        check_in: r.check_in,
+      });
+    } catch (e) { next(e); }
+  });
+
+  // Solo equipo: dónde queda el glamping (para calcular cuánto le falta a cada huésped).
+  app.get("/api/trip/destination", async (_req, res, next) => {
+    try { res.json(await glampingLocation()); } catch (e) { next(e); }
+  });
+  app.put("/api/trip/destination", async (req, res) => {
+    try {
+      const pos = validLatLng(req.body?.lat, req.body?.lng);
+      if (!pos) return res.status(400).json({ error: "Coordenadas no válidas." });
+      await store.set("settings", "glamping_lat", { id: "glamping_lat", key: "glamping_lat", value: String(pos.lat) });
+      await store.set("settings", "glamping_lng", { id: "glamping_lng", key: "glamping_lng", value: String(pos.lng) });
+      await audit(req.body?.user_name || "Admin", "UBICACION_GLAMPING", "Configuracion", "glamping", `Ubicación del glamping: ${pos.lat}, ${pos.lng}`);
+      res.json({ success: true, ...pos });
+    } catch (err: any) { res.status(400).json({ error: err.message }); }
+  });
+
   // Privacy self-service (Ley 1581 de 2012). The guest proves who they are with the reservation code AND the
   // email or phone used to book. Attempts are rate-limited per IP (per server instance) to make guessing impractical.
   const privacyAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -808,6 +921,7 @@ export function createApp(deps: AppDeps) {
             const det = parseDetails(r.details);
             tx.update("reservations", r.id, {
               notes: "",
+              ...CLEARED_TRIP_LOCATION,
               ...(det ? { details: JSON.stringify({ ...det, customer: {}, customer_notes: "" }) } : {}),
             });
           }
@@ -824,6 +938,14 @@ export function createApp(deps: AppDeps) {
   app.get("/api/reservations", async (_req, res, next) => {
     try {
       const [reservations, customers, domes] = await Promise.all([store.list("reservations"), store.list("customers"), store.list("domes")]);
+      // Privacidad: una ubicación de "Voy en camino" sin actualizar en 12 horas se borra.
+      const cutoff = now().getTime() - TRIP_EXPIRE_MS;
+      for (const r of reservations) {
+        if (r.trip_lat != null && Date.parse(r.trip_updated_at || "") < cutoff) {
+          Object.assign(r, CLEARED_TRIP_LOCATION, { trip_status: "detenido" });
+          await store.update("reservations", r.id, { ...CLEARED_TRIP_LOCATION, trip_status: "detenido" });
+        }
+      }
       const cMap = new Map(customers.map((c) => [String(c.id), c]));
       const dMap = new Map(domes.map((d) => [String(d.id), d]));
       const rows = reservations
@@ -1149,6 +1271,11 @@ export function createApp(deps: AppDeps) {
         }
       }
       if (status) patch.status = status;
+      // Al llegar (check-in) o si la reserva termina, se borra la ubicación del huésped.
+      if (status && TRIP_ENDED.includes(status)) {
+        Object.assign(patch, CLEARED_TRIP_LOCATION);
+        if (["Hospedado", "Check-in"].includes(status)) patch.trip_status = "llego";
+      }
       if (payment_status) patch.payment_status = payment_status;
       if (user_name) patch.updated_by = user_name;
       await store.update("reservations", id, patch);

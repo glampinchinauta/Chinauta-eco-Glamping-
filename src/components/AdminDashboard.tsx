@@ -178,6 +178,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
 
   const reload = () => loadData(VIEW_DATA[activeMenu] || []);
 
+  // "Voy en camino": en la vista Hoy, las llegadas (y cuánto le falta a cada huésped) se actualizan cada minuto.
+  useEffect(() => {
+    if (activeMenu !== 'dashboard') return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') loadData(['reservations']);
+    }, 60000);
+    return () => window.clearInterval(id);
+  }, [activeMenu]);
+
   useEffect(() => {
     loadData(VIEW_DATA[activeMenu] || []);
   }, [activeMenu]);
@@ -565,7 +574,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
         {activeMenu === 'dashboard' && (
           <TodayView
             firstName={firstName} reservations={reservations} domes={domes} finances={finances}
-            ready={isReady} onStatus={handleUpdateStatus} onCollect={openCollect}
+            ready={isReady} onStatus={handleUpdateStatus} onCollect={openCollect} notify={notify}
           />
         )}
 

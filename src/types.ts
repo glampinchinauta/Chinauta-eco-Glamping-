@@ -35,6 +35,16 @@ export interface Reservation {
   customer_whatsapp?: string;
   dome_name?: string;
   dome_code?: string;
+  /** "Voy en camino" (solo panel): estado, última ubicación y tiempo estimado de llegada. */
+  trip_status?: 'en_camino' | 'llego' | 'detenido';
+  trip_updated_at?: string;
+  trip_started_at?: string;
+  trip_lat?: number | null;
+  trip_lng?: number | null;
+  trip_accuracy?: number | null;
+  trip_eta_min?: number | null;
+  trip_distance_km?: number | null;
+  trip_eta_source?: 'google' | 'estimado' | 'sin_destino';
 }
 
 export interface Customer {

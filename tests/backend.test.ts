@@ -7,6 +7,7 @@ import { createApp } from "../api/app";
 import { FirestoreStore, MemoryStore } from "../api/store";
 import { FakeFirestore } from "./fake-firestore";
 import { FakeUploader } from "../api/uploads";
+import { googleEta } from "../api/trips";
 import { DEFAULT_MENU_ITEMS } from "../src/data/defaultMenu";
 
 const PROJECT = "proyecto-prueba";
@@ -188,6 +189,80 @@ test("máximo de personas: todos reciben 3 por defecto y el administrador puede 
   assert.equal((await book(3, sat, plus(sat, 1), { guests: 4 })).status, 200);
   const avail = (await call("GET", `/api/availability?checkIn=${plus(sat, 7)}&checkOut=${plus(sat, 8)}`)).data as any[];
   assert.equal(avail.find((d) => d.id === 3).max_guests, 4);
+});
+test("voy en camino: con permiso, solo el día de llegada; el panel ve el tiempo y la ubicación se borra al llegar", async () => {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+  const n = 4242001;
+  const r = await book(6, today, plus(today, 1), {}, n);
+  assert.equal(r.status, 200);
+  const code = r.data.reservation_code;
+  const contact = guest(n).email;
+  const trip = (body: Record<string, any>) => call("POST", "/api/trip", { body: { code, contact, ...body } });
+  const row = async () => (await call("GET", "/api/reservations", { auth: admin() })).data.find((x: any) => x.reservation_code === code);
+
+  // Sin autorización expresa no se activa; con otro contacto no se encuentra la reserva.
+  assert.equal((await trip({ action: "start", lat: 4.6, lng: -74.08 })).status, 400);
+  assert.equal((await call("POST", "/api/trip", { body: { code, contact: "otro@test.invalid", action: "start", consent: true, lat: 4.6, lng: -74.08 } })).status, 404);
+  assert.equal((await trip({ action: "start", consent: true, lat: 999, lng: 0 })).status, 400);
+
+  // Sin ubicación del glamping configurada: queda "en camino" pero sin tiempo.
+  let s = await trip({ action: "start", consent: true, lat: 4.6, lng: -74.08, accuracy: 20 });
+  assert.equal(s.status, 200);
+  assert.equal(s.data.status, "en_camino");
+  assert.equal(s.data.eta_source, "sin_destino");
+
+  // Solo el equipo configura dónde queda el glamping.
+  assert.equal((await call("PUT", "/api/trip/destination", { body: { lat: 4.28, lng: -74.4 } })).status, 401);
+  assert.equal((await call("PUT", "/api/trip/destination", { auth: admin(), body: { lat: 4.28, lng: -74.4 } })).status, 200);
+  assert.deepEqual((await call("GET", "/api/trip/destination", { auth: admin() })).data, { lat: 4.28, lng: -74.4 });
+
+  // Desde Bogotá: estimación de un par de horas.
+  s = await trip({ action: "update", lat: 4.6, lng: -74.08 });
+  assert.equal(s.data.eta_source, "estimado");
+  assert.ok(s.data.eta_min > 60 && s.data.eta_min < 240, String(s.data.eta_min));
+  const r1 = await row();
+  assert.equal(r1.trip_status, "en_camino");
+  assert.equal(r1.trip_lat, 4.6);
+  assert.ok(r1.trip_eta_min > 60);
+
+  // La búsqueda pública de reservas no muestra la ubicación.
+  const pub = await call("GET", `/api/reservations/lookup?code=${code}&contact=${encodeURIComponent(contact)}`);
+  assert.equal(pub.data[0].trip_lat, undefined);
+
+  // A menos de 300 m del glamping: llegó y la ubicación se borra.
+  s = await trip({ action: "update", lat: 4.2801, lng: -74.4001 });
+  assert.equal(s.data.status, "llego");
+  const r2 = await row();
+  assert.ok(r2.trip_lat == null && r2.trip_lng == null);
+
+  // Detener también borra la ubicación.
+  await trip({ action: "start", consent: true, lat: 4.5, lng: -74.2 });
+  assert.equal((await trip({ action: "stop" })).data.status, "detenido");
+  assert.ok((await row()).trip_lat == null);
+
+  // El check-in borra la ubicación aunque siga compartiendo.
+  await trip({ action: "start", consent: true, lat: 4.5, lng: -74.2 });
+  assert.equal((await call("PUT", `/api/reservations/${r1.id}/status`, { auth: admin(), body: { status: "Hospedado" } })).status, 200);
+  const r3 = await row();
+  assert.ok(r3.trip_lat == null);
+  assert.equal(r3.trip_status, "llego");
+  assert.equal((await trip({ action: "update", lat: 4.5, lng: -74.2 })).status, 400, "ya llegó");
+
+  // Una reserva de otro día todavía no se puede seguir.
+  const later = await book(6, plus(today, 20), plus(today, 21), {}, n + 1);
+  assert.equal((await call("POST", "/api/trip", { body: { code: later.data.reservation_code, contact: guest(n + 1).email, action: "start", consent: true, lat: 4.6, lng: -74.08 } })).status, 400);
+});
+test("voy en camino: lee la ruta de Google y si Google falla devuelve null para usar la estimación", async () => {
+  let sent: any = null;
+  const ok = (async (_url: any, init: any) => {
+    sent = init;
+    return new Response(JSON.stringify({ routes: [{ duration: "5400s", distanceMeters: 88000 }] }), { status: 200 });
+  }) as typeof fetch;
+  const eta = await googleEta({ lat: 4.6, lng: -74.08 }, { lat: 4.28, lng: -74.4 }, "llave", ok);
+  assert.deepEqual(eta, { minutes: 90, distance_km: 88, source: "google" });
+  assert.equal(sent.headers["X-Goog-Api-Key"], "llave");
+  const bad = (async () => new Response("no", { status: 403 })) as typeof fetch;
+  assert.equal(await googleEta({ lat: 4.6, lng: -74.08 }, { lat: 4.28, lng: -74.4 }, "llave", bad), null);
 });
 test("el pasadía cuesta $250.000 y bloquea ese día", async () => {
   const thu = nextDay(4, 320);

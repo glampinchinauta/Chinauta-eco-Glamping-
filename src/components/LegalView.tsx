@@ -61,6 +61,11 @@ const PrivacyContent: React.FC = () => (
         <li>Datos de la reserva: fechas, domo, número de huéspedes, mascotas, servicios adicionales, comidas y notas que escribas.</li>
         <li>Tu aceptación de estos términos, la fecha y la versión aceptada, y tu confirmación de ser mayor de edad.</li>
         <li>Tu autorización para ofertas, solo si la marcas (es una casilla aparte y sin marcar).</li>
+        <li>
+          Tu ubicación, solo si activas "Voy en camino" el día de tu llegada y lo autorizas expresamente: la usamos para
+          saber a qué hora llegas, se recibe solo mientras la página está abierta, guardamos únicamente la última ubicación
+          y la borramos al llegar, al hacer el check-in, al detener el seguimiento o a más tardar a las 12 horas.
+        </li>
         <li>Datos de navegación (páginas visitadas, dispositivo, región aproximada) mediante herramientas de analítica y publicidad, solo si aceptas esas cookies.</li>
       </ul>
       <P>No pedimos datos sensibles (salud, creencias, orientación sexual, biométricos) ni datos financieros de tarjetas en este sitio.</P>
@@ -103,6 +108,7 @@ const PrivacyContent: React.FC = () => (
         <li>Google Analytics (analítica del sitio): solo si aceptas las cookies de analítica. Ver la pestaña "Cookies".</li>
         <li>Meta (píxeles de publicidad): solo si aceptas las cookies de publicidad. <Rich text="[PENDIENTE: confirmar]" /></li>
         <li>Pagos: Nequi y Daviplata. El sitio no recibe ni guarda datos de tarjetas ni de cuentas; el pago se hace directamente en esas aplicaciones.</li>
+        <li>Google (Maps / Routes): si activas "Voy en camino", tu ubicación se envía para calcular el tiempo de llegada por carretera.</li>
       </ul>
       <P>
         Algunos de estos proveedores están fuera de Colombia. Tu consentimiento expreso autoriza esa transferencia

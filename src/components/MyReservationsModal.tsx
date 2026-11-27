@@ -8,10 +8,18 @@ import { readJson } from '../utils/api';
 interface MyReservationsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Abre "Voy en camino" con el código y el contacto ya escritos. */
+  onOnTheWay?: (code: string, contact: string) => void;
 }
 
-export const MyReservationsModal: React.FC<MyReservationsModalProps> = ({ isOpen, onClose }) => {
-  const { t } = useLanguage();
+// "Voy en camino" se ofrece el día de llegada y la noche anterior.
+const bogotaDate = (offsetDays = 0) => {
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+};
+
+export const MyReservationsModal: React.FC<MyReservationsModalProps> = ({ isOpen, onClose, onOnTheWay }) => {
+  const { t, language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [contactTerm, setContactTerm] = useState('');
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -131,6 +139,17 @@ export const MyReservationsModal: React.FC<MyReservationsModalProps> = ({ isOpen
                         <p className="font-bold text-emerald-700">${resv.total_amount?.toLocaleString('es-CO')} COP</p>
                       </div>
                     </div>
+
+                    {onOnTheWay && [bogotaDate(0), bogotaDate(1)].includes(resv.check_in)
+                      && !['Cancelada', 'No show', 'Hospedado', 'Check-in', 'Check-out', 'Completada'].includes(resv.status) && (
+                      <button
+                        type="button"
+                        onClick={() => onOnTheWay(resv.reservation_code, contactTerm.trim())}
+                        className="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 cursor-pointer"
+                      >
+                        {language === 'en' ? "🚗 I'm on my way" : '🚗 Voy en camino'}
+                      </button>
+                    )}
 
                     <div className="flex items-center justify-between pt-2">
                       <span className="text-xs font-medium text-slate-600">{t('my_reservations.payment_status')} <strong>{resv.payment_status}</strong></span>

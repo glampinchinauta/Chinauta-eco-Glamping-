@@ -7,6 +7,7 @@ import {
   Card, CountUp, EmptyState, LoadingBlocks, Stagger, StaggerItem, StatusBadge,
   addDays, bogotaToday, fmtCOP, greeting, longToday, shortDate, whatsappLink, EASE,
 } from './ui';
+import { TripStatus, GlampingLocationCard } from './TripStatus';
 
 interface TodayViewProps {
   firstName: string;
@@ -16,13 +17,14 @@ interface TodayViewProps {
   ready: boolean;
   onStatus: (id: number, status: string) => void;
   onCollect: (resv: Reservation) => void;
+  notify?: (msg: string, kind?: 'error') => void;
 }
 
 const CANCELLED = ['Cancelada', 'No show'];
 const PENDING = ['Pendiente', 'Pendiente de pago'];
 const IN_HOUSE = ['Hospedado', 'Check-in'];
 
-export const TodayView: React.FC<TodayViewProps> = ({ firstName, reservations, domes, finances, ready, onStatus, onCollect }) => {
+export const TodayView: React.FC<TodayViewProps> = ({ firstName, reservations, domes, finances, ready, onStatus, onCollect, notify }) => {
   if (!ready) return <LoadingBlocks />;
 
   const today = bogotaToday();
@@ -143,11 +145,13 @@ export const TodayView: React.FC<TodayViewProps> = ({ firstName, reservations, d
         )}
       </Card>
 
-      {/* Llegadas y salidas de hoy */}
+      {/* Llegadas y salidas de hoy ("Voy en camino" muestra cuánto le falta a cada huésped) */}
+      {arrivals.length > 0 && <GlampingLocationCard notify={notify} />}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <MovementCard
           title="Llegan hoy" icon={<LogIn className="w-5 h-5 text-emerald-600" />} empty="Nadie llega hoy"
           items={arrivals}
+          extra={r => <TripStatus r={r} />}
           action={r => r.status === 'Confirmada' ? { label: 'Hacer check-in', run: () => onStatus(r.id, 'Hospedado') } : null}
         />
         <MovementCard
@@ -190,7 +194,8 @@ export const TodayView: React.FC<TodayViewProps> = ({ firstName, reservations, d
 const MovementCard: React.FC<{
   title: string; icon: React.ReactNode; empty: string; items: Reservation[];
   action: (r: Reservation) => { label: string; run: () => void } | null;
-}> = ({ title, icon, empty, items, action }) => (
+  extra?: (r: Reservation) => React.ReactNode;
+}> = ({ title, icon, empty, items, action, extra }) => (
   <Card className="overflow-hidden">
     <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
       <h3 className="font-bold text-slate-900 flex items-center gap-2">{icon}{title}</h3>
@@ -213,6 +218,7 @@ const MovementCard: React.FC<{
                   <span className="truncate">{r.dome_name}</span>
                   <span className="inline-flex items-center gap-1 shrink-0"><Users className="w-3.5 h-3.5" />{r.guests}</span>
                 </p>
+                {extra?.(r)}
               </div>
               {a ? (
                 <button onClick={a.run} className="px-3.5 h-9 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 egc-press shrink-0">{a.label}</button>
