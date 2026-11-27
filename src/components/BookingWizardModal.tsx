@@ -384,6 +384,11 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const foodIncomplete = foodMissingNames.length > 0;
 
   const selectedDome = domes.find(d => Number(d.id) === Number(selectedDomeId));
+  // Si el número de personas no cabe en el domo elegido, se ofrecen ahí mismo los domos libres que sí lo reciben.
+  const domeMaxGuests = Number(selectedDome?.capacity || 2);
+  const tooManyGuests = !!selectedDome && guests > domeMaxGuests;
+  const domesThatFit = domes.filter(d =>
+    d.isAvailable && Number(d.capacity || 2) >= guests && Number(d.id) !== Number(selectedDomeId));
 
   // Calculate nights & pricing
   const start = new Date(checkIn);
@@ -563,7 +568,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
 
         {/* Wizard Content */}
         <div className="p-6 sm:p-8 max-h-[75vh] overflow-y-auto space-y-6">
-          {errorMsg && step !== 7 && (
+          {errorMsg && step !== FOOD_STEP && (
             <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium">
               {errorMsg}
             </div>
@@ -735,7 +740,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                 <label className="block text-xs font-semibold text-slate-700 uppercase mb-2">{t('wizard.guests_label')}</label>
                 <select
                   value={guests}
-                  onChange={e => setGuests(Number(e.target.value))}
+                  onChange={e => { setGuests(Number(e.target.value)); setErrorMsg(''); }}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 font-medium focus:outline-hidden focus:border-emerald-500 bg-white text-sm"
                 >
                   <option value={1}>{t('wizard.guest_1')}</option>
@@ -745,7 +750,74 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                 </select>
               </div>
 
-              {extraPersons > 0 && (
+              {/* No cabe en el domo elegido: cambiar de domo aquí mismo, sin devolverse paso por paso */}
+              {tooManyGuests && selectedDome && (
+                <div className="p-4 rounded-2xl border-2 border-amber-300 bg-amber-50 space-y-3">
+                  <p className="text-sm font-bold text-amber-900">
+                    {language === 'en'
+                      ? `${selectedDome.name} takes up to ${domeMaxGuests} guests.`
+                      : `El ${selectedDome.name} recibe máximo ${domeMaxGuests} personas.`}
+                  </p>
+                  {domesThatFit.length > 0 ? (
+                    <>
+                      <p className="text-sm text-amber-900">
+                        {language === 'en'
+                          ? `These domes are free on your dates and take ${guests} guests. Tap one to switch:`
+                          : `Estos domos están libres en tus fechas y reciben ${guests} personas. Toca uno para cambiarlo aquí mismo:`}
+                      </p>
+                      <div className="space-y-2">
+                        {domesThatFit.map(d => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => { setSelectedDomeId(d.id); setErrorMsg(''); }}
+                            className="w-full flex items-center justify-between gap-3 p-3 rounded-xl border-2 border-slate-200 bg-white hover:border-emerald-500 text-left cursor-pointer"
+                          >
+                            <span>
+                              <span className="block font-bold text-slate-900 text-sm">{d.name}</span>
+                              <span className="block text-xs text-slate-600">
+                                {language === 'en' ? `Up to ${d.capacity} guests` : `Hasta ${d.capacity} personas`}
+                                {bookingType !== 'pasadia' && ` · $${Number(d.price_per_night || 0).toLocaleString('es-CO')} ${language === 'en' ? '/ night' : '/ noche'}`}
+                              </span>
+                            </span>
+                            <span className="shrink-0 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-semibold">
+                              {language === 'en' ? 'Switch' : 'Cambiar'}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-amber-900">
+                      {language === 'en'
+                        ? `No dome for ${guests} guests is free on your dates. Try other dates or fewer guests.`
+                        : `No hay domos libres para ${guests} personas en tus fechas. Prueba otras fechas o menos personas.`}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setGuests(domeMaxGuests); setErrorMsg(''); }}
+                      className="px-3 py-2 rounded-xl border border-amber-300 bg-white text-xs font-semibold text-amber-900 hover:bg-amber-100 cursor-pointer"
+                    >
+                      {language === 'en'
+                        ? `Keep ${selectedDome.name} for ${domeMaxGuests} guests`
+                        : `Seguir con el ${selectedDome.name} para ${domeMaxGuests} personas`}
+                    </button>
+                    {domesThatFit.length === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => { setErrorMsg(''); setStep(2); }}
+                        className="px-3 py-2 rounded-xl border border-amber-300 bg-white text-xs font-semibold text-amber-900 hover:bg-amber-100 cursor-pointer"
+                      >
+                        {language === 'en' ? 'Change dates' : 'Cambiar fechas'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {extraPersons > 0 && !tooManyGuests && (
                 <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
                   {t('wizard.extra_persons_added').replace('{count}', String(extraPersons)).replace('{fee}', extraPersonsFee.toLocaleString('es-CO'))}
                 </div>
@@ -1427,6 +1499,12 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                         : `Elige la carne y cómo la quieres en: ${foodMissingNames.join(', ')} (marcado en amarillo).`);
                       return;
                     }
+                  }
+                  if (step === 4 && tooManyGuests) {
+                    setErrorMsg(language === 'en'
+                      ? `${selectedDome?.name} takes up to ${domeMaxGuests} guests. Choose another dome below or change the number of guests.`
+                      : `El ${selectedDome?.name} recibe máximo ${domeMaxGuests} personas. Elige otro domo abajo o cambia el número de personas.`);
+                    return;
                   }
                   if (step === 3 && !selectedDomeId) {
                     setErrorMsg(t('wizard.select_dome_err'));
