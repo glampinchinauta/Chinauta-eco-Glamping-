@@ -442,7 +442,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const weekdayDiscountPercent = isWeekday ? 10 : 0;
   const effectiveDiscountPercent = Math.max(weekdayDiscountPercent, appliedPromo?.percent || 0);
 
-  const discountAmount = (subtotal * effectiveDiscountPercent) / 100;
+  const discountAmount = Math.round((subtotal * effectiveDiscountPercent) / 100); // same rounding as the server
   // Food is charged separately: it is added after the discount and is not discounted.
   const foodTotal = menuItems.reduce(
     (sum, i) => sum + (Number(i.price) || 0) * (foodChoices[String(i.id)]?.qty || 0),
@@ -1303,6 +1303,25 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                 {promoMsg && (
                   <p className={`mt-1 text-xs font-medium ${appliedPromo ? 'text-emerald-700' : 'text-red-600'}`}>{promoMsg}</p>
                 )}
+                {appliedPromo && (appliedPromo.percent > weekdayDiscountPercent ? (
+                  <div className="mt-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-emerald-900">
+                      <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="text-sm font-semibold">
+                        {language === 'en'
+                          ? `You save with ${appliedPromo.code} (${appliedPromo.percent}%)`
+                          : `Te ahorras con ${appliedPromo.code} (${appliedPromo.percent}%)`}
+                      </span>
+                    </div>
+                    <span className="text-lg font-black text-emerald-700 whitespace-nowrap">${discountAmount.toLocaleString('es-CO')}</span>
+                  </div>
+                ) : (
+                  <p className="mt-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs font-medium text-amber-900">
+                    {language === 'en'
+                      ? `You already have ${weekdayDiscountPercent}% off for staying on a weekday (you save $${discountAmount.toLocaleString('es-CO')}). Discounts don't stack, so the code adds nothing more.`
+                      : `Ya tienes ${weekdayDiscountPercent}% por reservar entre semana (te ahorras $${discountAmount.toLocaleString('es-CO')}). Los descuentos no se suman, así que el código no da un ahorro extra.`}
+                  </p>
+                ))}
               </div>
 
               {/* Payment Methods */}
