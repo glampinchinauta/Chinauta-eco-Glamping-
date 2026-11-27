@@ -33,6 +33,13 @@ export interface AppDeps {
 // Version of the terms and privacy text shown to the guest (see src/config/legal.ts). Change it when the text changes.
 export const LEGAL_TERMS_VERSION = "2026-11-12";
 const PROMO_PERCENTS = [5, 10, 15, 20];
+// Decoration occasions the guest must pick from (key sent by the app → text for admin/WhatsApp).
+const DECOR_OCCASIONS: Record<string, string> = {
+  novia: "Pedir que sea mi novia",
+  matrimonio: "Pedir matrimonio",
+  aniversario: "Aniversario",
+  personalizado: "Mensaje personalizado",
+};
 // Una reserva solo bloquea el domo cuando administración la confirma. Mientras está pendiente
 // (el huésped aún no paga el abono o no se ha revisado), el domo sigue disponible para otros.
 const NOT_BLOCKING = ["Pendiente", "Pendiente de pago", "Cancelada", "Completada", "No show"];
@@ -961,7 +968,7 @@ export function createApp(deps: AppDeps) {
   });
 
   app.post("/api/reservations", async (req, res) => {
-    const { customer, dome_id, check_in, guests, notes, user_name, promo_code, bbq_zone, booking_type, pets, addons, food_items, decor_message, services } = req.body || {};
+    const { customer, dome_id, check_in, guests, notes, user_name, promo_code, bbq_zone, booking_type, pets, addons, food_items, decor_message, decor_occasion, decor_recipient, services } = req.body || {};
     const isDayPass = booking_type === "pasadia";
     let check_out: string = req.body?.check_out;
     if (isDayPass && check_in) {
@@ -1002,6 +1009,14 @@ export function createApp(deps: AppDeps) {
     // No bookings in the past (Colombia time).
     const todayBogota = now().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
     if (check_in < todayBogota) return res.status(400).json({ error: "La fecha de entrada no puede ser anterior a hoy." });
+    // Decoration: occasion, recipient name and message are required.
+    const hasDecor = !!(addons?.decorVip || addons?.decorBasic);
+    const decorOccasion = hasDecor ? DECOR_OCCASIONS[String(decor_occasion || "")] : undefined;
+    const decorRecipient = hasDecor ? clipText(decor_recipient, 80) : "";
+    const decorMessage = hasDecor ? clipText(decor_message, 300) : "";
+    if (hasDecor && (!decorOccasion || !decorRecipient || !decorMessage)) {
+      return res.status(400).json({ error: "Para la decoración elige la ocasión y escribe el nombre de quien recibe y el mensaje." });
+    }
 
     try {
       // One transaction: availability check, price, customer and reservation are saved together or not at all.
@@ -1085,7 +1100,9 @@ export function createApp(deps: AppDeps) {
           pets_fee: petsFee,
           addons: addonList,
           addons_fee: addonsFee,
-          decor_message: decorFee > 0 ? clipText(decor_message, 300) : "",
+          decor_occasion: decorOccasion || "",
+          decor_recipient: decorRecipient,
+          decor_message: decorMessage,
           bbq_zone: !!bbq_zone,
           bbq_fee: bbqFee,
           food: foodDetails,

@@ -13,6 +13,8 @@ export interface BookingDetails {
   addons?: { name: string; price: number }[];
   addons_fee?: number;
   decor_message?: string;
+  decor_occasion?: string;
+  decor_recipient?: string;
   bbq_zone?: boolean;
   bbq_fee?: number;
   food?: { name: string; qty: number; subtotal: number; meat?: string; preparation?: string; side?: string }[];
@@ -79,6 +81,8 @@ export function buildBookingSummary(input: {
   const addonList = det?.addons || [];
   if (addonList.length === 0) lines.push("- Ninguno");
   for (const a of addonList) lines.push(`- ${a.name}: ${formatCOP(a.price)}`);
+  if (det?.decor_occasion) lines.push(`Ocasión de la decoración: ${det.decor_occasion}`);
+  if (det?.decor_recipient) lines.push(`Para: ${det.decor_recipient}`);
   if (det?.decor_message) lines.push(`Mensaje para la decoración: "${det.decor_message}"`);
   lines.push("");
   lines.push("COMIDA Y ZONA BBQ");

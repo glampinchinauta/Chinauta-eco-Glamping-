@@ -100,6 +100,8 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   // Masaje: paso propio. Sin tipo = sin masaje.
   const [massage, setMassage] = useState<{ type: MassageType | ''; therapist: MassageTherapist }>({ type: '', therapist: 'indiferente' });
   const [customMessage, setCustomMessage] = useState('');
+  const [decorOccasion, setDecorOccasion] = useState('');
+  const [decorRecipient, setDecorRecipient] = useState('');
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; percent: number } | null>(null);
   const [promoMsg, setPromoMsg] = useState('');
@@ -502,7 +504,9 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           total_amount: totalAmount,
           promo_code: appliedPromo?.code || null,
           bbq_zone: bbqOnly,
-          decor_message: (selectedAddons.decorVip || selectedAddons.decorBasic) ? customMessage : '',
+          decor_message: (selectedAddons.decorVip || selectedAddons.decorBasic) ? customMessage.trim() : '',
+          decor_occasion: (selectedAddons.decorVip || selectedAddons.decorBasic) ? decorOccasion : '',
+          decor_recipient: (selectedAddons.decorVip || selectedAddons.decorBasic) ? decorRecipient.trim() : '',
           booking_type: bookingType,
           pets: hasPet ? petCount : 0,
           addons: { ...selectedAddons, massage: massage.type ? massage : null },
@@ -570,7 +574,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
 
         {/* Wizard Content */}
         <div className="p-6 sm:p-8 max-h-[75vh] overflow-y-auto space-y-6">
-          {errorMsg && step !== FOOD_STEP && (
+          {errorMsg && step !== FOOD_STEP && step !== 6 && (
             <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium">
               {errorMsg}
             </div>
@@ -936,15 +940,63 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
               </div>
 
               {(selectedAddons.decorVip || selectedAddons.decorBasic) && (
-                <div className="space-y-2 pt-2">
-                  <label className="block text-xs font-semibold text-slate-700 uppercase">{t('wizard.custom_msg_label')}</label>
-                  <input
-                    type="text"
-                    value={customMessage}
-                    onChange={e => setCustomMessage(e.target.value)}
-                    placeholder={t('wizard.custom_msg_ph')}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium"
-                  />
+                <div className="space-y-4 pt-2 p-4 rounded-2xl border border-rose-200 bg-rose-50/40">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-2">
+                      {language === 'en' ? 'What is the occasion? *' : '¿Para qué es la decoración? *'}
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { key: 'novia', es: '💍 Pedir que sea mi novia', en: '💍 Ask to be my girlfriend' },
+                        { key: 'matrimonio', es: '💒 Pedir matrimonio', en: '💒 Marriage proposal' },
+                        { key: 'aniversario', es: '🥂 Aniversario', en: '🥂 Anniversary' },
+                        { key: 'personalizado', es: '✍️ Mensaje personalizado', en: '✍️ Custom message' },
+                      ].map(o => (
+                        <button
+                          key={o.key}
+                          type="button"
+                          onClick={() => { setDecorOccasion(o.key); setErrorMsg(''); }}
+                          className={`px-3 py-2.5 rounded-xl border-2 text-xs sm:text-sm font-semibold text-left transition-all ${
+                            decorOccasion === o.key ? 'border-emerald-600 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-700'
+                          }`}
+                        >
+                          {language === 'en' ? o.en : o.es}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                      {language === 'en' ? 'Name of the person receiving it *' : 'Nombre de la persona que recibe el mensaje *'}
+                    </label>
+                    <input
+                      type="text"
+                      value={decorRecipient}
+                      maxLength={80}
+                      onChange={e => { setDecorRecipient(e.target.value); setErrorMsg(''); }}
+                      placeholder={language === 'en' ? 'E.g. Laura' : 'Ej: Laura'}
+                      className={`w-full px-4 py-3 rounded-xl border text-sm font-medium bg-white ${errorMsg && !decorRecipient.trim() ? 'border-amber-400' : 'border-slate-200'}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                      {language === 'en' ? 'Message for the decoration *' : 'Mensaje que va en la decoración *'}
+                    </label>
+                    <textarea
+                      value={customMessage}
+                      maxLength={300}
+                      rows={2}
+                      onChange={e => { setCustomMessage(e.target.value); setErrorMsg(''); }}
+                      placeholder={decorOccasion === 'novia'
+                        ? (language === 'en' ? 'E.g. Will you be my girlfriend?' : 'Ej: ¿Quieres ser mi novia?')
+                        : decorOccasion === 'matrimonio'
+                          ? (language === 'en' ? 'E.g. Will you marry me?' : 'Ej: ¿Te quieres casar conmigo?')
+                          : decorOccasion === 'aniversario'
+                            ? (language === 'en' ? 'E.g. Happy 5 years together' : 'Ej: Feliz aniversario, 5 años juntos')
+                            : t('wizard.custom_msg_ph')}
+                      className={`w-full px-4 py-3 rounded-xl border text-sm font-medium bg-white ${errorMsg && !customMessage.trim() ? 'border-amber-400' : 'border-slate-200'}`}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -1457,7 +1509,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
         </div>
 
         {/* Food-step message sits right above the buttons so it is always visible */}
-        {errorMsg && step === FOOD_STEP && (
+        {errorMsg && (step === FOOD_STEP || step === 6) && (
           <div className="mx-4 sm:mx-6 mt-4 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-bold">
             {errorMsg}
           </div>
@@ -1526,6 +1578,13 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                     setErrorMsg(language === 'en'
                       ? `${selectedDome?.name} takes up to ${domeMaxGuests} guests. Choose another dome below or change the number of guests.`
                       : `El ${selectedDome?.name} recibe máximo ${domeMaxGuests} personas. Elige otro domo abajo o cambia el número de personas.`);
+                    return;
+                  }
+                  if (step === 6 && (selectedAddons.decorVip || selectedAddons.decorBasic)
+                    && (!decorOccasion || !decorRecipient.trim() || !customMessage.trim())) {
+                    setErrorMsg(language === 'en'
+                      ? 'For the decoration, choose the occasion and write the name of the person and the message.'
+                      : 'Para la decoración elige la ocasión y escribe el nombre de la persona y el mensaje.');
                     return;
                   }
                   if (step === 3 && !selectedDomeId) {

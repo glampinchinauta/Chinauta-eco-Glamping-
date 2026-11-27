@@ -284,11 +284,15 @@ test("el resumen de la reserva se guarda con comida, carne, extras y mensaje, y 
     food_items: [{ id: 1, qty: 2, meat: "Res", preparation: "A la parrilla", side: "Papas" }],
     addons: { decorVip: true },
     decor_message: "Feliz aniversario",
+    decor_occasion: "aniversario",
+    decor_recipient: "Laura",
   });
   assert.equal(r.status, 200, r.text);
   assert.match(r.data.summary, new RegExp(`RESERVA ${r.data.reservation_code}`));
   assert.match(r.data.summary, /2 x .* \(Res · A la parrilla · acompañamiento: Papas\)/);
   assert.match(r.data.summary, /Decoración VIP: \$150\.000/);
+  assert.match(r.data.summary, /Ocasión de la decoración: Aniversario/);
+  assert.match(r.data.summary, /Para: Laura/);
   assert.match(r.data.summary, /Mensaje para la decoración: "Feliz aniversario"/);
 
   const sinSesion = await call("GET", `/api/reservations/${r.data.reservation_id}/summary`);
@@ -297,6 +301,17 @@ test("el resumen de la reserva se guarda con comida, carne, extras y mensaje, y 
   assert.equal(panel.status, 200);
   assert.match(panel.text, /Feliz aniversario/);
   assert.match(panel.text, new RegExp(r.data.reservation_code));
+});
+test("con decoración son obligatorios la ocasión, el nombre de quien recibe y el mensaje", async () => {
+  const sat = nextDay(6, 440);
+  const sinNombre = await book(4, sat, plus(sat, 1), { addons: { decorBasic: true }, decor_occasion: "novia", decor_message: "¿Quieres ser mi novia?" });
+  assert.equal(sinNombre.status, 400);
+  assert.match(sinNombre.data.error, /ocasión/);
+  const ocasionRara = await book(4, sat, plus(sat, 1), { addons: { decorBasic: true }, decor_occasion: "otra", decor_recipient: "Ana", decor_message: "Hola" });
+  assert.equal(ocasionRara.status, 400);
+  const ok = await book(4, sat, plus(sat, 1), { addons: { decorBasic: true }, decor_occasion: "matrimonio", decor_recipient: "Ana", decor_message: "¿Te casas conmigo?" });
+  assert.equal(ok.status, 200, ok.text);
+  assert.match(ok.data.summary, /Ocasión de la decoración: Pedir matrimonio/);
 });
 test("al borrar sus datos, el resumen de la reserva ya no muestra al huésped pero conserva código y montos", async () => {
   const sat = nextDay(6, 440);
