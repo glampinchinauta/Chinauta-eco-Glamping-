@@ -204,6 +204,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
     }
   };
 
+  // Cuántas personas recibe como máximo cada domo (la reserva no deja pasar de ahí).
+  const handleMaxGuests = async (id: number, max: number) => {
+    setDomes(prev => prev.map(d => (d.id === id ? { ...d, max_guests: max } : d)));
+    try {
+      const res = await fetch(`/api/domes/${id}/max-guests`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ max_guests: max, user_name: user.full_name })
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || '');
+      }
+      notify(`Listo: ahora recibe hasta ${max} personas`);
+    } catch (err: any) {
+      notify(err?.message || 'No se pudo guardar el máximo de personas', 'error');
+      reload();
+    }
+  };
+
   const handleAddStaff = async (email: string, name: string): Promise<boolean> => {
     try {
       const res = await fetch('/api/staff', {
@@ -952,6 +972,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
                     <h4 className="text-lg font-bold text-slate-900">{dome.name}</h4>
                     <p className="text-xs text-slate-500">{dome.code} • ${dome.price_per_night?.toLocaleString('es-CO')} / noche</p>
                     <p className="text-xs text-slate-600 mt-2">{dome.description}</p>
+                    <label className="mt-3 flex items-center justify-between gap-3 text-sm">
+                      <span className="text-slate-700">
+                        Máximo de personas
+                        <span className="block text-xs text-slate-500">Incluidas en el precio: {dome.capacity || 2}</span>
+                      </span>
+                      <select
+                        value={dome.max_guests || Math.max(dome.capacity || 2, 3)}
+                        onChange={e => handleMaxGuests(dome.id, Number(e.target.value))}
+                        className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold"
+                        aria-label={`Máximo de personas en ${dome.name}`}
+                      >
+                        {[2, 3, 4, 5, 6].filter(n => n >= (dome.capacity || 2)).map(n => (
+                          <option key={n} value={n}>{n} personas</option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
                 </div>
               ))}

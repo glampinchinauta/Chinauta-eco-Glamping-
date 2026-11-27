@@ -37,6 +37,11 @@ const isBlocking = (status: string) => !NOT_BLOCKING.includes(status);
 export const DEPOSIT_PERCENT = 30;
 export const depositFor = (total: number) => Math.ceil((Number(total) || 0) * DEPOSIT_PERCENT / 100);
 const PAYMENT_METHODS = ["Nequi", "Daviplata"] as const;
+// Máximo de personas por domo. "capacity" son las personas incluidas en el precio; las que pasan de ahí pagan
+// persona adicional. Si el domo no tiene "max_guests", recibe hasta 3 (lo normal en el glamping).
+export const DEFAULT_MAX_GUESTS = 3;
+export const maxGuestsOf = (d: Record<string, any>) =>
+  Math.min(6, Math.max(Number(d.capacity) || 2, Number(d.max_guests) || DEFAULT_MAX_GUESTS));
 
 class UploadError extends Error {}
 const UPLOAD_TYPES: Record<string, { kind: "image" | "video"; ext: string }> = {
@@ -261,7 +266,7 @@ export function createApp(deps: AppDeps) {
   const domeWithImages = (d: Row) => {
     let images: string[] = [];
     if (d.images) { try { images = JSON.parse(d.images); } catch { images = []; } }
-    return { ...d, images };
+    return { ...d, images, max_guests: maxGuestsOf(d) };
   };
 
   // ---------- Discount rule ----------
@@ -360,6 +365,23 @@ export function createApp(deps: AppDeps) {
       await store.update("domes", id, patch);
       await audit(user_name, "ACTUALIZAR_DOMO", "Domo", id, `Actualización de domo ${name} (${status})`);
       res.json({ success: true });
+    } catch (err: any) { res.status(400).json({ error: err.message }); }
+  });
+
+  // Solo administrador: cuántas personas recibe como máximo un domo (2 a 6, nunca menos que las incluidas).
+  app.put("/api/domes/:id/max-guests", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const dome = await store.get("domes", id);
+      if (!dome) return res.status(404).json({ error: "Domo no encontrado." });
+      const value = Math.round(Number(req.body?.max_guests));
+      const min = Math.max(2, Number(dome.capacity) || 2);
+      if (!Number.isFinite(value) || value < min || value > 6) {
+        return res.status(400).json({ error: `El máximo debe estar entre ${min} y 6 personas.` });
+      }
+      await store.update("domes", id, { max_guests: value });
+      await audit(req.body?.user_name || "Admin", "ACTUALIZAR_MAX_PERSONAS", "Domo", String(id), `Máximo de personas: ${value}`);
+      res.json({ success: true, max_guests: value });
     } catch (err: any) { res.status(400).json({ error: err.message }); }
   });
 
@@ -629,6 +651,7 @@ export function createApp(deps: AppDeps) {
         const isAvailable = reservationOverlap === 0 && maintenanceOverlap === 0 && dome.status === "Disponible";
         return {
           ...dome,
+          max_guests: maxGuestsOf(dome),
           isAvailable,
           reason: !isAvailable
             ? (dome.status === "Fuera de servicio" ? "Fuera de servicio" : (maintenanceOverlap > 0 ? "Mantenimiento" : "Reservado"))
@@ -867,8 +890,8 @@ export function createApp(deps: AppDeps) {
           return { status: 400, error: "El domo seleccionado no está disponible o se encuentra fuera de servicio." };
         }
         const numGuests = Number(guests) || 1;
-        if (numGuests > dome.capacity) {
-          return { status: 400, error: `El número de huéspedes (${numGuests}) supera la capacidad máxima del domo (${dome.capacity}).` };
+        if (numGuests > maxGuestsOf(dome)) {
+          return { status: 400, error: `El número de huéspedes (${numGuests}) supera la capacidad máxima del domo (${maxGuestsOf(dome)}).` };
         }
 
         // Server-calculated total. The client total is ignored; every price comes from the database or the tables below.

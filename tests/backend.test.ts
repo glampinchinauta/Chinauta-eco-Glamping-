@@ -172,6 +172,23 @@ test("validaciones: sin aceptar términos, fechas, capacidad y domo inexistente"
   assert.equal((await book(99, sat, plus(sat, 1))).status, 400);
   assert.equal((await call("POST", "/api/reservations", { body: {} })).status, 400);
 });
+test("máximo de personas: todos reciben 3 por defecto y el administrador puede subir a 4", async () => {
+  const sat = nextDay(6, 680);
+  const domes = (await call("GET", "/api/domes")).data as any[];
+  assert.ok(domes.every((d) => d.max_guests >= 3), "todos los domos reciben al menos 3");
+  // Domo de 2 incluidas: la 3.ª persona entra pagando persona adicional; la 4.ª no cabe.
+  const tres = await book(1, sat, plus(sat, 1), { guests: 3 });
+  assert.equal(tres.status, 200);
+  assert.match(String(tres.data.summary), /Huéspedes adicionales: \$70\.000/);
+  assert.equal((await book(3, sat, plus(sat, 1), { guests: 4 })).status, 400);
+  // Solo el administrador cambia el máximo, y dentro de un rango válido.
+  assert.equal((await call("PUT", "/api/domes/3/max-guests", { body: { max_guests: 4 } })).status, 401);
+  assert.equal((await call("PUT", "/api/domes/3/max-guests", { auth: admin(), body: { max_guests: 1 } })).status, 400);
+  assert.equal((await call("PUT", "/api/domes/3/max-guests", { auth: admin(), body: { max_guests: 4 } })).status, 200);
+  assert.equal((await book(3, sat, plus(sat, 1), { guests: 4 })).status, 200);
+  const avail = (await call("GET", `/api/availability?checkIn=${plus(sat, 7)}&checkOut=${plus(sat, 8)}`)).data as any[];
+  assert.equal(avail.find((d) => d.id === 3).max_guests, 4);
+});
 test("el pasadía cuesta $250.000 y bloquea ese día", async () => {
   const thu = nextDay(4, 320);
   const r = await book(3, thu, thu, { booking_type: "pasadia" });

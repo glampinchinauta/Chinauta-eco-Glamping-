@@ -4,6 +4,8 @@ export interface Dome {
   code: string;
   description: string;
   capacity: number;
+  /** Máximo de personas que recibe (las que pasan de "capacity" pagan persona adicional). */
+  max_guests?: number;
   price_per_night: number;
   image_url: string;
   images?: string[];

@@ -385,10 +385,12 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
 
   const selectedDome = domes.find(d => Number(d.id) === Number(selectedDomeId));
   // Si el número de personas no cabe en el domo elegido, se ofrecen ahí mismo los domos libres que sí lo reciben.
-  const domeMaxGuests = Number(selectedDome?.capacity || 2);
+  // Máximo de personas del domo (lo manda el servidor; si no viene, hasta 3 como en api/app.ts).
+  const maxGuestsOf = (d: any) => Math.max(Number(d?.capacity) || 2, Number(d?.max_guests) || 3);
+  const domeMaxGuests = maxGuestsOf(selectedDome);
   const tooManyGuests = !!selectedDome && guests > domeMaxGuests;
   const domesThatFit = domes.filter(d =>
-    d.isAvailable && Number(d.capacity || 2) >= guests && Number(d.id) !== Number(selectedDomeId));
+    d.isAvailable && maxGuestsOf(d) >= guests && Number(d.id) !== Number(selectedDomeId));
 
   // Calculate nights & pricing
   const start = new Date(checkIn);
@@ -719,7 +721,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                         <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{dome.description}</p>
                       </div>
                       <div className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg">
-                        {t('wizard.capacity_desc').replace('{count}', String(dome.capacity || 2))} {dome.id === 1 ? t('wizard.small_jacuzzi') : dome.id === 2 ? t('wizard.extra_bed') : ''}
+                        {t('wizard.capacity_desc').replace('{count}', String(maxGuestsOf(dome)))} {dome.id === 1 ? t('wizard.small_jacuzzi') : dome.id === 2 ? t('wizard.extra_bed') : ''}
                       </div>
                     </div>
                   ))}
@@ -733,7 +735,8 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
             <div className="space-y-6">
               <h4 className="text-xl font-bold text-slate-900">{t('wizard.step4_title')}</h4>
               <p className="text-sm text-slate-600">
-                {t('wizard.step4_sub').replace('{cap}', String(selectedDome?.capacity || 2))}
+                {t('wizard.step4_sub').replace('{cap}', String(selectedDome?.capacity || 2))}{' '}
+                <strong>{language === 'en' ? `Takes up to ${domeMaxGuests} guests.` : `Recibe hasta ${domeMaxGuests} personas.`}</strong>
               </p>
 
               <div>
@@ -776,7 +779,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
                             <span>
                               <span className="block font-bold text-slate-900 text-sm">{d.name}</span>
                               <span className="block text-xs text-slate-600">
-                                {language === 'en' ? `Up to ${d.capacity} guests` : `Hasta ${d.capacity} personas`}
+                                {language === 'en' ? `Up to ${maxGuestsOf(d)} guests` : `Hasta ${maxGuestsOf(d)} personas`}
                                 {bookingType !== 'pasadia' && ` · $${Number(d.price_per_night || 0).toLocaleString('es-CO')} ${language === 'en' ? '/ night' : '/ noche'}`}
                               </span>
                             </span>
