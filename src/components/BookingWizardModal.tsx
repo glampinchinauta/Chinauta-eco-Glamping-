@@ -350,6 +350,18 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const massageFee = selectedAddons.coupleMassage ? 250000 : 0;
   const addonsTotal = bonoTimeFee + decorFee + massageFee;
 
+  // Todo lo que el huésped eligió, en texto, para administración y para el WhatsApp de confirmación.
+  const servicesList: string[] = [
+    ...(selectedAddons.bonoTime ? ['Bono de tiempo'] : []),
+    ...(selectedAddons.decorVip ? ['Decoración VIP'] : []),
+    ...(selectedAddons.decorBasic ? ['Decoración básica'] : []),
+    ...(selectedAddons.coupleMassage ? ['Masaje en pareja'] : []),
+    ...(hasPet && petCount > 0 ? [`Mascotas: ${petCount}`] : []),
+    ...(extraPersons > 0 ? [`Personas extra: ${extraPersons}`] : []),
+    ...(bbqOnly ? ['Zona BBQ con comida propia'] : []),
+    ...foodSummary.map(f => `Comida: ${f}`),
+  ];
+
   const subtotal = baseTotal + extraPersonsFee + petsFee + addonsTotal;
 
   // Weekday check
@@ -424,6 +436,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           booking_type: bookingType,
           pets: hasPet ? petCount : 0,
           addons: selectedAddons,
+          services: servicesList,
           // One entry per meat/preparation group: a dish split between several choices sends each part with its own choices.
           food_items: (Object.entries(foodChoices) as [string, { qty: number; meat: string; preparation: string; side: string }][])
             .filter(([, c]) => (c?.qty || 0) > 0)

@@ -807,7 +807,7 @@ export function createApp(deps: AppDeps) {
   });
 
   app.post("/api/reservations", async (req, res) => {
-    const { customer, dome_id, check_in, guests, notes, user_name, promo_code, bbq_zone, booking_type, pets, addons, food_items, decor_message } = req.body || {};
+    const { customer, dome_id, check_in, guests, notes, user_name, promo_code, bbq_zone, booking_type, pets, addons, food_items, decor_message, services } = req.body || {};
     const isDayPass = booking_type === "pasadia";
     let check_out: string = req.body?.check_out;
     if (isDayPass && check_in) {
@@ -826,6 +826,11 @@ export function createApp(deps: AppDeps) {
     const nowIso = now().toISOString();
     const stamp = sqlTime(now());
     const marketingOk = req.body.consent.marketing === true ? 1 : 0;
+    // Todo lo que el huésped eligió (masajes, extras, comida, mascotas...) para que administración lo vea.
+    // Es un resumen para el equipo: los precios siguen calculándose en el servidor.
+    const serviceLines: string[] = Array.isArray(services)
+      ? services.slice(0, 40).map((s) => String(s).replace(/[\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 200)).filter(Boolean)
+      : [];
 
     // Validate dates format AAAA-MM-DD
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -1037,7 +1042,7 @@ export function createApp(deps: AppDeps) {
         await notifyReservation(process.env, {
           code: done.code, domeName: String(domeRow?.name || `Domo ${dome_id}`), checkIn: check_in, checkOut: check_out,
           guests: Number(guests) || 0, total: done.finalTotal, customerName: String(customer.name || ""),
-          customerEmail: customer.email, customerPhone: customer.phone,
+          customerEmail: customer.email, customerPhone: customer.phone, services: serviceLines,
         });
       } catch (err) { console.error("[notify]", err); }
       // The guest gets the same text the admin panel shows (for the WhatsApp button). A failure here never undoes the booking.

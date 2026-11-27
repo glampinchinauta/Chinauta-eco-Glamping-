@@ -293,6 +293,12 @@ test("el huésped consulta por código con su correo o teléfono, y en su cuenta
   assert.equal((await call("GET", "/api/my/reservations")).status, 401);
   assert.equal((await call("GET", "/api/my/reservations", { auth: token("huesped4242@test.invalid", false) })).status, 401);
 });
+test("el resumen de la reserva incluye los extras y la comida elegidos", async () => {
+  const sat = nextDay(6, 480);
+  const r = await book(4, sat, plus(sat, 1), { addons: { coupleMassage: true } });
+  assert.equal(r.status, 200);
+  assert.match(String(r.data.summary || ""), /[Mm]asaje/, "el masaje aparece en el resumen que ve administración");
+});
 test("el huésped descarga y borra sus datos (se conservan montos y fechas)", async () => {
   const sat = nextDay(6, 480);
   const r = await book(5, sat, plus(sat, 1), { notes: "Alergia a los frutos secos", customer: { name: "Ana Prueba", email: "ana.priv@test.invalid", phone: "3011234567", document_id: "123456" } });
