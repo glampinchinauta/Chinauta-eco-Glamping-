@@ -9,7 +9,7 @@ import { CHINAUTA_MENU_ITEMS } from './FoodMenuSection';
 import { isColombianHoliday } from '../utils/colombiaHolidays';
 import { auth } from '../lib/firebase';
 import {
-  whatsappLink, MASSAGE_PRICES, MASSAGE_TYPE_LABELS, MASSAGE_THERAPIST_LABELS, MASSAGE_PHOTOS,
+  whatsappLink, MASSAGE_PRICES, MASSAGE_TYPE_LABELS, MASSAGE_THERAPIST_LABELS, MASSAGE_PHOTOS, DEPOSIT_PERCENT,
   type MassageType, type MassageTherapist,
 } from '../config/business';
 
@@ -239,7 +239,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   }, [name, phone, phoneCountry, whatsapp, email, documentId]);
 
   // Payment method
-  const [paymentMethod, setPaymentMethod] = useState('Transferencia Bancaria');
+  const [paymentMethod, setPaymentMethod] = useState<'Nequi' | 'Daviplata'>('Nequi');
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmedCode, setConfirmedCode] = useState('');
@@ -396,6 +396,8 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   const BBQ_ZONE_FEE = 20000;
   const bbqFee = bbqOnly ? BBQ_ZONE_FEE : 0;
   const totalAmount = Math.max(0, subtotal - discountAmount) + foodTotal + bbqFee;
+  // Abono mínimo para apartar (mismo cálculo que el servidor: depositFor en api/app.ts).
+  const depositAmount = Math.ceil(totalAmount * DEPOSIT_PERCENT / 100);
 
   const validateStep2 = () => {
     if (bookingType === 'pasadia') {
@@ -448,6 +450,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
           booking_type: bookingType,
           pets: hasPet ? petCount : 0,
           addons: { ...selectedAddons, massage: massage.type ? massage : null },
+          payment_method: paymentMethod,
           services: servicesList,
           // One entry per meat/preparation group: a dish split between several choices sends each part with its own choices.
           food_items: (Object.entries(foodChoices) as [string, { qty: number; meat: string; preparation: string; side: string }][])
@@ -1256,11 +1259,21 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
               {/* Payment Methods */}
               <div className="space-y-3 pt-2">
                 <label className="block text-xs font-semibold text-slate-700 uppercase">{t('wizard.payment_method')}</label>
-                {[
-                  { id: 'Transferencia Bancaria', title: t('wizard.pay_transfer') },
-                  { id: 'Wompi', title: t('wizard.pay_wompi') },
-                  { id: 'Mercado Pago', title: t('wizard.pay_mercadopago') }
-                ].map(method => (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm text-amber-900 space-y-1">
+                  <p className="font-bold">
+                    {language === 'en' ? 'Minimum deposit to hold your dome' : 'Abono mínimo para apartar tu domo'} ({DEPOSIT_PERCENT}%):{' '}
+                    ${depositAmount.toLocaleString('es-CO')} COP
+                  </p>
+                  <p className="text-xs">
+                    {language === 'en'
+                      ? 'Your dome is held only when our team confirms your deposit. Until then the dates stay open to other guests. We send you the payment details by WhatsApp.'
+                      : 'Tu domo queda apartado solo cuando administración confirma el abono. Mientras tanto las fechas siguen disponibles para otros. Te enviamos los datos de pago por WhatsApp.'}
+                  </p>
+                </div>
+                {([
+                  { id: 'Nequi', title: 'Nequi' },
+                  { id: 'Daviplata', title: 'Daviplata' },
+                ] as const).map(method => (
                   <div
                     key={method.id}
                     onClick={() => setPaymentMethod(method.id)}

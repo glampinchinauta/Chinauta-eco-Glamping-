@@ -21,6 +21,9 @@ export interface BookingDetails {
   discount_percent?: number;
   discount_amount?: number;
   customer_notes?: string;
+  deposit_percent?: number;
+  deposit_min?: number;
+  payment_method?: string;
   customer?: { name?: string; document_id?: string; phone?: string; whatsapp?: string; email?: string };
 }
 
@@ -101,6 +104,11 @@ export function buildBookingSummary(input: {
   }
   lines.push(`TOTAL: ${formatCOP(r.total_amount)}`);
   lines.push(`Pagado: ${formatCOP(r.amount_paid)} · Saldo pendiente: ${formatCOP(r.amount_pending)}`);
+  if (det?.deposit_min) {
+    lines.push(`Abono mínimo para apartar (${det.deposit_percent || 30}%): ${formatCOP(det.deposit_min)}`);
+    if (det.payment_method) lines.push(`Medio de pago: ${det.payment_method}`);
+    lines.push("El domo queda apartado cuando administración confirme el abono.");
+  }
   lines.push("");
   lines.push(`NOTAS DEL HUÉSPED: ${det ? (det.customer_notes || "-") : (r.notes || "-")}`);
   if (!det) lines.push("(Reserva anterior: sin detalle estructurado. Notas originales arriba.)");

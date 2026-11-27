@@ -18,6 +18,9 @@ export const MASSAGE_THERAPIST_LABELS: Record<MassageTherapist, { es: string; en
   hombre: { es: 'Masajista hombre', en: 'Male therapist' },
 };
 
+// Abono mínimo para apartar un domo (% del total). El servidor usa el mismo valor (DEPOSIT_PERCENT en api/app.ts).
+export const DEPOSIT_PERCENT = 30;
+
 export function whatsappLink(text: string, number: string = BUSINESS_WHATSAPP): string {
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
 }

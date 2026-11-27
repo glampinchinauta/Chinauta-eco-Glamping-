@@ -29,8 +29,14 @@ export interface AppDeps {
 // Version of the terms and privacy text shown to the guest (see src/config/legal.ts). Change it when the text changes.
 export const LEGAL_TERMS_VERSION = "2026-11-12";
 const PROMO_PERCENTS = [5, 10, 15, 20];
-const NOT_BLOCKING = ["Cancelada", "Completada", "No show"];
+// Una reserva solo bloquea el domo cuando administración la confirma. Mientras está pendiente
+// (el huésped aún no paga el abono o no se ha revisado), el domo sigue disponible para otros.
+const NOT_BLOCKING = ["Pendiente", "Pendiente de pago", "Cancelada", "Completada", "No show"];
 const isBlocking = (status: string) => !NOT_BLOCKING.includes(status);
+// Abono mínimo para apartar: 30% del total. Medios de pago aceptados por ahora.
+export const DEPOSIT_PERCENT = 30;
+export const depositFor = (total: number) => Math.ceil((Number(total) || 0) * DEPOSIT_PERCENT / 100);
+const PAYMENT_METHODS = ["Nequi", "Daviplata"] as const;
 
 class UploadError extends Error {}
 const UPLOAD_TYPES: Record<string, { kind: "image" | "video"; ext: string }> = {
@@ -943,6 +949,9 @@ export function createApp(deps: AppDeps) {
           discount_percent: discount.percent,
           discount_amount: discount.amount,
           total: finalTotal,
+          deposit_percent: DEPOSIT_PERCENT,
+          deposit_min: depositFor(finalTotal),
+          payment_method: PAYMENT_METHODS.includes(req.body?.payment_method) ? req.body.payment_method : "Nequi",
           customer_notes: clipText(notes, 1000),
           customer: {
             name: clipText(customer.name, 120),
@@ -1096,6 +1105,26 @@ export function createApp(deps: AppDeps) {
       const { id } = req.params;
       const { status, payment_status, user_name } = req.body;
       const patch: Record<string, any> = { updated_at: sqlTime(now()) };
+      // Confirmar es lo que bloquea el domo: no se puede confirmar si otra reserva confirmada
+      // o un mantenimiento ya ocupa esas fechas en el mismo domo.
+      if (status && isBlocking(status)) {
+        const current = await store.get("reservations", id);
+        if (current && !isBlocking(current.status)) {
+          const domeKey = Number(current.dome_id);
+          const [sameDome, blocks] = await Promise.all([
+            store.list("reservations", { where: { dome_id: domeKey } }),
+            store.list("maintenance_blocks", { where: { dome_id: domeKey } }),
+          ]);
+          const clash = sameDome.find((r) => String(r.id) !== String(current.id) && isBlocking(r.status)
+            && r.check_in < current.check_out && r.check_out > current.check_in);
+          if (clash) {
+            return res.status(409).json({ error: `No se puede confirmar: el domo ya tiene la reserva confirmada ${clash.reservation_code} en esas fechas.` });
+          }
+          if (blocks.some((b) => b.start_date < current.check_out && b.end_date > current.check_in)) {
+            return res.status(409).json({ error: "No se puede confirmar: el domo está en mantenimiento en esas fechas." });
+          }
+        }
+      }
       if (status) patch.status = status;
       if (payment_status) patch.payment_status = payment_status;
       if (user_name) patch.updated_by = user_name;

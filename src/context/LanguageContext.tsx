@@ -469,7 +469,7 @@ const translations: Record<Language, Translations> = {
     'faq.item5_q': '¿Qué incluyen las tarifas de reserva?',
     'faq.item5_a': 'Incluyen el alojamiento en el domo seleccionado, jacuzzi privado, desayuno campesino artesanal, parqueadero y uso de zonas comunes.',
     'faq.item6_q': '¿Cuáles son los métodos de pago aceptados?',
-    'faq.item6_a': 'Aceptamos transferencias bancarias (Bancolombia, Nequi, Daviplata), pagos a través de la pasarela Wompi con tarjetas de crédito/débito y efectivo.',
+    'faq.item6_a': 'Por ahora recibimos pagos por Nequi y Daviplata. Para apartar tu domo pagas un abono mínimo del 30% de la reserva; el domo queda apartado cuando administración confirma el abono.',
     'faq.more_help_title': '¿Tienes alguna otra pregunta?',
     'faq.more_help_desc': 'Nuestro equipo de atención está disponible las 24 horas para resolver cualquier duda a través de WhatsApp.',
     'faq.whatsapp_btn': 'Chatear por WhatsApp'
@@ -936,7 +936,7 @@ const translations: Record<Language, Translations> = {
     'faq.item5_q': 'What is included in the reservation rates?',
     'faq.item5_a': 'Rates include accommodation in your selected dome, private hot tub, artisan country breakfast, parking, and common grounds access.',
     'faq.item6_q': 'What payment methods are accepted?',
-    'faq.item6_a': 'We accept bank wire transfers, Wompi secure payment gateway with credit/debit cards, and cash.',
+    'faq.item6_a': 'For now we accept payments through Nequi and Daviplata. To hold your dome you pay a minimum 30% deposit; the dome is held once our team confirms the deposit.',
     'faq.more_help_title': 'Do you have another question?',
     'faq.more_help_desc': 'Our concierge team is available 24/7 to answer any questions via WhatsApp.',
     'faq.whatsapp_btn': 'Chat on WhatsApp'

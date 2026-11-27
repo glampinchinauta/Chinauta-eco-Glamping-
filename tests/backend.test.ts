@@ -219,15 +219,36 @@ test("al borrar sus datos, el resumen de la reserva ya no muestra al huésped pe
   assert.match(panel.text, new RegExp(`RESERVA ${r.data.reservation_code}`));
   assert.match(panel.text, /TOTAL: \$/);
 });
-test("no se puede reservar dos veces el mismo domo: de 5 solicitudes simultáneas gana una", async () => {
+test("las pendientes no bloquean; solo una reserva confirmada ocupa el domo", async () => {
   const sat = nextDay(6, 340);
+  // Sin confirmar, varias personas pueden pedir el mismo domo y fecha.
   const results = await Promise.all([1, 2, 3, 4, 5].map((n) => book(4, sat, plus(sat, 1), {}, 1000 + n)));
-  const codes = results.filter((r) => r.status === 200).map((r) => r.data.reservation_code);
-  assert.equal(codes.length, 1, results.map((r) => r.status).join(","));
-  assert.equal(results.filter((r) => r.status === 409).length, 4);
-  // fechas que se montan parcialmente también chocan; las contiguas no
+  assert.equal(results.filter((r) => r.status === 200).length, 5, results.map((r) => r.status).join(","));
+  const all = (await call("GET", "/api/reservations", { auth: admin() })).data as any[];
+  const ids = results.map((r) => all.find((x) => x.reservation_code === r.data.reservation_code).id);
+  // Administración confirma una; la segunda ya no se puede confirmar en esas fechas.
+  assert.equal((await call("PUT", `/api/reservations/${ids[0]}/status`, { auth: admin(), body: { status: "Confirmada" } })).status, 200);
+  const second = await call("PUT", `/api/reservations/${ids[1]}/status`, { auth: admin(), body: { status: "Confirmada" } });
+  assert.equal(second.status, 409);
+  assert.match(second.data.error, /ya tiene la reserva confirmada/);
+  // Con una confirmada, las fechas que se montan chocan; las contiguas no.
   assert.equal((await book(4, plus(sat, 0), plus(sat, 3))).status, 409);
   assert.equal((await book(4, plus(sat, 1), plus(sat, 2))).status, 200);
+  // Cancelar otra pendiente no tiene problema.
+  assert.equal((await call("PUT", `/api/reservations/${ids[2]}/status`, { auth: admin(), body: { status: "Cancelada" } })).status, 200);
+});
+test("el resumen trae el abono mínimo del 30% y el medio de pago", async () => {
+  const sat = nextDay(6, 660);
+  const r = await book(5, sat, plus(sat, 1), { payment_method: "Daviplata" });
+  assert.equal(r.status, 200);
+  const all = (await call("GET", "/api/reservations", { auth: admin() })).data as any[];
+  const row = all.find((x) => x.reservation_code === r.data.reservation_code);
+  const deposit = Math.ceil(row.total_amount * 0.3);
+  assert.match(String(r.data.summary), new RegExp(`Abono mínimo para apartar \\(30%\\): \\$${deposit.toLocaleString("es-CO").replace(/\./g, "\\.")}`));
+  assert.match(String(r.data.summary), /Medio de pago: Daviplata/);
+  // Un medio no aceptado se cambia por Nequi.
+  const otro = await book(3, sat, plus(sat, 1), { payment_method: "Bitcoin" });
+  assert.match(String(otro.data.summary), /Medio de pago: Nequi/);
 });
 test("el mismo huésped no se duplica y los códigos son únicos", async () => {
   const a = nextDay(6, 360), b = nextDay(6, 360, 1);
@@ -251,6 +272,11 @@ test("la disponibilidad marca lo reservado, el mantenimiento y se libera al canc
   assert.equal(free.filter((d: any) => d.isAvailable).length, 6);
   const r = await book(2, sat, out);
   let list = (await call("GET", `/api/availability?checkIn=${sat}&checkOut=${out}`)).data;
+  // Pendiente: el domo sigue disponible hasta que administración confirme.
+  assert.equal(list.find((d: any) => d.id === 2).isAvailable, true);
+  const rid = (await call("GET", "/api/reservations", { auth: admin() })).data.find((x: any) => x.reservation_code === r.data.reservation_code).id;
+  assert.equal((await call("PUT", `/api/reservations/${rid}/status`, { auth: admin(), body: { status: "Confirmada" } })).status, 200);
+  list = (await call("GET", `/api/availability?checkIn=${sat}&checkOut=${out}`)).data;
   const d2 = list.find((d: any) => d.id === 2);
   assert.equal(d2.isAvailable, false);
   assert.equal(d2.reason, "Reservado");

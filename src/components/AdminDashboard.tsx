@@ -139,7 +139,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
 
   // Payment form state
   const [payAmount, setPayAmount] = useState(0);
-  const [payMethod, setPayMethod] = useState('Transferencia Bancaria');
+  const [payMethod, setPayMethod] = useState('Nequi');
 
   // Cada vista pide solo los datos que usa (antes cada clic descargaba 11 endpoints).
   const loadData = async (keys: DataKey[]) => {
@@ -191,11 +191,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, user_name: user.full_name })
       });
-      if (!res.ok) throw new Error('status');
+      if (!res.ok) {
+        // Por ejemplo: no se puede confirmar porque otra reserva confirmada ya ocupa esas fechas.
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || '');
+      }
       notify(status === 'Cancelada' ? 'Reserva cancelada' : `Listo: ahora está «${status}»`);
       loadData(['reservations']);
-    } catch (err) {
-      notify(t('admin.alert_status_error'), 'error');
+    } catch (err: any) {
+      notify(err?.message || t('admin.alert_status_error'), 'error');
       reload();
     }
   };
@@ -1387,7 +1391,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }
               <div>
                 <span className={labelClass}>Método de pago</span>
                 <div className="grid grid-cols-2 gap-2">
-                  {['Transferencia Bancaria', 'Efectivo', 'Wompi', 'Datáfono'].map(m => (
+                  {['Nequi', 'Daviplata'].map(m => (
                     <button
                       key={m} type="button" onClick={() => setPayMethod(m)} aria-pressed={payMethod === m}
                       className={`h-11 rounded-2xl border text-sm font-semibold transition-colors ${payMethod === m ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}

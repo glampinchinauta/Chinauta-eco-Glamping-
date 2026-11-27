@@ -102,7 +102,7 @@ const PrivacyContent: React.FC = () => (
         <li>Meta (WhatsApp): solo si tú nos escribes o abres un enlace de WhatsApp desde el sitio.</li>
         <li>Google Analytics (analítica del sitio): solo si aceptas las cookies de analítica. Ver la pestaña "Cookies".</li>
         <li>Meta (píxeles de publicidad): solo si aceptas las cookies de publicidad. <Rich text="[PENDIENTE: confirmar]" /></li>
-        <li>Pasarelas de pago (Wompi, Mercado Pago): <Rich text="[PENDIENTE: el sitio ofrece estos métodos pero aún no están integrados; eliminarlos o integrarlos y publicar el proveedor]" />.</li>
+        <li>Pagos: Nequi y Daviplata. El sitio no recibe ni guarda datos de tarjetas ni de cuentas; el pago se hace directamente en esas aplicaciones.</li>
       </ul>
       <P>
         Algunos de estos proveedores están fuera de Colombia. Tu consentimiento expreso autoriza esa transferencia
