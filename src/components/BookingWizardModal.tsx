@@ -553,17 +553,18 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto">
-      <div className="glass-card w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden bg-white my-8">
-        
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-sm">
+      {/* The window never grows past the screen: header and buttons stay fixed, only the middle scrolls. */}
+      <div className="glass-card w-full max-w-3xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col rounded-3xl shadow-2xl border border-slate-200 overflow-hidden bg-white">
+
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-800 to-teal-900 text-white p-6 flex items-center justify-between">
+        <div className="shrink-0 bg-gradient-to-r from-emerald-800 to-teal-900 text-white px-4 py-3 sm:p-6 flex items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
               <Compass className="w-6 h-6 text-emerald-300" />
             </div>
             <div>
-              <h3 className="text-lg font-bold">{t('wizard.title')}</h3>
+              <h3 className="text-base sm:text-lg font-bold leading-tight">{t('wizard.title')}</h3>
               <p className="text-xs text-emerald-200">{t('wizard.step_counter').replace('{step}', String(step))}</p>
             </div>
           </div>
@@ -573,7 +574,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
         </div>
 
         {/* Wizard Content */}
-        <div className="p-6 sm:p-8 max-h-[75vh] overflow-y-auto space-y-6">
+        <div className="flex-1 min-h-0 p-4 sm:p-8 overflow-y-auto overscroll-contain space-y-6">
           {errorMsg && step !== FOOD_STEP && step !== 6 && (
             <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium">
               {errorMsg}
@@ -1510,7 +1511,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
 
         {/* Food-step message sits right above the buttons so it is always visible */}
         {errorMsg && (step === FOOD_STEP || step === 6) && (
-          <div className="mx-4 sm:mx-6 mt-4 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-bold">
+          <div className="shrink-0 mx-4 sm:mx-6 mt-3 p-3 sm:p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm font-bold">
             {errorMsg}
           </div>
         )}
@@ -1518,7 +1519,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
         {/* While choosing food, the price is always visible right above the buttons */}
         {step === FOOD_STEP && (
           <div
-            className="mx-4 sm:mx-6 mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm space-y-0.5"
+            className="shrink-0 mx-4 sm:mx-6 mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm space-y-0.5"
             aria-live="polite"
           >
             <div className="flex items-center justify-between gap-3">
@@ -1544,18 +1545,18 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
         )}
 
         {/* Footer Actions */}
-        <div className="p-4 sm:p-6 bg-slate-50 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="shrink-0 p-3 sm:p-6 bg-slate-50 border-t border-slate-200 flex flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
           {step > 1 && step < DONE_STEP ? (
             <button
               onClick={() => setStep(prev => prev - 1)}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 font-medium text-slate-700 hover:bg-slate-100 flex items-center justify-center space-x-2 text-sm cursor-pointer"
+              className="shrink-0 px-4 sm:px-5 py-2.5 rounded-xl border border-slate-300 font-medium text-slate-700 hover:bg-slate-100 flex items-center justify-center space-x-2 text-sm cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>{t('wizard.prev_btn')}</span>
             </button>
-          ) : <div />}
+          ) : <div className="hidden sm:block" />}
 
-          <div className="w-full sm:w-auto flex justify-end">
+          <div className="flex-1 min-w-0 sm:flex-none flex justify-end">
             {step < CONTACT_STEP && (
               <button
                 onClick={() => {
@@ -1605,7 +1606,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
               <button
                 onClick={handleConfirmBooking}
                 disabled={submitting || !acceptTerms || !isAdult}
-                className="w-full sm:w-auto px-6 sm:px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-bold hover:from-emerald-700 hover:to-teal-800 shadow-lg shadow-emerald-700/30 flex items-center justify-center space-x-2 text-xs sm:text-sm disabled:opacity-50 cursor-pointer"
+                className="w-full sm:w-auto px-4 sm:px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-bold hover:from-emerald-700 hover:to-teal-800 shadow-lg shadow-emerald-700/30 flex items-center justify-center space-x-2 text-xs sm:text-sm leading-tight text-center disabled:opacity-50 cursor-pointer"
               >
                 <span>{submitting ? t('wizard.confirming_btn') : `${t('wizard.confirm_btn')} ($${totalAmount.toLocaleString('es-CO')} COP)`}</span>
                 <ShieldCheck className="w-5 h-5 shrink-0" />

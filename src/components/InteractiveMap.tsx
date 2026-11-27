@@ -204,7 +204,7 @@ export const InteractiveMap: React.FC = () => {
         </div>
 
         {/* Attractions List Sidebar (1 column) */}
-        <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+        <div className="space-y-4 lg:max-h-[600px] lg:overflow-y-auto lg:pr-2">
           <h3 className="text-lg font-bold text-slate-900 flex items-center space-x-2">
             <Compass className="w-5 h-5 text-emerald-600" />
             <span>{t('map.nearby_points')}</span>

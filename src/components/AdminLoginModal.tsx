@@ -167,8 +167,8 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
   const inputClass = 'w-full h-12 px-4 rounded-2xl border border-slate-200 bg-white text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
-      <div className="glass-card w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden bg-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto">
+      <div className="m-auto glass-card w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden bg-white">
         
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-900 to-emerald-950 text-white p-6 flex items-center justify-between">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Star, CheckCircle2, Quote, Upload, Camera, Plus, X, ImagePlus, Video, CheckCircle, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Portal } from './Portal';
 import { useLanguage } from '../context/LanguageContext';
 import { getResponsiveImageData } from '../utils/imageUtils';
 import { useIsAdmin } from '../lib/useIsAdmin';
@@ -360,14 +361,14 @@ export const TestimonialsSection: React.FC = () => {
       </AnimatePresence>
 
       {/* Add Testimonial Modal */}
-      <AnimatePresence>
+      <Portal><AnimatePresence>
         {isAddModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto"
+              className="m-auto bg-white rounded-3xl p-5 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 relative max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain"
             >
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div className="flex items-center space-x-2">
@@ -534,7 +535,7 @@ export const TestimonialsSection: React.FC = () => {
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence></Portal>
     </section>
   );
 };

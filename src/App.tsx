@@ -172,7 +172,8 @@ function AppContent() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-slate-950 text-slate-400 py-12 border-t border-slate-900">
+      {/* On phones and tablets the bottom bar covers the last ~80px: leave room so nothing hides behind it. */}
+      <footer className="bg-slate-950 text-slate-400 pt-12 pb-28 lg:pb-12 border-t border-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-8">
           <div className="space-y-4">
             <div className="flex items-center space-x-3">

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Portal } from './Portal';
 import { ChevronLeft, ChevronRight, Camera, Maximize2, X, Heart } from 'lucide-react';
 import { getResponsiveImageData } from '../utils/imageUtils';
 import { useLanguage } from '../context/LanguageContext';
@@ -225,7 +226,7 @@ export const BochicaCarousel: React.FC<BochicaCarouselProps> = ({
       </div>
 
       {/* Fullscreen Lightbox Modal */}
-      <AnimatePresence>
+      <Portal><AnimatePresence>
         {fullscreenImage && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -285,7 +286,7 @@ export const BochicaCarousel: React.FC<BochicaCarouselProps> = ({
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence></Portal>
     </div>
   );
 };

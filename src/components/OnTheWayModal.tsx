@@ -208,7 +208,7 @@ export const OnTheWayModal: React.FC<Props> = ({ isOpen, onClose, initialCode = 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="otw-title">
-      <div className="w-full max-w-lg rounded-3xl shadow-2xl bg-white overflow-hidden my-8">
+      <div className="m-auto w-full max-w-lg rounded-3xl shadow-2xl bg-white overflow-hidden">
         <div className="bg-gradient-to-r from-emerald-800 to-teal-900 text-white p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center"><Navigation className="w-5 h-5" /></div>

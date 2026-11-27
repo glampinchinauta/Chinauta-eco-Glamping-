@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Sparkles, X } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { Portal } from './Portal';
 
 const DECORATION_GROUPS = [
   {
@@ -103,6 +104,7 @@ export const DecorationsSection: React.FC<DecorationsSectionProps> = ({ onOpenBo
       )}
 
       {preview && (
+        <Portal>
         <div
           className="fixed inset-0 z-[100] bg-slate-950/90 flex items-center justify-center p-4"
           onClick={() => setPreview(null)}
@@ -115,8 +117,9 @@ export const DecorationsSection: React.FC<DecorationsSectionProps> = ({ onOpenBo
           >
             <X className="w-6 h-6" />
           </button>
-          <img src={preview} alt="Vista ampliada de la decoración" className="max-h-[90vh] max-w-full rounded-xl object-contain" />
+          <img src={preview} alt="Vista ampliada de la decoración" className="max-h-[calc(100dvh-2rem)] max-w-full rounded-xl object-contain" />
         </div>
+        </Portal>
       )}
     </section>
   );

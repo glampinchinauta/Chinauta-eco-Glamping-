@@ -201,7 +201,7 @@ export const Modal: React.FC<{ title: string; subtitle?: string; onClose: () => 
         role="dialog" aria-modal="true" aria-label={title}
         initial={{ opacity: 0, y: 40, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24 }}
         transition={{ duration: 0.35, ease: EASE }}
-        className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-8 sm:pb-6 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto"
+        className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-8 sm:pb-6 shadow-2xl space-y-5 max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain"
       >
         <div>
           <h3 className="text-xl font-bold text-slate-900">{title}</h3>

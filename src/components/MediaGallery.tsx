@@ -6,6 +6,7 @@ import {
   Smartphone, LayoutGrid
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Portal } from './Portal';
 import { useLanguage } from '../context/LanguageContext';
 import { getResponsiveImageData } from '../utils/imageUtils';
 
@@ -381,7 +382,7 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({ onOpenBooking }) => 
 )}
 
       {/* Global Drag & Drop Overlay Indicator */}
-      <AnimatePresence>
+      <Portal><AnimatePresence>
         {isDraggingOver && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -400,7 +401,7 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({ onOpenBooking }) => 
             </p>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence></Portal>
 
       {/* Header section with CTA */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -744,7 +745,7 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({ onOpenBooking }) => 
       )}
 
       {/* Lightbox Viewer Modal with Touch Gestures */}
-      <AnimatePresence>
+      <Portal><AnimatePresence>
         {lightboxIndex !== null && filteredItems[lightboxIndex] && (
           <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col justify-between p-4 sm:p-6 overflow-hidden">
             {/* Top Toolbar */}
@@ -862,17 +863,17 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({ onOpenBooking }) => 
             </div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence></Portal>
 
       {/* Upload Modal with Drag & Drop Zone */}
-      <AnimatePresence>
+      <Portal><AnimatePresence>
         {canEdit && isUploadModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto"
+              className="m-auto bg-white rounded-3xl p-5 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 relative max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain"
             >
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div className="flex items-center space-x-2">
@@ -1000,10 +1001,10 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({ onOpenBooking }) => 
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence></Portal>
 
       {/* Toast Notification */}
-      <AnimatePresence>
+      <Portal><AnimatePresence>
         {toastMessage && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -1015,7 +1016,7 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({ onOpenBooking }) => 
             <span>{toastMessage}</span>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence></Portal>
     </div>
   );
 };

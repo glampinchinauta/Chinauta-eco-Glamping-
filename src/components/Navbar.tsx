@@ -347,9 +347,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.25, ease: 'easeInOut' }}
-              className="lg:hidden border-t border-slate-200/90 bg-white/98 backdrop-blur-xl shadow-2xl overflow-y-auto max-h-[calc(100vh-5rem)]"
+              className="lg:hidden border-t border-slate-200/90 bg-white/98 backdrop-blur-xl shadow-2xl overflow-y-auto overscroll-contain max-h-[calc(100dvh-9.5rem)]"
             >
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-4">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 pb-20 space-y-4">
                 
                 {/* Language: the header shows it only from 480px up */}
                 <LanguageSwitcher variant="full" className="min-[480px]:hidden" />

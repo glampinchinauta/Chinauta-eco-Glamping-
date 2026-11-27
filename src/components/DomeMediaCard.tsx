@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Volume2, VolumeX, Maximize2, Film, Camera, Upload, CheckCircle, ImagePlus, ChevronLeft, ChevronRight, X, Trash2 } from 'lucide-react';
 import { Dome } from '../types';
@@ -342,7 +343,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
           )}
 
           {/* Top Left: Badges */}
-          <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-1.5 pointer-events-auto">
+          <div className="absolute top-3 left-3 right-28 z-20 flex flex-wrap items-center gap-1.5 pointer-events-none">
             <span className="bg-slate-900/85 backdrop-blur-md text-white text-[11px] px-2.5 py-1 rounded-full font-medium shadow-sm border border-white/10">
               {t('domes.capacity_label')} {dome.capacity} {t('domes.people')}
             </span>
@@ -442,7 +443,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-slate-950/40 pointer-events-none" />
 
           {/* Top Left: Badges */}
-          <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-1.5 pointer-events-auto">
+          <div className="absolute top-3 left-3 right-28 z-20 flex flex-wrap items-center gap-1.5 pointer-events-none">
             <span className="bg-slate-900/85 backdrop-blur-md text-white text-[11px] px-2.5 py-1 rounded-full font-medium shadow-sm border border-white/10">
               {t('domes.capacity_label')} {dome.capacity} {t('domes.people')}
             </span>
@@ -616,10 +617,9 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Fullscreen Photo Modal */}
-      <AnimatePresence>
-        {isFullscreenPhoto && (
-          <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col justify-between p-4">
+      {/* Fullscreen Photo Modal. Rendered on <body>: inside the animated card, "fixed" would stay trapped in the card. */}
+      {isFullscreenPhoto && createPortal(
+          <div className="fixed inset-0 z-[80] bg-black/95 backdrop-blur-xl flex flex-col justify-between p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <div className="flex items-center justify-between text-white z-10">
               <span className="text-sm font-semibold">{dome.name} • {t('domes.photos_tab')} {currentPhotoIdx + 1} {t('domes.of')} {images.length}</span>
               <button
@@ -631,7 +631,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
               </button>
             </div>
 
-            <div className="relative flex-1 flex items-center justify-center p-2">
+            <div className="relative flex-1 min-h-0 flex items-center justify-center p-2">
               {(() => {
                 const fsPhoto = images[currentPhotoIdx];
                 const fsResp = getResponsiveImageData(fsPhoto, '(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 1200px');
@@ -641,7 +641,7 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
                     srcSet={fsResp.webpSrcSet || undefined}
                     sizes={fsResp.sizes || undefined}
                     alt={`${dome.name} full`}
-                    className="max-h-[85vh] max-w-full object-contain rounded-lg shadow-2xl"
+                    className="max-h-full max-w-full object-contain rounded-lg shadow-2xl"
                   />
                 );
               })()}
@@ -689,9 +689,9 @@ export const DomeMediaCard: React.FC<DomeMediaCardProps> = ({
                 </button>
               )}
             </div>
-          </div>
-        )}
-      </AnimatePresence>
+          </div>,
+          document.body
+      )}
     </div>
   );
 };

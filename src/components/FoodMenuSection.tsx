@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Utensils, Sparkles, CheckCircle2, ChevronRight, ShoppingBag, Coffee, Flame, Plus, Camera, Video, Upload, X, CheckCircle, ImagePlus, Play, Pause } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Portal } from './Portal';
 import { ImageCarousel } from './ImageCarousel';
 import { useLanguage } from '../context/LanguageContext';
 import { useIsAdmin } from '../lib/useIsAdmin';
@@ -538,14 +539,14 @@ export const FoodMenuSection: React.FC<FoodMenuSectionProps> = ({ onOpenBooking 
       </AnimatePresence>
 
       {/* Add New Dish Modal */}
-      <AnimatePresence>
+      <Portal><AnimatePresence>
         {isAddModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto"
+              className="m-auto bg-white rounded-3xl p-5 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 relative max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain"
             >
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div className="flex items-center space-x-2">
@@ -685,7 +686,7 @@ export const FoodMenuSection: React.FC<FoodMenuSectionProps> = ({ onOpenBooking 
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence></Portal>
     </div>
   );
 };

@@ -50,10 +50,10 @@ export const MyReservationsModal: React.FC<MyReservationsModalProps> = ({ isOpen
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto">
-      <div className="glass-card w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden bg-white my-8">
-        
+      <div className="m-auto glass-card w-full max-w-2xl max-h-[calc(100dvh-2rem)] flex flex-col rounded-3xl shadow-2xl border border-slate-200 overflow-hidden bg-white">
+
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-800 to-teal-900 text-white p-6 flex items-center justify-between">
+        <div className="shrink-0 bg-gradient-to-r from-emerald-800 to-teal-900 text-white px-4 py-4 sm:p-6 flex items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
               <Search className="w-6 h-6 text-emerald-300" />
@@ -69,7 +69,7 @@ export const MyReservationsModal: React.FC<MyReservationsModalProps> = ({ isOpen
         </div>
 
         {/* Content */}
-        <div className="p-6 sm:p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+        <div className="flex-1 min-h-0 p-4 sm:p-8 space-y-6 overflow-y-auto overscroll-contain">
           <AccountPanel />
 
           <h4 className="text-sm font-bold text-slate-900">¿No tienes cuenta? Busca tu reserva con el código</h4>

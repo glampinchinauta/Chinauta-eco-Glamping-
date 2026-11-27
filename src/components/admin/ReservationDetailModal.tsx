@@ -60,15 +60,15 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="bg-gradient-to-r from-emerald-800 to-teal-900 text-white p-5 flex items-center justify-between">
+      <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[calc(100dvh-2rem)]">
+        <div className="shrink-0 bg-gradient-to-r from-emerald-800 to-teal-900 text-white p-5 flex items-center justify-between">
           <h3 className="font-bold">Detalle de la reserva {code}</h3>
           <button type="button" onClick={onClose} aria-label="Cerrar" className="p-2 rounded-xl hover:bg-white/10">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-5 overflow-y-auto space-y-4">
+        <div className="flex-1 min-h-0 p-5 overflow-y-auto overscroll-contain space-y-4">
           {error && <div className="p-3 rounded-xl bg-rose-50 text-rose-700 text-sm">{error}</div>}
           {!error && !text && <p className="text-sm text-slate-500">Cargando detalle…</p>}
           {text && (
@@ -77,7 +77,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
         </div>
 
         {text && (
-          <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row gap-3">
+          <div className="shrink-0 p-4 border-t border-slate-200 flex flex-col sm:flex-row gap-3">
             <button type="button" onClick={copy} className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 hover:bg-slate-50">
               {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
               <span>{copied ? 'Copiado' : 'Copiar detalle'}</span>
