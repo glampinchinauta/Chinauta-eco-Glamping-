@@ -443,7 +443,8 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
             .flatMap(([id, c]) => splitRows(id, c)
               .filter(r => r.qty > 0)
               .map(r => ({ id: Number(id), qty: r.qty, meat: r.meat || '', preparation: r.preparation || '', side: c.side || '' }))),
-          notes:`[${bookingType.toUpperCase()}] Mascotas: ${hasPet ? petCount : 0}. Addons: ${Object.entries(selectedAddons).filter(([_,v]) => v).map(([k]) => k).join(', ')}. Mensaje decorativo: ${customMessage}. Comida: ${bbqOnly ? 'No (usará zona BBQ con comida propia)' : (foodSummary.join('; ') || 'No seleccionada')}. Notas: ${notes}`,
+          // Solo lo que escribió el huésped: extras, comida y mensaje de decoración ya van en el resumen de la reserva.
+          notes: notes.trim(),
           consent: {
             terms: acceptTerms,
             age: isAdult,
