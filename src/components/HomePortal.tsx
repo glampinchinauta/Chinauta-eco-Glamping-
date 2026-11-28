@@ -3,7 +3,7 @@ import { Dome } from '../types';
 import { 
   Compass, Calendar, MapPin, Sparkles, Wifi, Coffee, Waves, Flame, 
   Star, ChevronRight, CheckCircle2, X, ChevronLeft, Maximize2, Camera, 
-  Plus, Play, ImagePlus, CheckCircle, Users, Heart, ShieldCheck
+  Plus, Play, ImagePlus, CheckCircle, Users, Heart, ShieldCheck, Wine
 } from 'lucide-react';
 import { TestimonialsSection } from './TestimonialsSection';
 import { WeatherWidget } from './WeatherWidget';
@@ -329,7 +329,7 @@ export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigat
             </p>
           </Reveal>
 
-          <RevealGroup className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <RevealGroup className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
             <RevealItem className="glass-dark p-6 rounded-2xl border border-slate-800 space-y-4 transition-[transform,border-color] duration-500 hover:-translate-y-1.5 hover:border-emerald-500/40">
               <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                 <Waves className="w-6 h-6" />
@@ -351,7 +351,15 @@ export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigat
                 <Flame className="w-6 h-6" />
               </div>
               <h4 className="text-lg font-bold text-white">Fogata Comunitaria</h4>
-              <p className="text-slate-400 text-sm">Una sola fogata comunitaria para todo el glamping, para compartir vino y malvaviscos.</p>
+              <p className="text-slate-400 text-sm">Los domos no tienen fogata propia: hay una sola fogata comunitaria para todo el glamping, para compartir vino y malvaviscos.</p>
+            </RevealItem>
+
+            <RevealItem className="glass-dark p-6 rounded-2xl border border-slate-800 space-y-4 transition-[transform,border-color] duration-500 hover:-translate-y-1.5 hover:border-emerald-500/40">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <Wine className="w-6 h-6" />
+              </div>
+              <h4 className="text-lg font-bold text-white">Frigobar en Cada Domo</h4>
+              <p className="text-slate-400 text-sm">Nevera pequeña con gaseosas, bebidas alcohólicas y snacks, que pagas según lo que consumas. No necesitas traer bebidas.</p>
             </RevealItem>
 
             <RevealItem className="glass-dark p-6 rounded-2xl border border-slate-800 space-y-4 transition-[transform,border-color] duration-500 hover:-translate-y-1.5 hover:border-emerald-500/40">

@@ -33,6 +33,17 @@ export interface AppDeps {
 // Version of the terms and privacy text shown to the guest (see src/config/legal.ts). Change it when the text changes.
 export const LEGAL_TERMS_VERSION = "2026-11-12";
 const PROMO_PERCENTS = [5, 10, 15, 20];
+// Amenities shared by every dome (texts used by the one-time data fix and the seed data).
+export const FIRE_PIT_FEATURE = "Fogata comunitaria (compartida con todo el glamping)";
+export const MINIBAR_FEATURE = "Frigobar con gaseosas y bebidas alcohólicas + snacks (pago según consumo)";
+export function fixDomeDescription(text: string): string {
+  return text.replace(/zona de fogata privada|zona de fogata/gi, "acceso a la fogata comunitaria");
+}
+export function fixDomeFeatures(text: string): string {
+  const items = text.split(",").map((s) => s.trim()).filter(Boolean)
+    .filter((s) => !/fogata|nevera|frigobar|canastas? de snacks/i.test(s));
+  return [...items, FIRE_PIT_FEATURE, MINIBAR_FEATURE].join(", ");
+}
 // Decoration occasions the guest must pick from (key sent by the app → text for admin/WhatsApp).
 const DECOR_OCCASIONS: Record<string, string> = {
   novia: "Pedir que sea mi novia",
@@ -44,6 +55,36 @@ const DECOR_OCCASIONS: Record<string, string> = {
 // (el huésped aún no paga el abono o no se ha revisado), el domo sigue disponible para otros.
 const NOT_BLOCKING = ["Pendiente", "Pendiente de pago", "Cancelada", "Completada", "No show"];
 const isBlocking = (status: string) => !NOT_BLOCKING.includes(status);
+
+// ---------- When a dome is occupied (by the hour) ----------
+// Stay: from check-in day 3:00 p.m. to check-out day 11:00 a.m.  Day pass: that day 8:00 a.m. to 6:00 p.m.
+// So a day pass blocks a stay that arrives that day (3 p.m. < 6 p.m.) and a stay that leaves that day (11 a.m. > 8 a.m.),
+// while a stay that leaves at 11 a.m. and another that arrives at 3 p.m. the same day do not clash.
+export const STAY_CHECKIN_HOUR = 15;
+export const STAY_CHECKOUT_HOUR = 11;
+export const DAYPASS_START_HOUR = 8;
+export const DAYPASS_END_HOUR = 18;
+const atHour = (date: string, hour: number) => Date.parse(`${date}T00:00:00Z`) + hour * 3600000;
+const plusDays = (date: string, days: number) => new Date(Date.parse(`${date}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
+const dayBefore = (date: string) => plusDays(date, -1);
+/** True for day-pass reservations, including those saved before booking_type was stored on the row. */
+export function isDayPassRow(r: Record<string, any>): boolean {
+  if (r.booking_type) return r.booking_type === "pasadia";
+  const det = parseDetails(r.details);
+  return /^pasad/i.test(String(det?.booking_type || ""));
+}
+export function occupancy(kind: "pasadia" | "estadia", checkIn: string, checkOut: string): [number, number] {
+  return kind === "pasadia"
+    ? [atHour(checkIn, DAYPASS_START_HOUR), atHour(checkIn, DAYPASS_END_HOUR)]
+    : [atHour(checkIn, STAY_CHECKIN_HOUR), atHour(checkOut, STAY_CHECKOUT_HOUR)];
+}
+const rowOccupancy = (r: Record<string, any>) =>
+  occupancy(isDayPassRow(r) ? "pasadia" : "estadia", String(r.check_in), String(r.check_out));
+/** Does an existing reservation clash with the requested occupancy? */
+const clashes = (r: Record<string, any>, [start, end]: [number, number]) => {
+  const [s, e] = rowOccupancy(r);
+  return s < end && start < e;
+};
 // Abono mínimo para apartar: 30% del total. Medios de pago aceptados por ahora.
 export const DEPOSIT_PERCENT = 30;
 export const depositFor = (total: number) => Math.ceil((Number(total) || 0) * DEPOSIT_PERCENT / 100);
@@ -258,7 +299,19 @@ export function createApp(deps: AppDeps) {
           if (after !== before) await store.set("domes", dome.id, { ...dome, policies: after });
         }
         await store.set("meta", "pets_v1", { id: "pets_v1", at: sqlTime(now()) });
-      })().catch((err) => { migrating = null; throw err; });
+      })().then(async () => {
+        // Ajuste único: la fogata es comunitaria (ningún domo tiene fogata propia) y cada domo tiene frigobar.
+        if (await store.get("meta", "amenities_v1")) return;
+        for (const dome of await store.list("domes")) {
+          const patch: Record<string, string> = {};
+          const desc = fixDomeDescription(String(dome.description || ""));
+          const feats = fixDomeFeatures(String(dome.features || ""));
+          if (desc !== dome.description) patch.description = desc;
+          if (feats !== dome.features) patch.features = feats;
+          if (Object.keys(patch).length) await store.set("domes", dome.id, { ...dome, ...patch });
+        }
+        await store.set("meta", "amenities_v1", { id: "amenities_v1", at: sqlTime(now()) });
+      }).catch((err) => { migrating = null; throw err; });
     }
     return migrating;
   }
@@ -644,21 +697,28 @@ export function createApp(deps: AppDeps) {
   // =============================================================================================
   app.get("/api/availability", async (req, res, next) => {
     try {
-      const { checkIn, checkOut } = req.query;
-      if (!checkIn || !checkOut) return res.status(400).json({ error: "Debe proporcionar checkIn y checkOut" });
+      const { checkIn, checkOut, type } = req.query;
+      if (!checkIn) return res.status(400).json({ error: "Debe proporcionar checkIn y checkOut" });
       const strCheckIn = String(checkIn);
-      const strCheckOut = String(checkOut);
+      // Day pass: one day (type=pasadia, or no / same check-out date).
+      const isDayPass = type === "pasadia" || !checkOut || String(checkOut) <= strCheckIn;
+      if (!isDayPass && !checkOut) return res.status(400).json({ error: "Debe proporcionar checkIn y checkOut" });
+      const strCheckOut = isDayPass ? plusDays(strCheckIn, 1) : String(checkOut);
+      const wanted = occupancy(isDayPass ? "pasadia" : "estadia", strCheckIn, strCheckOut);
 
       const domes = (await store.list("domes")).filter((d) => d.status !== "Fuera de servicio");
-      // Only reservations and blocks that end after the requested check-in can overlap.
+      // Reservations leaving on the check-in day still count (a stay leaves at 11 a.m., a day pass starts at 8 a.m.).
       const [reservations, blocks] = await Promise.all([
-        store.list("reservations", { gt: { field: "check_out", value: strCheckIn } }),
+        store.list("reservations", { gt: { field: "check_out", value: dayBefore(strCheckIn) } }),
         store.list("maintenance_blocks", { gt: { field: "end_date", value: strCheckIn } }),
       ]);
 
       res.json(domes.map((dome) => {
-        const reservationOverlap = reservations.filter((r) =>
-          Number(r.dome_id) === Number(dome.id) && isBlocking(r.status) && r.check_in < strCheckOut).length;
+        const clashing = reservations.filter((r) =>
+          Number(r.dome_id) === Number(dome.id) && isBlocking(r.status) && clashes(r, wanted));
+        const reservationOverlap = clashing.length;
+        // Say why when the only clash is a day pass, so the guest understands the dome is busy that day.
+        const busyReason = clashing.length > 0 && clashing.every(isDayPassRow) ? "Pasadía ese día" : "Reservado";
         const maintenanceOverlap = blocks.filter((b) =>
           Number(b.dome_id) === Number(dome.id) && b.start_date < strCheckOut).length;
         const isAvailable = reservationOverlap === 0 && maintenanceOverlap === 0 && dome.status === "Disponible";
@@ -667,7 +727,7 @@ export function createApp(deps: AppDeps) {
           max_guests: maxGuestsOf(dome),
           isAvailable,
           reason: !isAvailable
-            ? (dome.status === "Fuera de servicio" ? "Fuera de servicio" : (maintenanceOverlap > 0 ? "Mantenimiento" : "Reservado"))
+            ? (dome.status === "Fuera de servicio" ? "Fuera de servicio" : (maintenanceOverlap > 0 ? "Mantenimiento" : busyReason))
             : "Disponible",
         };
       }));
@@ -1087,7 +1147,7 @@ export function createApp(deps: AppDeps) {
         ];
         // Full booking detail, stored with the reservation so the admin panel and WhatsApp show exactly what was ordered.
         const bookingDetails: BookingDetails & Record<string, unknown> = {
-          booking_type: isDayPass ? "Pasadía (1 día)" : "Hospedaje",
+          booking_type: isDayPass ? "Pasadía (8:00 a.m. a 6:00 p.m.)" : "Hospedaje",
           dome_name: dome.name,
           dome_capacity: dome.capacity,
           check_in,
@@ -1127,8 +1187,11 @@ export function createApp(deps: AppDeps) {
         // 2. Check for overlapping reservations: check_in < existingCheckOut AND check_out > existingCheckIn
         const domeKey = Number(dome.id);
         const sameDome = await tx.list("reservations", { where: { dome_id: domeKey } });
-        if (sameDome.some((r) => isBlocking(r.status) && r.check_in < check_out && r.check_out > check_in)) {
-          return { status: 409, error: "Este domo ya no está disponible para las fechas seleccionadas. Por favor selecciona otro domo o modifica las fechas." };
+        const wanted = occupancy(isDayPass ? "pasadia" : "estadia", check_in, check_out);
+        if (sameDome.some((r) => isBlocking(r.status) && clashes(r, wanted))) {
+          return { status: 409, error: isDayPass
+            ? "Este domo no está libre ese día (tiene una estadía o un pasadía entre las 8:00 a.m. y las 6:00 p.m.). Elige otro domo u otra fecha."
+            : "Este domo ya no está disponible para las fechas seleccionadas (puede tener un pasadía ese día hasta las 6:00 p.m.). Elige otro domo o cambia las fechas." };
         }
 
         // 3. Check maintenance blocks
@@ -1193,6 +1256,7 @@ export function createApp(deps: AppDeps) {
           reservation_code: code,
           customer_id: customerId,
           dome_id: domeKey,
+          booking_type: isDayPass ? "pasadia" : "estadia",
           check_in,
           check_out,
           guests: numGuests,
@@ -1277,8 +1341,8 @@ export function createApp(deps: AppDeps) {
             store.list("reservations", { where: { dome_id: domeKey } }),
             store.list("maintenance_blocks", { where: { dome_id: domeKey } }),
           ]);
-          const clash = sameDome.find((r) => String(r.id) !== String(current.id) && isBlocking(r.status)
-            && r.check_in < current.check_out && r.check_out > current.check_in);
+          const wanted = rowOccupancy(current);
+          const clash = sameDome.find((r) => String(r.id) !== String(current.id) && isBlocking(r.status) && clashes(r, wanted));
           if (clash) {
             return res.status(409).json({ error: `No se puede confirmar: el domo ya tiene la reserva confirmada ${clash.reservation_code} en esas fechas.` });
           }
@@ -1621,6 +1685,9 @@ export function createApp(deps: AppDeps) {
       const systemInstruction = `Eres el Asistente Virtual Inteligente de "Eco Glamping Chinauta", un exclusivo centro de glamping ubicado en Chinauta / Fusagasugá, Cundinamarca, Colombia.
     Cuentas con 6 domos ecológicos de lujo: Huitaca, Bochica, Bachué, Luna Chía, Chiminichagua y Xue Sol.
     Ofreces experiencias de desconexión, naturaleza, jacuzzis privados, mallas de descanso, gastronomía local y avistamiento de estrellas.
+    PASADÍA: de 8:00 a.m. a 6:00 p.m., de lunes a jueves, $250.000 COP. Estadía: llegada 3:00 p.m., salida 11:00 a.m.
+    FOGATA: ningún domo tiene fogata propia. Hay una sola fogata comunitaria, compartida por todos los huéspedes del glamping.
+    FRIGOBAR: cada domo tiene un frigobar (nevera pequeña) con gaseosas, bebidas alcohólicas y snacks, que se pagan según consumo. Los huéspedes no necesitan traer bebidas ni snacks.
 
     MENÚ CHINAUTA ECO GLAMPING (CENAS Y ALMUERZOS):
     #1 Trucha gratinada, en salsa de champiñones o asada a la parrilla. Incluye papas fritas, ensalada y jugo natural ($60.000 COP).

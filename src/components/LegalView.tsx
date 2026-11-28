@@ -199,7 +199,7 @@ const TermsContent: React.FC = () => (
     <Section title="4. Llegada y salida">
       <P>
         Check-in: <Rich text="[PENDIENTE: hora de check-in; el sitio indica 3:00 p. m.]" />. Check-out:{' '}
-        <Rich text="[PENDIENTE: hora de check-out]" />. Pasadía: de 8:00 a. m. a 4:00 p. m., de lunes a jueves.
+        <Rich text="[PENDIENTE: hora de check-out]" />. Pasadía: de 8:00 a. m. a 6:00 p. m., de lunes a jueves. Un domo con pasadía no se puede reservar ese día para una estadía que llegue o salga esa misma fecha.
       </P>
     </Section>
 

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import crypto from "crypto";
 import http from "http";
-import { createApp } from "../api/app";
+import { createApp, fixDomeDescription, fixDomeFeatures, FIRE_PIT_FEATURE, MINIBAR_FEATURE } from "../api/app";
 import { FirestoreStore, MemoryStore } from "../api/store";
 import { FakeFirestore } from "./fake-firestore";
 import { FakeUploader } from "../api/uploads";
@@ -301,6 +301,87 @@ test("el resumen de la reserva se guarda con comida, carne, extras y mensaje, y 
   assert.equal(panel.status, 200);
   assert.match(panel.text, /Feliz aniversario/);
   assert.match(panel.text, new RegExp(r.data.reservation_code));
+});
+// ---------------------------------------------------------------- pasadía (8 a.m. a 6 p.m.) y estadías
+const confirmRes = (id: any) => call("PUT", `/api/reservations/${id}/status`, { auth: admin(), body: { status: "Confirmada" } });
+const availFor = async (q: string, dome: number) =>
+  (await call("GET", `/api/availability?${q}`)).data.find((d: any) => d.id === dome);
+
+test("un pasadía confirmado bloquea el domo para estadías que llegan o salen ese día, y para otro pasadía", async () => {
+  const wed = nextDay(3, 560); // miércoles
+  const pass = await book(5, wed, wed, { booking_type: "pasadia" });
+  assert.equal(pass.status, 200, pass.text);
+  assert.equal((await confirmRes(pass.data.reservation_id)).status, 200);
+
+  // Lo que ve el huésped en el paso de domos
+  assert.equal((await availFor(`checkIn=${wed}&checkOut=${wed}&type=pasadia`, 5)).isAvailable, false, "pasadía el mismo día");
+  const llegaMismoDia = await availFor(`checkIn=${wed}&checkOut=${plus(wed, 1)}`, 5);
+  assert.equal(llegaMismoDia.isAvailable, false, "estadía que llega ese día a las 3 p.m.");
+  assert.equal(llegaMismoDia.reason, "Pasadía ese día");
+  assert.equal((await availFor(`checkIn=${plus(wed, -1)}&checkOut=${wed}`, 5)).isAvailable, false, "estadía que sale ese día a las 11 a.m.");
+  assert.equal((await availFor(`checkIn=${plus(wed, 1)}&checkOut=${plus(wed, 2)}`, 5)).isAvailable, true, "estadía que llega al día siguiente");
+  assert.equal((await availFor(`checkIn=${plus(wed, -2)}&checkOut=${plus(wed, -1)}`, 5)).isAvailable, true, "estadía que sale el día anterior");
+  assert.equal((await availFor(`checkIn=${wed}&checkOut=${plus(wed, 1)}`, 6)).isAvailable, true, "otro domo sigue libre");
+
+  // Y el servidor lo exige aunque alguien intente reservar igual
+  const llega = await book(5, wed, plus(wed, 1));
+  assert.equal(llega.status, 409);
+  assert.match(llega.data.error, /pasadía/);
+  assert.equal((await book(5, plus(wed, -1), wed)).status, 409, "estadía que sale ese día");
+  assert.equal((await book(5, plus(wed, -3), plus(wed, 2))).status, 409, "estadía que cubre el día");
+  assert.equal((await book(5, wed, wed, { booking_type: "pasadia" })).status, 409, "segundo pasadía");
+  assert.equal((await book(5, plus(wed, 1), plus(wed, 2))).status, 200, "estadía del día siguiente sí");
+  assert.equal((await book(5, plus(wed, -2), plus(wed, -1))).status, 200, "estadía hasta el día anterior sí");
+  assert.equal((await book(6, wed, wed, { booking_type: "pasadia" })).status, 200, "pasadía en otro domo sí");
+});
+
+test("una estadía confirmada bloquea el pasadía del día en que llega y del día en que sale", async () => {
+  const wed = nextDay(3, 600);
+  // Estadía de martes a miércoles en el domo 4: sale el miércoles a las 11 a.m.
+  const stay = await book(4, plus(wed, -1), wed);
+  assert.equal(stay.status, 200, stay.text);
+  assert.equal((await confirmRes(stay.data.reservation_id)).status, 200);
+  assert.equal((await availFor(`checkIn=${wed}&checkOut=${wed}&type=pasadia`, 4)).isAvailable, false, "sale a las 11 a.m.; el pasadía empieza a las 8 a.m.");
+  assert.equal((await availFor(`checkIn=${plus(wed, -1)}&checkOut=${plus(wed, -1)}&type=pasadia`, 4)).isAvailable, false, "llega a las 3 p.m.; el pasadía termina a las 6 p.m.");
+  assert.equal((await availFor(`checkIn=${plus(wed, 1)}&checkOut=${plus(wed, 1)}&type=pasadia`, 4)).isAvailable, true, "el jueves queda libre");
+  assert.equal((await book(4, wed, wed, { booking_type: "pasadia" })).status, 409);
+  assert.equal((await book(4, plus(wed, 1), plus(wed, 1), { booking_type: "pasadia" })).status, 200);
+  // Dos estadías seguidas el mismo día (una sale 11 a.m., otra llega 3 p.m.) siguen permitidas
+  assert.equal((await book(4, wed, plus(wed, 1))).status, 200);
+});
+
+test("al confirmar, administración no puede dejar un pasadía y una estadía chocando", async () => {
+  const wed = nextDay(3, 640);
+  const pass = await book(3, wed, wed, { booking_type: "pasadia" });
+  const stay = await book(3, wed, plus(wed, 2)); // pendientes: las dos se aceptan
+  assert.equal(pass.status, 200, pass.text);
+  assert.equal(stay.status, 200, stay.text);
+  assert.equal((await confirmRes(pass.data.reservation_id)).status, 200);
+  const second = await confirmRes(stay.data.reservation_id);
+  assert.equal(second.status, 409);
+  assert.match(second.data.error, new RegExp(pass.data.reservation_code));
+  // Se guarda el tipo en la reserva y el resumen dice el horario
+  const row = (await call("GET", "/api/reservations", { auth: admin() })).data.find((x: any) => x.id === pass.data.reservation_id);
+  assert.equal(row.booking_type, "pasadia");
+  assert.match(pass.data.summary, /Pasadía \(8:00 a\.m\. a 6:00 p\.m\.\)/);
+});
+
+test("los domos muestran fogata comunitaria (no propia) y frigobar con bebidas y snacks", async () => {
+  // Textos que ya estaban guardados antes del cambio
+  const oldFeatures = "Jacuzzi privado de hidromasaje, Baño privado, Zona de fogata privada, Nevera tipo bar con bebidas, Canastas de snacks (costo adicional), Parqueadero gratis";
+  const fixed = fixDomeFeatures(oldFeatures);
+  assert.equal(fixed, `Jacuzzi privado de hidromasaje, Baño privado, Parqueadero gratis, ${FIRE_PIT_FEATURE}, ${MINIBAR_FEATURE}`);
+  assert.equal(fixDomeFeatures(fixed), fixed); // aplicarlo dos veces no duplica nada
+  assert.equal(fixDomeDescription("baño privado, zona de fogata privada y vista"), "baño privado, acceso a la fogata comunitaria y vista");
+  assert.ok(!MINIBAR_FEATURE.includes(",") && !FIRE_PIT_FEATURE.includes(","), "la página separa las comodidades por comas");
+
+  const domes = (await call("GET", "/api/domes")).data;
+  assert.ok(domes.length > 0);
+  for (const d of domes) {
+    assert.doesNotMatch(`${d.description} ${d.features}`, /fogata privada|zona de fogata|nevera tipo bar/i);
+    assert.match(d.features, /Fogata comunitaria/);
+    assert.match(d.features, /Frigobar/);
+  }
 });
 test("con decoración son obligatorios la ocasión, el nombre de quien recibe y el mensaje", async () => {
   const sat = nextDay(6, 440);

@@ -326,7 +326,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
     setLoadingAvailability(true);
     try {
       const effectiveCheckOut = bookingType === 'pasadia' ? checkIn : checkOut;
-      const res = await fetch(`/api/availability?checkIn=${checkIn}&checkOut=${effectiveCheckOut}`);
+      const res = await fetch(`/api/availability?checkIn=${checkIn}&checkOut=${effectiveCheckOut}&type=${bookingType}`);
       const data = await readJson(res);
       if (Array.isArray(data)) {
         setDomes(data);
@@ -1473,7 +1473,7 @@ export const BookingWizardModal: React.FC<BookingWizardModalProps> = ({
               <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-2.5 text-xs">
                 <div className="flex justify-between"><span className="text-slate-500">{t('wizard.summary_type')}</span><span className="font-bold uppercase text-slate-900">{bookingType}</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">{t('wizard.summary_dome')}</span><span className="font-bold text-slate-900">{selectedDome?.name}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">{t('wizard.summary_date')}</span><span className="font-bold text-slate-900">{checkIn} {bookingType === 'estadia' ? `${language === 'en' ? 'to' : 'al'} ${checkOut}` : '(8am - 4pm)'}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">{t('wizard.summary_date')}</span><span className="font-bold text-slate-900">{checkIn} {bookingType === 'estadia' ? `${language === 'en' ? 'to' : 'al'} ${checkOut}` : '(8am - 6pm)'}</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">{t('wizard.summary_guests')}</span><span className="font-bold text-slate-900">{guests} {t('domes.people')}</span></div>
                 {extraPersons > 0 && <div className="flex justify-between"><span className="text-slate-500">{t('wizard.summary_extra_persons')}</span><span className="font-bold text-slate-900">+{extraPersons} (${extraPersonsFee.toLocaleString('es-CO')})</span></div>}
                 {hasPet && <div className="flex justify-between"><span className="text-slate-500">{t('wizard.summary_pets')}</span><span className="font-bold text-slate-900">+{petCount} (${petsFee.toLocaleString('es-CO')})</span></div>}

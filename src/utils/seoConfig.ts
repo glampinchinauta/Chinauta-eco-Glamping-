@@ -33,7 +33,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
   es: {
     home: {
       title: 'Eco Glamping Chinauta | Domos de Lujo con Jacuzzi Privado',
-      description: 'Vive una experiencia única en Eco Glamping Chinauta, Fusagasugá. Domos geodésicos de lujo con jacuzzi privado, malla catamarán, fogata y clima templado.',
+      description: 'Vive una experiencia única en Eco Glamping Chinauta, Fusagasugá. Domos geodésicos de lujo con jacuzzi privado, malla catamarán, fogata comunitaria y clima templado.',
       keywords: 'glamping chinauta, domos fusagasuga, glamping cundinamarca, jacuzzi privado, escapada romantica bogota, hotel campestre',
       ogTitle: 'Eco Glamping Chinauta | Domos Exclusivos con Jacuzzi Privado',
       ogDescription: 'Desconexión total a solo 90 min de Bogotá. Domos bioclimáticos de lujo, jacuzzi con hidromasaje, cenas románticas y noches bajo las estrellas.',
@@ -175,7 +175,7 @@ export const SEO_CONFIGS: Record<'es' | 'en', Record<SEOPageContext, SEOMetadata
   en: {
     home: {
       title: 'Eco Glamping Chinauta | Luxury Domes with Private Jacuzzi',
-      description: 'Experience an unforgettable nature getaway at Eco Glamping Chinauta, Colombia. Geodesic luxury domes with private jacuzzi, catamaran net, firepit, and warm weather.',
+      description: 'Experience an unforgettable nature getaway at Eco Glamping Chinauta, Colombia. Geodesic luxury domes with private jacuzzi, catamaran net, shared bonfire, and warm weather.',
       keywords: 'glamping colombia, luxury domes chinauta, glamping with jacuzzi, romantic getaway bogota, nature retreat',
       ogTitle: 'Eco Glamping Chinauta | Exclusive Domes with Private Hot Tub',
       ogDescription: 'Peaceful retreat only 90 minutes from Bogotá. Bioclimatic domes, private jacuzzi hydrotherapy, romantic dinners, and starry night skies.',
