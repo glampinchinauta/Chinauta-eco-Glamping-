@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Calendar, Compass, Phone, Shield, Search, Home, Utensils, 
   Menu, X, ChevronDown, MapPin, Sparkles, Waves, Clock, 
-  MessageSquare, ChevronRight, ExternalLink, HelpCircle
+  MessageSquare, ChevronRight, ExternalLink, HelpCircle, Wine
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../context/LanguageContext';
@@ -65,6 +65,27 @@ export const Navbar: React.FC<NavbarProps> = ({
     setIsMobileMenuOpen(false);
     setIsExplorarDropdownOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // "Bebidas y licores": opens the Menu page and scrolls to the bar block (it loads a moment later).
+  const goToBar = () => {
+    setActiveTab('menu');
+    setIsMobileMenuOpen(false);
+    setIsExplorarDropdownOpen(false);
+    // The menu above it loads its dishes and photos, so the page keeps growing for a moment:
+    // keep the bar block at the top until it stays put (up to ~4 seconds).
+    let tries = 0;
+    let steady = 0;
+    const scroll = () => {
+      const el = document.getElementById('bar');
+      if (el) {
+        const top = el.getBoundingClientRect().top;
+        if (Math.abs(top - 80) > 40) { window.scrollTo({ top: window.scrollY + top - 80 }); steady = 0; }
+        else steady++;
+      }
+      if (steady < 4 && tries++ < 40) setTimeout(scroll, 100);
+    };
+    setTimeout(scroll, 150);
   };
 
   return (
@@ -203,6 +224,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <div>
                           <p className="text-sm font-bold text-slate-900">{language === 'en' ? 'Decorations' : 'Decoraciones'}</p>
                           <p className="text-xs text-slate-500">{language === 'en' ? 'VIP decoration for your stay' : 'Decoración VIP para tu estadía'}</p>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={goToBar}
+                        className="w-full text-left px-4 py-2.5 hover:bg-emerald-50 flex items-start space-x-3 transition-colors group"
+                      >
+                        <div className="p-2 rounded-lg bg-amber-100/80 text-amber-700 group-hover:bg-amber-200 transition-colors">
+                          <Wine className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">{language === 'en' ? 'Drinks & liquor' : 'Bebidas y licores'}</p>
+                          <p className="text-xs text-slate-500">{language === 'en' ? 'Beer, aguardiente, rum, wine, champagne' : 'Cerveza, aguardiente, ron, vino, champaña'}</p>
                         </div>
                       </button>
 
@@ -485,6 +519,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <div className="flex items-center space-x-3">
                             <Sparkles className="w-5 h-5 text-emerald-600" />
                             <span>{language === 'en' ? 'Decorations' : 'Decoraciones'}</span>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-slate-400" />
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setIsAvailableMenuOpen(false);
+                            goToBar();
+                          }}
+                          className="w-full flex items-center justify-between p-3 rounded-xl text-sm font-medium transition-colors text-slate-700 hover:bg-slate-100"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <Wine className="w-5 h-5 text-emerald-600" />
+                            <span>{language === 'en' ? 'Drinks & liquor' : 'Bebidas y licores'}</span>
                           </div>
                           <ChevronRight className="w-4 h-4 text-slate-400" />
                         </button>

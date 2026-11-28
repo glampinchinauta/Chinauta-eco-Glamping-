@@ -18,6 +18,7 @@ const AvailabilityChecker = lazyNamed(() => import('./components/AvailabilityChe
 const ContactView = lazyNamed(() => import('./components/ContactView'), 'ContactView');
 const InteractiveMap = lazyNamed(() => import('./components/InteractiveMap'), 'InteractiveMap');
 const FoodMenuSection = lazyNamed(() => import('./components/FoodMenuSection'), 'FoodMenuSection');
+const BarSection = lazyNamed(() => import('./components/BarSection'), 'BarSection');
 const FAQSection = lazyNamed(() => import('./components/FAQSection'), 'FAQSection');
 const DecorationsSection = lazyNamed(() => import('./components/DecorationsSection'), 'DecorationsSection');
 const LegalView = lazyNamed(() => import('./components/LegalView'), 'LegalView');
@@ -157,7 +158,10 @@ function AppContent() {
         )}
 
         {activeTab === 'menu' && (
-          <FoodMenuSection onOpenBooking={handleOpenBooking} />
+          <>
+            <FoodMenuSection onOpenBooking={handleOpenBooking} />
+            <BarSection />
+          </>
         )}
 
         {activeTab === 'decoraciones' && (
