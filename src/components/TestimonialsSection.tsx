@@ -5,6 +5,7 @@ import { Portal } from './Portal';
 import { useLanguage } from '../context/LanguageContext';
 import { getResponsiveImageData } from '../utils/imageUtils';
 import { useIsAdmin } from '../lib/useIsAdmin';
+import { GUEST_REVIEWS, formatReviewDate } from '../data/guestReviews';
 
 export interface Testimonial {
   id: string | number;
@@ -17,10 +18,55 @@ export interface Testimonial {
   avatar: string;
   image?: string | null;
   video_url?: string | null;
+  /** Calificación sobre 10 (reseñas fijas). Las del panel usan solo estrellas. */
+  score?: number;
+  title?: string;
+  country?: string;
+  /** Reseña fija del sitio (no se edita desde el panel). */
+  fixed?: boolean;
 }
 
-// Sin reseñas de ejemplo: solo se muestran opiniones reales enviadas por huéspedes.
-const DEFAULT_TESTIMONIALS: Testimonial[] = [];
+// Solo opiniones reales: las fijas (src/data/guestReviews.ts) y las que se agregan desde el panel.
+const FIXED_REVIEWS: Testimonial[] = GUEST_REVIEWS.map(r => ({
+  id: r.id,
+  name: r.name,
+  location: r.country,
+  country: r.country,
+  dome: '',
+  rating: 5,
+  score: r.score,
+  date: r.date,
+  title: r.title,
+  comment: r.comment,
+  avatar: r.avatar || '',
+  fixed: true,
+}));
+const DEFAULT_TESTIMONIALS: Testimonial[] = FIXED_REVIEWS;
+
+// Round avatar: the guest's photo, or their initial on a colour when there is none (or it fails to load).
+const AVATAR_COLORS = ['from-sky-400 to-blue-600', 'from-emerald-400 to-teal-600', 'from-amber-400 to-orange-500', 'from-rose-400 to-pink-600'];
+const GuestAvatar: React.FC<{ name: string; src?: string }> = ({ name, src }) => {
+  const [failed, setFailed] = useState(false);
+  const initial = (name.trim()[0] || '?').toUpperCase();
+  const color = AVATAR_COLORS[(name.charCodeAt(0) || 0) % AVATAR_COLORS.length];
+  const isStockPhoto = !src || src.includes('images.unsplash.com');
+  if (isStockPhoto || failed) {
+    return (
+      <div className={`w-14 h-14 shrink-0 rounded-full bg-gradient-to-br ${color} text-white text-xl font-bold flex items-center justify-center ring-2 ring-white shadow-md`} aria-hidden="true">
+        {initial}
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={name}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="w-14 h-14 shrink-0 rounded-full object-cover ring-2 ring-white shadow-md"
+    />
+  );
+};
 
 export const TestimonialsSection: React.FC = () => {
   const canEdit = useIsAdmin(); // Only a signed-in administrator can add or edit testimonials
@@ -47,8 +93,9 @@ export const TestimonialsSection: React.FC = () => {
     fetch('/api/testimonials')
       .then(res => res.json())
       .then(data => {
+        // Las reseñas fijas van primero; las del panel se suman después.
         if (Array.isArray(data) && data.length > 0) {
-          setTestimonials(data);
+          setTestimonials([...FIXED_REVIEWS, ...data]);
         }
       })
       .catch(() => {});
@@ -233,33 +280,73 @@ export const TestimonialsSection: React.FC = () => {
           )}
         </div>
 
+        {/* Summary of the score */}
+        {testimonials.length > 0 && (() => {
+          const scores = testimonials.map(r => r.score ?? r.rating * 2);
+          const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+          return (
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 rounded-3xl bg-white border border-emerald-100 shadow-sm px-6 py-5 max-w-xl mx-auto -mt-6">
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-black text-emerald-700 leading-none">{avg.toFixed(1).replace(/\.0$/, '')}</span>
+                <span className="text-lg font-bold text-slate-400">/10</span>
+              </div>
+              <div className="text-center sm:text-left space-y-1">
+                <div className="flex items-center justify-center sm:justify-start gap-0.5" aria-hidden="true">
+                  {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 text-amber-500 fill-amber-500" />)}
+                </div>
+                <p className="text-sm font-semibold text-slate-700">
+                  {language === 'en'
+                    ? `Average score from ${testimonials.length} guest reviews`
+                    : `Calificación promedio de ${testimonials.length} reseñas de huéspedes`}
+                </p>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Testimonials Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {testimonials.map(item => (
-            <div
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 sm:gap-6">
+          {testimonials.map(item => {
+            const score = item.score ?? item.rating * 2;
+            return (
+            <article
               key={item.id}
-              className="glass-card rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-lg flex flex-col justify-between space-y-6 relative overflow-hidden group hover:shadow-xl transition-all"
+              className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-md flex flex-col gap-4 relative overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
             >
-              <div className="absolute top-6 right-6 text-emerald-600/20 group-hover:text-emerald-600/30 transition-colors pointer-events-none">
-                <Quote className="w-10 h-10" />
+              <div className="absolute -top-1 right-16 text-emerald-600/10 group-hover:text-emerald-600/20 transition-colors pointer-events-none">
+                <Quote className="w-16 h-16" />
               </div>
 
-              <div className="space-y-4 relative z-10">
-                {/* Rating stars */}
-                <div className="flex items-center space-x-1">
-                  {[...Array(item.rating)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 text-amber-500 fill-amber-500" />
-                  ))}
-                  <span className="text-xs font-bold text-slate-700 ml-2">{item.rating}.0</span>
+              {/* Guest: photo, name, country and score */}
+              <header className="flex items-start gap-3 relative z-10">
+                <GuestAvatar name={item.name} src={item.avatar} />
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <h4 className="font-bold text-slate-900 text-base leading-tight truncate">{item.name}</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">{item.country || item.location}</p>
+                  {item.dome && (
+                    <span className="inline-block mt-1.5 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-semibold">{item.dome}</span>
+                  )}
                 </div>
+                <div
+                  className="shrink-0 rounded-xl bg-emerald-700 text-white px-2.5 py-1.5 text-center shadow-sm"
+                  aria-label={language === 'en' ? `Score ${score} out of 10` : `Calificación ${score} de 10`}
+                >
+                  <span className="block text-lg font-black leading-none">{score % 1 === 0 ? score : score.toFixed(1)}</span>
+                  <span className="block text-[9px] font-semibold opacity-80 leading-none mt-0.5">/10</span>
+                </div>
+              </header>
 
-                <p className="text-slate-700 text-sm leading-relaxed italic">
-                  "{item.comment}"
+              <div className="space-y-3 relative z-10 flex-1">
+                <p className="text-[11px] text-slate-400 font-medium">{formatReviewDate(item.date, language)}</p>
+                {item.title && <h5 className="font-bold text-slate-900 leading-snug">{item.title}</h5>}
+
+                <p className="text-slate-700 text-sm leading-relaxed">
+                  &ldquo;{item.comment}&rdquo;
                 </p>
 
-                {/* Real Guest Photo (Videos are kept in data but hidden as requested) */}
+                {/* Real guest photo (videos are kept in data but hidden as requested) */}
                 {item.image ? (
-                  <div className="h-52 rounded-2xl overflow-hidden shadow-inner border border-slate-200 relative group/img">
+                  <div className="h-48 rounded-2xl overflow-hidden shadow-inner border border-slate-200 relative group/img">
                     {(() => {
                       const testImg = getResponsiveImageData(item.image, '(max-width: 640px) 100vw, 400px');
                       return (
@@ -267,7 +354,7 @@ export const TestimonialsSection: React.FC = () => {
                           src={testImg.webpSrc || item.image}
                           srcSet={testImg.webpSrcSet || undefined}
                           sizes={testImg.sizes || undefined}
-                          alt={item.dome}
+                          alt={item.dome || item.name}
                           loading="lazy"
                           decoding="async"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -277,63 +364,51 @@ export const TestimonialsSection: React.FC = () => {
                   </div>
                 ) : null}
 
-                {/* Quick Upload Action on Card */}
-                <div className="pt-2 flex flex-wrap items-center gap-2">
-                  {canEdit && (
-<button
-                    type="button"
-                    onClick={() => {
-                      setActiveUploadTarget({ id: item.id, type: 'image' });
-                      fileInputRef.current?.click();
-                    }}
-                    className="inline-flex items-center space-x-1.5 text-xs text-emerald-700 font-semibold hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200/70 transition-all active:scale-95 cursor-pointer shadow-2xs"
-                  >
-                    <Camera className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>{t('testimonials.upload_photo_btn')}</span>
-                  </button>
-)}
-
-                  {canEdit && (
-<button
-                    type="button"
-                    onClick={() => {
-                      setActiveUploadTarget({ id: item.id, type: 'video' });
-                      fileInputRef.current?.click();
-                    }}
-                    className="inline-flex items-center space-x-1.5 text-xs text-teal-700 font-semibold hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-xl border border-teal-200/70 transition-all active:scale-95 cursor-pointer shadow-2xs"
-                  >
-                    <Video className="w-3.5 h-3.5 text-teal-600" />
-                    <span>{t('testimonials.upload_video_btn')}</span>
-                  </button>
-)}
-                </div>
+                {/* Quick upload actions (administrator only, not for the fixed reviews) */}
+                {canEdit && !item.fixed && (
+                  <div className="pt-1 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveUploadTarget({ id: item.id, type: 'image' });
+                        fileInputRef.current?.click();
+                      }}
+                      className="inline-flex items-center space-x-1.5 text-xs text-emerald-700 font-semibold hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200/70 transition-all active:scale-95 cursor-pointer shadow-2xs"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{t('testimonials.upload_photo_btn')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveUploadTarget({ id: item.id, type: 'video' });
+                        fileInputRef.current?.click();
+                      }}
+                      className="inline-flex items-center space-x-1.5 text-xs text-teal-700 font-semibold hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-xl border border-teal-200/70 transition-all active:scale-95 cursor-pointer shadow-2xs"
+                    >
+                      <Video className="w-3.5 h-3.5 text-teal-600" />
+                      <span>{t('testimonials.upload_video_btn')}</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between relative z-10">
-                <div className="flex items-center space-x-3">
-                  <img
-                    src={item.avatar}
-                    alt={item.name}
-                    className="w-10 h-10 rounded-full object-cover border-2 border-emerald-500"
-                  />
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm">{item.name}</h4>
-                    <p className="text-xs text-slate-500">{item.location}</p>
-                  </div>
+              <footer className="pt-3 border-t border-slate-100 flex items-center justify-between relative z-10">
+                <div className="flex items-center gap-0.5" aria-hidden="true">
+                  {[...Array(Math.max(1, Math.min(5, item.rating)))].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 text-amber-500 fill-amber-500" />
+                  ))}
                 </div>
-
-                <div className="text-right">
-                  <span className="inline-block px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-semibold">
-                    {item.dome}
-                  </span>
-                  <div className="flex items-center justify-end space-x-1 text-[10px] text-emerald-600 mt-1">
-                    <span>{language === 'en' ? 'Guest review' : 'Reseña de huésped'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {language === 'en' ? 'Guest review' : 'Reseña de huésped'}
+                </span>
+              </footer>
+            </article>
+            );
+          })}
         </div>
+
 
         {testimonials.length === 0 && (
           <p className="text-center text-sm text-slate-600">

@@ -35,7 +35,7 @@ export const LEGAL_TERMS_VERSION = "2026-11-12";
 const PROMO_PERCENTS = [5, 10, 15, 20];
 // Amenities shared by every dome (texts used by the one-time data fix and the seed data).
 export const FIRE_PIT_FEATURE = "Fogata comunitaria (compartida con todo el glamping)";
-export const MINIBAR_FEATURE = "Frigobar con gaseosas y bebidas alcohólicas + snacks (pago según consumo)";
+export const MINIBAR_FEATURE = "Frigobar con gaseosas y bebidas alcohólicas + snacks (consumo aparte)";
 export function fixDomeDescription(text: string): string {
   return text.replace(/zona de fogata privada|zona de fogata/gi, "acceso a la fogata comunitaria");
 }
@@ -300,8 +300,8 @@ export function createApp(deps: AppDeps) {
         }
         await store.set("meta", "pets_v1", { id: "pets_v1", at: sqlTime(now()) });
       })().then(async () => {
-        // Ajuste único: la fogata es comunitaria (ningún domo tiene fogata propia) y cada domo tiene frigobar.
-        if (await store.get("meta", "amenities_v1")) return;
+        // Ajuste único: la fogata es comunitaria (ningún domo tiene fogata propia) y cada domo tiene frigobar (consumo aparte). v2: texto "consumo aparte".
+        if (await store.get("meta", "amenities_v2")) return;
         for (const dome of await store.list("domes")) {
           const patch: Record<string, string> = {};
           const desc = fixDomeDescription(String(dome.description || ""));
@@ -310,7 +310,7 @@ export function createApp(deps: AppDeps) {
           if (feats !== dome.features) patch.features = feats;
           if (Object.keys(patch).length) await store.set("domes", dome.id, { ...dome, ...patch });
         }
-        await store.set("meta", "amenities_v1", { id: "amenities_v1", at: sqlTime(now()) });
+        await store.set("meta", "amenities_v2", { id: "amenities_v2", at: sqlTime(now()) });
       }).catch((err) => { migrating = null; throw err; });
     }
     return migrating;
@@ -1687,7 +1687,7 @@ export function createApp(deps: AppDeps) {
     Ofreces experiencias de desconexión, naturaleza, jacuzzis privados, mallas de descanso, gastronomía local y avistamiento de estrellas.
     PASADÍA: de 8:00 a.m. a 6:00 p.m., de lunes a jueves, $250.000 COP. Estadía: llegada 3:00 p.m., salida 11:00 a.m.
     FOGATA: ningún domo tiene fogata propia. Hay una sola fogata comunitaria, compartida por todos los huéspedes del glamping.
-    FRIGOBAR: cada domo tiene un frigobar (nevera pequeña) con gaseosas, bebidas alcohólicas y snacks, que se pagan según consumo. Los huéspedes no necesitan traer bebidas ni snacks.
+    FRIGOBAR: cada domo tiene un frigobar (nevera pequeña) con gaseosas, bebidas alcohólicas y snacks; todo es consumo aparte. BAR: el glamping vende cerveza, aguardiente, ron, vino y champaña (consumo aparte; precios por WhatsApp). Los huéspedes no necesitan traer bebidas.
 
     MENÚ CHINAUTA ECO GLAMPING (CENAS Y ALMUERZOS):
     #1 Trucha gratinada, en salsa de champiñones o asada a la parrilla. Incluye papas fritas, ensalada y jugo natural ($60.000 COP).

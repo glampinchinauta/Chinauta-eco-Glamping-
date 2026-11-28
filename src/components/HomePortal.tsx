@@ -17,6 +17,7 @@ import { MediaGallery } from './MediaGallery';
 import { ResponsivePicture } from './ResponsivePicture';
 import { getDomeImages, DEFAULT_DOMES } from '../utils/domeImages';
 import { useLanguage } from '../context/LanguageContext';
+import { whatsappLink } from '../config/business';
 import { motion, useScroll, useSpring, useTransform, type Variants } from 'framer-motion';
 import { Reveal, RevealGroup, RevealItem } from './motion/Reveal';
 import { getResponsiveImageData } from '../utils/imageUtils';
@@ -359,7 +360,7 @@ export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigat
                 <Wine className="w-6 h-6" />
               </div>
               <h4 className="text-lg font-bold text-white">Frigobar en Cada Domo</h4>
-              <p className="text-slate-400 text-sm">Nevera pequeña con gaseosas, bebidas alcohólicas y snacks, que pagas según lo que consumas. No necesitas traer bebidas.</p>
+              <p className="text-slate-400 text-sm">Nevera pequeña con gaseosas, bebidas alcohólicas y snacks. Todo es consumo aparte: pagas solo lo que tomes. No necesitas traer bebidas.</p>
             </RevealItem>
 
             <RevealItem className="glass-dark p-6 rounded-2xl border border-slate-800 space-y-4 transition-[transform,border-color] duration-500 hover:-translate-y-1.5 hover:border-emerald-500/40">
@@ -370,6 +371,62 @@ export const HomePortal: React.FC<HomePortalProps> = ({ onOpenBooking, onNavigat
               <p className="text-slate-400 text-sm">Zona BBQ y descanso total en medio de la naturaleza (cabañas libres de wifi).</p>
             </RevealItem>
           </RevealGroup>
+        </div>
+      </section>
+
+      {/* Bar: drinks and liquor sold at the glamping (charged separately) */}
+      <section className="bg-gradient-to-b from-amber-50 to-white py-16 sm:py-20" aria-labelledby="bar-title">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Reveal className="text-center max-w-3xl mx-auto space-y-4 mb-10 sm:mb-12">
+            <h2 className="text-xs uppercase tracking-widest text-amber-700 font-bold">
+              {language === 'en' ? 'Drinks & liquor' : 'Bebidas y licores'}
+            </h2>
+            <h3 id="bar-title" className="text-3xl sm:text-4xl font-bold text-slate-900">
+              {language === 'en' ? 'Our Glamping Bar' : 'El Bar del Glamping'}
+            </h3>
+            <p className="text-slate-600 text-base">
+              {language === 'en'
+                ? 'No need to bring drinks: we sell beer and liquor for your celebration. Everything is charged separately, only what you drink.'
+                : 'No necesitas traer trago: aquí vendemos cerveza y licores para tu celebración. Todo es consumo aparte: pagas solo lo que tomes.'}
+            </p>
+          </Reveal>
+
+          <RevealGroup className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-5">
+            {[
+              { icon: '🍺', es: 'Cerveza', en: 'Beer', es_d: 'Bien fría', en_d: 'Ice cold' },
+              { icon: '🥃', es: 'Aguardiente', en: 'Aguardiente', es_d: 'El clásico colombiano', en_d: 'The Colombian classic' },
+              { icon: '🥃', es: 'Ron', en: 'Rum', es_d: 'Para compartir', en_d: 'To share' },
+              { icon: '🍷', es: 'Vino', en: 'Wine', es_d: 'Para una noche romántica', en_d: 'For a romantic night' },
+              { icon: '🍾', es: 'Champaña', en: 'Champagne', es_d: 'Para brindar', en_d: 'For a toast' },
+            ].map((d, i, all) => (
+              <RevealItem key={d.es} className={`bg-white rounded-2xl border border-amber-100 shadow-sm p-4 sm:p-5 text-center space-y-1.5 ${i === all.length - 1 ? 'col-span-2 sm:col-span-1' : ''}`}>
+                <div className="text-3xl sm:text-4xl" aria-hidden="true">{d.icon}</div>
+                <h4 className="font-bold text-slate-900">{language === 'en' ? d.en : d.es}</h4>
+                <p className="text-xs text-slate-500">{language === 'en' ? d.en_d : d.es_d}</p>
+              </RevealItem>
+            ))}
+          </RevealGroup>
+
+          <Reveal className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-slate-900 text-white">
+            <div className="flex items-start gap-3">
+              <Wine className="w-6 h-6 text-amber-300 shrink-0 mt-0.5" />
+              <p className="text-sm text-slate-200">
+                {language === 'en'
+                  ? 'Your dome also has a minibar with soft drinks, alcoholic drinks and snacks. All minibar items are charged separately.'
+                  : 'Tu domo además tiene frigobar con gaseosas, bebidas alcohólicas y snacks. Todo lo del frigobar es consumo aparte.'}
+              </p>
+            </div>
+            <a
+              href={whatsappLink(language === 'en'
+                ? 'Hello, I would like the prices of the drinks and liquor at Eco Glamping Chinauta.'
+                : 'Hola, quisiera conocer los precios de las bebidas y licores de Eco Glamping Chinauta.')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 inline-flex items-center justify-center px-5 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-sm font-bold"
+            >
+              {language === 'en' ? 'Ask for prices on WhatsApp' : 'Preguntar precios por WhatsApp'}
+            </a>
+          </Reveal>
         </div>
       </section>
 

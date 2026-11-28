@@ -13,7 +13,7 @@ export const SEED = {
       "price_per_night": 350000,
       "image_url": "/assets/images/dome_1_1791403584294.jpg",
       "status": "Disponible",
-      "features": "Jacuzzi privado de hidromasaje, Baño privado, 1 Cama King, Desayuno campesino incluido, Malla de descanso, Zona BBQ a gas, Parqueadero gratis, Fogata comunitaria (compartida con todo el glamping), Frigobar con gaseosas y bebidas alcohólicas + snacks (pago según consumo)",
+      "features": "Jacuzzi privado de hidromasaje, Baño privado, 1 Cama King, Desayuno campesino incluido, Malla de descanso, Zona BBQ a gas, Parqueadero gratis, Fogata comunitaria (compartida con todo el glamping), Frigobar con gaseosas y bebidas alcohólicas + snacks (consumo aparte)",
       "policies": "Se aceptan mascotas bien comportadas: $30.000 por mascota por estadía. Check-in: 3:00 PM. Check-out: 12:00 PM.",
       "images": "[\"/assets/images/dome_1_1791403584294.jpg\",\"/assets/images/dome_1_1791403455449.jpg\",\"/assets/images/dome_1_1791403422738.jpg\",\"/assets/images/dome_1_1790625768325.jpg\",\"/assets/images/huitaca_deck_jacuzzi_1790621224807.jpg\",\"/assets/images/huitaca_catamaran_mesh_1790621260604.jpg\",\"/assets/images/huitaca_entrance_steps_1790621247333.jpg\"]",
       "video_url": "/assets/videos/domo_1_user_video.mp4"
@@ -27,7 +27,7 @@ export const SEED = {
       "price_per_night": 400000,
       "image_url": "/assets/images/dome_2_1791404907620.jpg",
       "status": "Disponible",
-      "features": "1 Cama King + 1 Cama Pequeña, Jacuzzi privado de hidromasaje, Zona Barbacoa (BBQ), Malla flotante, Desayuno campesino incluido, Baño privado, Zona BBQ a gas, Parqueadero gratis, Fogata comunitaria (compartida con todo el glamping), Frigobar con gaseosas y bebidas alcohólicas + snacks (pago según consumo)",
+      "features": "1 Cama King + 1 Cama Pequeña, Jacuzzi privado de hidromasaje, Zona Barbacoa (BBQ), Malla flotante, Desayuno campesino incluido, Baño privado, Zona BBQ a gas, Parqueadero gratis, Fogata comunitaria (compartida con todo el glamping), Frigobar con gaseosas y bebidas alcohólicas + snacks (consumo aparte)",
       "policies": "Ambiente familiar. Prohibido fumar dentro del domo. Check-in: 3:00 PM.",
       "images": "[\"/assets/images/dome_2_1791404907620.jpg\",\"/assets/images/dome_2_1791404871963.jpg\",\"/assets/images/dome_2_1791404839607.jpg\",\"/assets/images/dome_2_1791404802997.jpg\",\"/assets/images/bochica_romantic_decor_1790618007934.jpg\",\"/assets/images/bochica_jacuzzi_deck_1790618019311.jpg\",\"/assets/images/bochica_sunset_view_1790617981274.jpg\"]",
       "video_url": null
@@ -41,7 +41,7 @@ export const SEED = {
       "price_per_night": 400000,
       "image_url": "/assets/images/chinauta_romantic_dome_night.jpg",
       "status": "Disponible",
-      "features": "Jacuzzi privado de hidromasaje, Baño privado, 1 Cama King, Zona Barbacoa (BBQ), Desayuno campesino incluido, Vista al bosque, Zona BBQ a gas, Parqueadero gratis, Fogata comunitaria (compartida con todo el glamping), Frigobar con gaseosas y bebidas alcohólicas + snacks (pago según consumo)",
+      "features": "Jacuzzi privado de hidromasaje, Baño privado, 1 Cama King, Zona Barbacoa (BBQ), Desayuno campesino incluido, Vista al bosque, Zona BBQ a gas, Parqueadero gratis, Fogata comunitaria (compartida con todo el glamping), Frigobar con gaseosas y bebidas alcohólicas + snacks (consumo aparte)",
       "policies": "Ideal para parejas en desconexión total. Check-in: 3:00 PM.",
       "images": "[\"/assets/images/chinauta_romantic_dome_night.jpg\",\"/assets/images/chinauta_deck_asoleadoras.jpg\",\"/assets/images/huitaca_deck_jacuzzi_1790621224807.jpg\",\"/assets/images/bochica_jacuzzi_deck_1790618019311.jpg\"]",
       "video_url": "/assets/videos/domo_3_user_video.mp4"
@@ -55,7 +55,7 @@ export const SEED = {
       "price_per_night": 420000,
       "image_url": "/assets/images/dome_4_1791404275513.jpg",
       "status": "Disponible",
-      "features": "Jacuzzi privado de hidromasaje, Baño privado, 1 Cama King, Desayuno campesino incluido, Vista panorámica, Zona BBQ a gas, Parqueadero gratis, Fogata comunitaria (compartida con todo el glamping), Frigobar con gaseosas y bebidas alcohólicas + snacks (pago según consumo)",
+      "features": "Jacuzzi privado de hidromasaje, Baño privado, 1 Cama King, Desayuno campesino incluido, Vista panorámica, Zona BBQ a gas, Parqueadero gratis, Fogata comunitaria (compartida con todo el glamping), Frigobar con gaseosas y bebidas alcohólicas + snacks (consumo aparte)",
       "policies": "Se aceptan mascotas bien comportadas: $30.000 por mascota por estadía. Check-in: 3:00 PM.",
       "images": "[\"/assets/images/dome_4_1791404275513.jpg\",\"/assets/images/dome_4_1791404266017.jpg\",\"/assets/images/dome_4_1791404251064.jpg\",\"/assets/images/dome_4_1791404236234.jpg\",\"/assets/images/dome_4_1791404217055.jpg\",\"/assets/images/chinauta_romantic_dome_night.jpg\"]",
       "video_url": null
@@ -69,7 +69,7 @@ export const SEED = {
       "price_per_night": 450000,
       "image_url": "/assets/images/dome_5_1791404612181.jpg",
       "status": "Disponible",
-      "features": "Jacuzzi privado de hidromasaje, Balcón privado, Baño privado, 1 Cama King, Desayuno campesino incluido, Zona BBQ a gas, Parqueadero gratis, Fogata comunitaria (compartida con todo el glamping), Frigobar con gaseosas y bebidas alcohólicas + snacks (pago según consumo)",
+      "features": "Jacuzzi privado de hidromasaje, Balcón privado, Baño privado, 1 Cama King, Desayuno campesino incluido, Zona BBQ a gas, Parqueadero gratis, Fogata comunitaria (compartida con todo el glamping), Frigobar con gaseosas y bebidas alcohólicas + snacks (consumo aparte)",
       "policies": "Prohibido fiestas o música a alto volumen. Check-in: 3:00 PM.",
       "images": "[\"/assets/images/dome_5_1791404612181.jpg\",\"/assets/images/dome_5_1791404605043.jpg\",\"/assets/images/dome_5_1791404596425.jpg\",\"/assets/images/chinauta_romantic_dome_night.jpg\",\"/assets/images/huitaca_catamaran_mesh_1790621260604.jpg\",\"/assets/images/bochica_romantic_decor_1790618007934.jpg\"]",
       "video_url": "/assets/videos/domo_5_user_video.mp4"
@@ -83,7 +83,7 @@ export const SEED = {
       "price_per_night": 450000,
       "image_url": "/assets/images/bochica_jacuzzi_deck_1790618019311.jpg",
       "status": "Disponible",
-      "features": "Jacuzzi privado de hidromasaje, Baño privado, 1 Cama King, Malla de descanso, Desayuno campesino incluido, Zona BBQ a gas, Parqueadero gratis, Fogata comunitaria (compartida con todo el glamping), Frigobar con gaseosas y bebidas alcohólicas + snacks (pago según consumo)",
+      "features": "Jacuzzi privado de hidromasaje, Baño privado, 1 Cama King, Malla de descanso, Desayuno campesino incluido, Zona BBQ a gas, Parqueadero gratis, Fogata comunitaria (compartida con todo el glamping), Frigobar con gaseosas y bebidas alcohólicas + snacks (consumo aparte)",
       "policies": "Experiencia exclusiva para adultos y familias. Check-in: 3:00 PM.",
       "images": "[\"/assets/images/bochica_jacuzzi_deck_1790618019311.jpg\",\"/assets/images/chinauta_romantic_dome_night.jpg\",\"/assets/images/chinauta_deck_asoleadoras.jpg\",\"/assets/images/huitaca_deck_jacuzzi_1790621224807.jpg\"]",
       "video_url": null
